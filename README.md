@@ -1,4 +1,4 @@
-# 🚛 Logicell
+# Logicell
 
 [![React Router](https://img.shields.io/badge/React_Router-v7-CA4245?logo=react-router)](https://reactrouter.com)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth-3ECF8E?logo=supabase)](https://supabase.com)
@@ -90,12 +90,3 @@ O **Logicell** é uma plataforma corporativa premium para gerenciamento de opera
    ```
 
 ---
-
-## 📋 Mapeamento de Dados e Negócio
-
-### As 29 Colunas Técnicas Processadas
-O utilitário remoto `ExcelParser` reconhece automaticamente as seguintes informações: 
-
-`Agência`, `Emissão`, `Código`, `Cliente`, `CNPJ Raiz`, `CNPJ Pagador`, `CT-e / CTRC`, `Status`, `Observação`, `Tipo Doc`, `Remetente`, `Origem`, `UF Origem`, `Destinatário`, `Destino`, `UF Destino`, `Produto`, `Peso`, `Tarifa`, `Total R$`, `NF`, `Placa`, `Matriz`, `Contrato`, `Chave de Acesso`, `Usuário Lançamento`, `Tipo CT-e`, `Proprietário` e `Motorista`.
-
-O sistema converte os dados brutos realizando tratativas proativas (como remover espaços da nomenclatura de agências) e tipagem rigorosa na interpretação utilizando **Zod**, assegurando estabilidade na criação das tuplas no banco de dados.
