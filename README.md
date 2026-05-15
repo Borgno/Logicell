@@ -22,7 +22,9 @@ O **Logicell** é uma plataforma corporativa premium para gerenciamento de opera
 - **⚡ Navegação Direta via Dashboard:** Integração inteligente onde o clique em métricas de status no dashboard fecha o modal e aplica automaticamente o filtro correspondente na tabela de operações, eliminando passos intermediários.
 - **👤 Padronização de Identidade (Nicknames):** Mapeamento centralizado e fixo de usuários corporativos, substituindo identificadores longos (e-mails) por apelidos padronizados em todo o ecossistema (Sidebar, Auditoria, Histórico de Importação).
 - **🛠️ Edição Inline Premium:** Edição interativa diretamente nas células da tabela. Validação local, formatação automática (`R$`, Numérico, Data), seleção suspensa para "Status" e salvamento assíncrono com feedback visual silencioso (sem recarregar a página).
-
+- **📋 Seleção de celulas e Extração:** 
+   - Sistema de seleção de celulas, seleção múltipla não-contígua (`Ctrl + Clique`) e seleção em massa (arrastar e soltar ou `Shift + Clique`).
+   - Sistema de cópia (`Ctrl+C`) que formata os dados selecionados mantendo a formatação de planilha.
 ---
 
 ## 🛠️ Tech Stack

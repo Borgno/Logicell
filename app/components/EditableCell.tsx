@@ -17,10 +17,11 @@ interface EditableCellProps {
     isNumeric?: boolean;
     isCurrency?: boolean;
   };
+  isSelected?: boolean;
   onSave: (valor: string) => void;
 }
 
-export function EditableCell({ id, campo, valor, coluna, onSave }: EditableCellProps) {
+export function EditableCell({ id, campo, valor, coluna, isSelected, onSave }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [tempValue, setTempValue] = useState(String(valor || ""));
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
@@ -90,8 +91,9 @@ export function EditableCell({ id, campo, valor, coluna, onSave }: EditableCellP
     <div 
       onDoubleClick={() => setIsEditing(true)}
       className={cn(
-        "px-4 py-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-100 relative h-full flex items-center group cursor-text min-h-[32px]",
+        "px-4 py-1.5 text-[11px] font-bold text-slate-800 dark:text-slate-100 relative h-full flex items-center group cursor-text min-h-[32px] transition-all",
         (coluna.isNumeric || coluna.isCurrency) && "justify-end text-right tabular-nums",
+        isSelected && "bg-indigo-500/10 dark:bg-indigo-500/20"
       )}
     >
       <span className={cn(
@@ -101,7 +103,10 @@ export function EditableCell({ id, campo, valor, coluna, onSave }: EditableCellP
         {campo === "dt_emissao_" ? formatarData(displayValue) : (coluna.isCurrency ? formatarMoeda(displayValue) : (coluna.isNumeric ? formatarNumero(displayValue) : displayValue || "-"))}
       </span>
       
-      <div className="absolute inset-0 border border-transparent group-hover:border-indigo-500/20 pointer-events-none" />
+      <div className={cn(
+        "absolute inset-0 border pointer-events-none transition-all",
+        isSelected ? "border-indigo-500 z-10" : "border-transparent group-hover:border-indigo-500/20"
+      )} />
     </div>
   );
 }

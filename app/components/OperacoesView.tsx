@@ -19,6 +19,60 @@ import { StatsView } from "./StatsView";
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
+// Sub-component to handle copy events within the Await scope
+function CopyHandler({ dados, selectedCells, showToast }: { dados: any[], selectedCells: Set<string>, showToast: any }) {
+  useEffect(() => {
+    const handleCopy = (e: KeyboardEvent) => {
+      // Check if we are in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        if (selectedCells.size === 0) return;
+        
+        // Map and sort selected cells
+        const cellData = Array.from(selectedCells).map(cid => {
+          const [rid, ckey] = cid.split(":");
+          const rIdNum = Number(rid);
+          const rowIdx = dados.findIndex(d => d.id === rIdNum);
+          const colIdx = COLUNAS_OPERACAO.findIndex(c => c.key === ckey);
+          return { rowIdx, colIdx, value: dados[rowIdx]?.[ckey] };
+        }).filter(c => c.rowIdx !== -1).sort((a, b) => a.rowIdx - b.rowIdx || a.colIdx - b.colIdx);
+
+        if (cellData.length === 0) return;
+
+        let copyText = "";
+        let lastRowIdx = cellData[0].rowIdx;
+
+        cellData.forEach((cell, index) => {
+          if (cell.rowIdx !== lastRowIdx) {
+            copyText += "\n";
+            lastRowIdx = cell.rowIdx;
+          } else if (index > 0) {
+            copyText += "\t";
+          }
+          
+          let val = cell.value;
+          // Apply basic formatting for copy
+          const col = COLUNAS_OPERACAO[cell.colIdx];
+          if (col.key === "dt_emissao_" && val) val = formatarData(val);
+          
+          copyText += val === null || val === undefined ? "" : String(val);
+        });
+
+        navigator.clipboard.writeText(copyText);
+        showToast("Copiado para o clipboard!", "success");
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleCopy);
+    return () => window.removeEventListener("keydown", handleCopy);
+  }, [dados, selectedCells]);
+
+  return null;
+}
+
 interface OperacoesViewProps {
   dadosPromise: any;
   agenciasPromise: any;
@@ -54,6 +108,10 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
   });
 
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [anchorCell, setAnchorCell] = useState<{ rowIdx: number, colIdx: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const [showPastaMenu, setShowPastaMenu] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -185,6 +243,45 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
       showAlert(MESSAGES.toasts.excelError);
     }
   };
+
+  // Logic for Cell Selection (Google Sheets Style)
+  const handleCellMouseDown = (rowId: number, colKey: string, rowIdx: number, colIdx: number, e: React.MouseEvent) => {
+    // If double click, let it edit (handled in EditableCell)
+    if (e.detail > 1) return;
+
+    const cellId = `${rowId}:${colKey}`;
+    const isMulti = e.ctrlKey || e.metaKey;
+    const isShift = e.shiftKey;
+
+    if (isShift && anchorCell) {
+      // Range selection with Shift
+      const newSelection = new Set(isMulti ? selectedCells : []);
+      const startRow = Math.min(anchorCell.rowIdx, rowIdx);
+      const endRow = Math.max(anchorCell.rowIdx, rowIdx);
+      const startCol = Math.min(anchorCell.colIdx, colIdx);
+      const endCol = Math.max(anchorCell.colIdx, colIdx);
+
+      // We need 'dados' here, so we'll do this calculation inside the Await block or pass it
+    } else if (isMulti) {
+      // Toggle individual cell
+      const novos = new Set(selectedCells);
+      if (novos.has(cellId)) novos.delete(cellId); else novos.add(cellId);
+      setSelectedCells(novos);
+      setAnchorCell({ rowIdx, colIdx });
+    } else {
+      // Single selection
+      setSelectedCells(new Set([cellId]));
+      setAnchorCell({ rowIdx, colIdx });
+      setIsDragging(true);
+    }
+  };
+
+  // Global mouseUp listener to stop dragging
+  useEffect(() => {
+    const handleGlobalMouseUp = () => setIsDragging(false);
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 space-y-4 animate-in fade-in duration-500">
@@ -377,6 +474,7 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
 
               return (
                 <>
+                  <CopyHandler dados={dados} selectedCells={selectedCells} showToast={showToast} />
                   <div className="flex-1 overflow-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse min-w-max">
                       <thead className="sticky top-0 z-20 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
@@ -392,23 +490,74 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                        {dados.map((row: any, idx: number) => (
-                          <tr key={row.id} className={cn("hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors", selecionados.has(row.id) && "bg-indigo-50/50 dark:bg-indigo-900/20")}>
-                            <td className="px-4 py-1.5 text-[10px] text-slate-400 font-mono text-center border-r border-slate-100 dark:border-slate-800/50">{(meta.page - 1) * meta.limit + idx + 1}</td>
-                            <td className="px-2 py-1.5 border-r border-slate-100 dark:border-slate-800/50 text-center"><input type="checkbox" checked={selecionados.has(row.id)} onChange={() => toggleSelecao(row.id)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer" /></td>
-                              {COLUNAS_OPERACAO.map(col => (
-                                <td key={col.key} className="p-0 border-r border-slate-50 dark:border-slate-800/50 last:border-0 relative">
-                                  <EditableCell
-                                    id={row.id}
-                                    campo={col.key}
-                                    valor={row[col.key]}
-                                    coluna={col}
-                                    onSave={(novoValor) => handleLocalUpdate(row.id, col.key, novoValor)}
-                                  />
-                                </td>
-                              ))}
-                          </tr>
-                        ))}
+                          {dados.map((row: any, idx: number) => (
+                            <tr key={row.id} className={cn("hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors", selecionados.has(row.id) && "bg-indigo-50/50 dark:hover:bg-indigo-900/20")}>
+                              <td className="px-4 py-1.5 text-[10px] text-slate-400 font-mono text-center border-r border-slate-100 dark:border-slate-800/50 select-none">{(meta.page - 1) * meta.limit + idx + 1}</td>
+                              <td className="px-2 py-1.5 border-r border-slate-100 dark:border-slate-800/50 text-center select-none"><input type="checkbox" checked={selecionados.has(row.id)} onChange={() => toggleSelecao(row.id)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer" /></td>
+                                {COLUNAS_OPERACAO.map((col, colIdx) => {
+                                  const cellId = `${row.id}:${col.key}`;
+                                  return (
+                                    <td 
+                                      key={col.key} 
+                                      className="p-0 border-r border-slate-50 dark:border-slate-800/50 last:border-0 relative select-none"
+                                      onMouseDown={(e) => {
+                                        const isMulti = e.ctrlKey || e.metaKey;
+                                        const isShift = e.shiftKey;
+                                        
+                                        if (isShift && anchorCell) {
+                                          const newSelection = new Set<string>(isMulti ? selectedCells : []);
+                                          const startRow = Math.min(anchorCell.rowIdx, idx);
+                                          const endRow = Math.max(anchorCell.rowIdx, idx);
+                                          const startCol = Math.min(anchorCell.colIdx, colIdx);
+                                          const endCol = Math.max(anchorCell.colIdx, colIdx);
+
+                                          for (let r = startRow; r <= endRow; r++) {
+                                            for (let c = startCol; c <= endCol; c++) {
+                                              newSelection.add(`${dados[r].id}:${COLUNAS_OPERACAO[c].key}`);
+                                            }
+                                          }
+                                          setSelectedCells(newSelection);
+                                        } else if (isMulti) {
+                                          const novos = new Set(selectedCells);
+                                          if (novos.has(cellId)) novos.delete(cellId); else novos.add(cellId);
+                                          setSelectedCells(novos);
+                                          setAnchorCell({ rowIdx: idx, colIdx });
+                                        } else {
+                                          setSelectedCells(new Set([cellId]));
+                                          setAnchorCell({ rowIdx: idx, colIdx });
+                                          setIsDragging(true);
+                                        }
+                                      }}
+                                      onMouseEnter={() => {
+                                        if (isDragging && anchorCell) {
+                                          const newSelection = new Set<string>();
+                                          const startRow = Math.min(anchorCell.rowIdx, idx);
+                                          const endRow = Math.max(anchorCell.rowIdx, idx);
+                                          const startCol = Math.min(anchorCell.colIdx, colIdx);
+                                          const endCol = Math.max(anchorCell.colIdx, colIdx);
+
+                                          for (let r = startRow; r <= endRow; r++) {
+                                            for (let c = startCol; c <= endCol; c++) {
+                                              newSelection.add(`${dados[r].id}:${COLUNAS_OPERACAO[c].key}`);
+                                            }
+                                          }
+                                          setSelectedCells(newSelection);
+                                        }
+                                      }}
+                                    >
+                                      <EditableCell
+                                        id={row.id}
+                                        campo={col.key}
+                                        valor={row[col.key]}
+                                        coluna={col}
+                                        isSelected={selectedCells.has(cellId)}
+                                        onSave={(novoValor) => handleLocalUpdate(row.id, col.key, novoValor)}
+                                      />
+                                    </td>
+                                  );
+                                })}
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
                   </div>
