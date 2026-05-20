@@ -1,7 +1,7 @@
 import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
 import { getSession } from "./session.server";
 
-export async function createSupabaseServerClient(request: Request) {
+export async function createSupabaseServerClient(request: Request, options?: { skipSessionSync?: boolean }) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 
@@ -34,7 +34,7 @@ export async function createSupabaseServerClient(request: Request) {
   const accessToken = session.get("access_token");
   const refreshToken = session.get("refresh_token");
 
-  if (accessToken) {
+  if (accessToken && !options?.skipSessionSync) {
     await supabase.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken || "",

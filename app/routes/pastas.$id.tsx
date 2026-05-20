@@ -4,7 +4,6 @@ import type { LoaderFunctionArgs } from "react-router";
 import { AlertTriangle } from "lucide-react";
 import { OperacaoService } from "~/services/operacao.server";
 import { PastaService } from "~/services/pasta.server";
-import { DashboardService } from "~/services/dashboard.server";
 import { requireUser } from "~/services/auth.server";
 import { OperacoesView } from "~/components/OperacoesView";
 
@@ -22,13 +21,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const resultadoPromise = OperacaoService.listarOperacoes({ ...searchParams, pastaId });
   const agenciasPromise = OperacaoService.buscarAgencias();
   const pastaPromise = PastaService.buscarPorId(pastaId);
-  const statsPromise = DashboardService.getDashboardMetrics(pastaId);
 
   return data({ 
     dadosPromise: resultadoPromise, 
     agenciasPromise, 
     pastaPromise,
-    statsPromise,
     pastaId 
   }, { headers: response.headers });
 }
@@ -64,7 +61,7 @@ export function ErrorBoundary() {
 }
 
 export default function FolderView() {
-  const { dadosPromise, agenciasPromise, pastaPromise, statsPromise, pastaId } = useLoaderData<typeof loader>();
+  const { dadosPromise, agenciasPromise, pastaPromise, pastaId } = useLoaderData<typeof loader>();
 
   return (
     <Suspense fallback={null}>
@@ -73,7 +70,6 @@ export default function FolderView() {
           <OperacoesView 
             dadosPromise={dadosPromise}
             agenciasPromise={agenciasPromise}
-            statsPromise={statsPromise}
             nomePasta={pasta?.nome || "Pasta"}
             pastaId={pastaId}
             showImport={false}

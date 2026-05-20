@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, useNavigation, useActionData, redirect } from "react-router";
 import type { ActionFunctionArgs } from "react-router";
 import { createSupabaseServerClient } from "~/services/supabase.server";
+import { sessionStorage } from "~/services/session.server";
 import { Truck, Lock, Mail, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -25,7 +26,6 @@ export async function action({ request }: ActionFunctionArgs) {
   // No nosso setup de supabase.server.ts isso é tratado nos loaders. No login, fazemos o redirect.
   
   // Persistência da sessão via Cookie do Remix/React Router
-  const { sessionStorage } = await import("~/services/session.server");
   const session = await sessionStorage.getSession(request.headers.get("Cookie"));
   
   session.set("access_token", data.session?.access_token);

@@ -6,5 +6,6 @@ export default [
   route("pastas/:id", "routes/pastas.$id.tsx"),
   route("api/operacoes", "routes/api.operacoes.ts"),
   route("api/auditoria", "routes/api.auditoria.tsx"),
+  route("api/stats", "routes/api.stats.ts"),
   route("login", "routes/login.tsx"),
 ] satisfies RouteConfig;
