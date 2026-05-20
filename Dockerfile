@@ -59,4 +59,4 @@ EXPOSE 3000
 
 # Run pending database migrations, then start the server
 # Note: We use || true or resolve to handle cases where the DB is already baselined
-CMD ["sh", "-c", "bunx prisma migrate resolve --applied 20240320000000_init || true && bunx prisma migrate deploy && bun run start"]
+CMD ["sh", "-c", "bunx prisma migrate resolve --applied 20260414192254_init_operacao || true && bunx prisma migrate deploy && bun run start"]
