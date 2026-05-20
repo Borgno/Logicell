@@ -16,7 +16,9 @@ import { useState, useEffect, createContext, useContext, useMemo, useCallback } 
 import { 
   Truck, Inbox, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, LayoutDashboard, Folder, X, Sun, Moon, CheckCircle2, AlertCircle, Info, AlertTriangle, LogOut, User as UserIcon
 } from "lucide-react";
-import { getUser } from "./services/auth.server";
+import { getUser, createSupabaseServerClient } from "./services/auth.server";
+import { PastaService } from "./services/pasta.server";
+import { OperacaoService } from "./services/operacao.server";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { MESSAGES } from "./constants/messages";
 import { useActionFeedback } from "./hooks/use-action-feedback";
@@ -52,8 +54,7 @@ export const useUI = () => {
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request);
 
-  const { PastaService } = await import("./services/pasta.server");
-  const { OperacaoService } = await import("./services/operacao.server");
+
   try {
     const [pastas, totalInbox] = await Promise.all([
       PastaService.listar().catch(() => []),
@@ -66,7 +67,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { getUser, createSupabaseServerClient } = await import("./services/auth.server");
   const { supabase } = await createSupabaseServerClient(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -279,12 +279,12 @@ export default function App() {
           <div>
             <p className={`${isCollapsed ? 'hidden' : 'px-3'} text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3`}>Principal</p>
             <div className="space-y-0.5">
-              <NavLink to="/" prefetch="intent" end className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+              <NavLink to="/" prefetch="none" end className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 <LayoutDashboard size={18} className="shrink-0" />
                 {!isCollapsed && <span>Painel Geral</span>}
               </NavLink>
 
-              <NavLink to="/caixa-de-entrada" prefetch="intent" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+              <NavLink to="/caixa-de-entrada" prefetch="none" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 {({ isActive: linkActive }) => (
                   <>
                     <div className="flex items-center gap-2.5">
@@ -320,7 +320,7 @@ export default function App() {
                       <input autoFocus value={editingValue} onChange={e => setEditingValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && submitRename(p.id)} onBlur={() => setEditingFolderId(null)} className="w-full bg-white dark:bg-slate-800 border-2 border-blue-500 rounded-lg px-2 py-1 text-xs font-bold outline-none" />
                     </div>
                   ) : (
-                    <NavLink to={`/pastas/${p.id}`} prefetch="intent" className={({ isActive }) => `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                    <NavLink to={`/pastas/${p.id}`} prefetch="none" className={({ isActive }) => `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                       {({ isActive: linkActive }) => (
                         <>
                           <div className="flex items-center gap-2.5 overflow-hidden">

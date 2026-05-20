@@ -15,14 +15,17 @@ export class OperacaoService {
   private static agenciasCacheTime = 0;
   private static inboxCountCache: number | null = null;
   private static inboxCountCacheTime = 0;
+  private static countCache = new Map<string, { count: number; timestamp: number }>();
   private static readonly CACHE_TTL = 1000 * 60 * 5; // 5 minutos
   private static readonly SHORT_TTL = 1000 * 30;    // 30 segundos
+  private static readonly COUNT_CACHE_TTL = 1000 * 30; // 30 segundos
 
   private static invalidarCache() {
     this.agenciasCache = null;
     this.agenciasCacheTime = 0;
     this.inboxCountCache = null;
     this.inboxCountCacheTime = 0;
+    this.countCache.clear();
     PastaService.invalidarCache();
   }
 
@@ -116,11 +119,20 @@ export class OperacaoService {
       vl_tarifa: item.vl_tarifa ? Number(item.vl_tarifa) : 0
     }));
 
-    const totalRes: any = await prisma.$queryRawUnsafe(`
-      SELECT COUNT(*) as count FROM "Operacao" o ${whereClause.sql}
-    `, ...whereClause.params);
-
-    const total = Number(totalRes[0].count);
+    // Cache de contagem para evitar queries de COUNT(*) redundantes e consecutivas
+    const cacheKey = JSON.stringify({ sql: whereClause.sql, params: whereClause.params });
+    const cachedEntry = this.countCache.get(cacheKey);
+    let total: number;
+    
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < this.COUNT_CACHE_TTL) {
+      total = cachedEntry.count;
+    } else {
+      const totalRes: any = await prisma.$queryRawUnsafe(`
+        SELECT COUNT(*) as count FROM "Operacao" o ${whereClause.sql}
+      `, ...whereClause.params);
+      total = Number(totalRes[0].count);
+      this.countCache.set(cacheKey, { count: total, timestamp: Date.now() });
+    }
     
     return { 
       data: sanitizedData, 

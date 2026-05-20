@@ -76,13 +76,12 @@ function CopyHandler({ dados, selectedCells, showToast }: { dados: any[], select
 interface OperacoesViewProps {
   dadosPromise: any;
   agenciasPromise: any;
-  statsPromise?: any;
   nomePasta: string;
   pastaId?: number | null;
   showImport?: boolean;
 }
 
-export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nomePasta, pastaId = null, showImport = true }: OperacoesViewProps) {
+export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaId = null, showImport = true }: OperacoesViewProps) {
   const rootData = useRouteLoaderData("root") as any;
   const pastas = rootData?.pastas || [];
   
@@ -90,7 +89,16 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
   const navigate = useNavigate();
   const location = useLocation();
   const fetcher = useFetcher();
+  const statsFetcher = useFetcher();
   const { showToast, confirm, alert: showAlert } = useUI();
+
+  const handleOpenStats = () => {
+    setShowStatsModal(true);
+    const pId = pastaId === null ? "null" : pastaId;
+    if (statsFetcher.state === "idle" && !statsFetcher.data) {
+      statsFetcher.load(`/api/stats?pastaId=${pId}`);
+    }
+  };
 
   const [filtros, setFilters] = useState({
     search: searchParams.get("search") || "",
@@ -132,6 +140,25 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
     const timer = setTimeout(() => {
       const p = new URLSearchParams(searchParams);
       const queryNormalizada = filtros.search.trim();
+
+      const hasActiveFilters = 
+        queryNormalizada || 
+        filtros.agency || 
+        filtros.product || 
+        filtros.plate || 
+        filtros.payer || 
+        filtros.sender || 
+        filtros.recipient || 
+        filtros.status || 
+        filtros.minPeso || 
+        filtros.maxPeso || 
+        filtros.minTotal || 
+        filtros.maxTotal;
+
+      // Evita disparar navegação dupla se não há nenhum filtro ativo e a URL está limpa
+      if (!hasActiveFilters && !searchParams.has("page") && !searchParams.has("limit")) {
+        return;
+      }
 
       const currentKeys = Array.from(p.keys());
       currentKeys.forEach(k => {
@@ -293,7 +320,7 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
 
           {!showImport && (
             <button 
-              onClick={() => setShowStatsModal(true)}
+              onClick={handleOpenStats}
               className="flex items-center gap-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl shrink-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors group"
             >
               {carregando ? <Loader2 size={16} className="animate-spin text-indigo-500" /> : <LayoutDashboard size={16} className="text-indigo-500 group-hover:scale-110 transition-transform" />}
@@ -303,7 +330,7 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
 
           {showImport && (
             <button 
-              onClick={() => setShowStatsModal(true)}
+              onClick={handleOpenStats}
               className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 transition-all group shrink-0"
             >
               {carregando ? <Loader2 size={16} className="animate-spin text-indigo-500" /> : <LayoutDashboard size={16} className="text-indigo-500" />}
@@ -604,25 +631,30 @@ export function OperacoesView({ dadosPromise, agenciasPromise, statsPromise, nom
         />
       )}
 
-      {showStatsModal && statsPromise && (
+      {showStatsModal && (
         <Suspense fallback={null}>
-          <Await resolve={statsPromise}>
-            {(stats: any) => (
-              <StatsView 
-                stats={stats} 
-                nomePasta={nomePasta} 
-                onClose={() => setShowStatsModal(false)} 
-                onOpenHistory={() => {
-                  setShowStatsModal(false);
-                  setAuditoriaModalId(-1);
-                }}
-                onApplyFilter={(status) => {
-                  setFilters(p => ({ ...p, status }));
-                  setShowStatsModal(false);
-                }}
-              />
-            )}
-          </Await>
+          {statsFetcher.state === "loading" && !statsFetcher.data ? (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 animate-in zoom-in-95 duration-300">
+                <Loader2 size={40} className="animate-spin text-indigo-500" />
+                <p className="text-xs font-black text-slate-500 uppercase tracking-widest animate-pulse">Calculando Analytics...</p>
+              </div>
+            </div>
+          ) : statsFetcher.data ? (
+            <StatsView 
+              stats={statsFetcher.data} 
+              nomePasta={nomePasta} 
+              onClose={() => setShowStatsModal(false)} 
+              onOpenHistory={() => {
+                setShowStatsModal(false);
+                setAuditoriaModalId(-1);
+              }}
+              onApplyFilter={(status) => {
+                setFilters(p => ({ ...p, status }));
+                setShowStatsModal(false);
+              }}
+            />
+          ) : null}
         </Suspense>
       )}
     </div>
