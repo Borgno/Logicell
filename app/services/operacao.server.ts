@@ -89,6 +89,59 @@ export class OperacaoService {
   }
 
   static async listarOperacoes(filtros: any) {
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.warn("VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não definidos. Usando fallback local.");
+      return this.listarOperacoesLocal(filtros);
+    }
+
+    const { page = 1, limit = 100, pastaId } = filtros;
+    const p = Math.max(1, Math.floor(Number(page) || 1));
+    const l = Math.max(1, Math.floor(Number(limit) || 100));
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/logicell-fn`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "apikey": SUPABASE_ANON_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "list",
+          pastaId: (pastaId === "null" || !pastaId) ? null : Number(pastaId),
+          filtros: {
+            ...filtros,
+            page: p,
+            limit: l,
+          }
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Edge Function retornou código HTTP ${res.status}`);
+      }
+
+      const result = await res.json();
+      return {
+        data: result.data.map((item: any) => ({
+          ...item,
+          vl_total: item.vl_total ? Number(item.vl_total) : null,
+          vl_peso: item.vl_peso ? Number(item.vl_peso) : 0,
+          vl_tarifa: item.vl_tarifa ? Number(item.vl_tarifa) : 0
+        })),
+        meta: result.meta,
+        agencias: result.agencias
+      };
+    } catch (err) {
+      console.error("Falha ao buscar operações da Edge Function, usando fallback do banco local:", err);
+      return this.listarOperacoesLocal(filtros);
+    }
+  }
+
+  static async listarOperacoesLocal(filtros: any) {
     const { page = 1, limit = 100, search, pastaId } = filtros;
     const p = Math.max(1, Math.floor(Number(page) || 1));
     const l = Math.max(1, Math.floor(Number(limit) || 100));
