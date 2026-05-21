@@ -20,55 +20,70 @@ import { StatsView } from "./StatsView";
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
 // Sub-component to handle copy events within the Await scope
-function CopyHandler({ dados, selectedCells, showToast }: { dados: any[], selectedCells: Set<string>, showToast: any }) {
+function CopyHandler({ dados, selectedCells, selecionados, showToast }: { dados: any[], selectedCells: Set<string>, selecionados: Set<number>, showToast: any }) {
   useEffect(() => {
     const handleCopy = (e: KeyboardEvent) => {
       // Check if we are in an input/textarea
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        if (selectedCells.size === 0) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+        if (selectedCells.size === 0 && selecionados.size === 0) return;
         
-        // Map and sort selected cells
-        const cellData = Array.from(selectedCells).map(cid => {
-          const [rid, ckey] = cid.split(":");
-          const rIdNum = Number(rid);
-          const rowIdx = dados.findIndex(d => d.id === rIdNum);
-          const colIdx = COLUNAS_OPERACAO.findIndex(c => c.key === ckey);
-          return { rowIdx, colIdx, value: dados[rowIdx]?.[ckey] };
-        }).filter(c => c.rowIdx !== -1).sort((a, b) => a.rowIdx - b.rowIdx || a.colIdx - b.colIdx);
-
-        if (cellData.length === 0) return;
-
         let copyText = "";
-        let lastRowIdx = cellData[0].rowIdx;
 
-        cellData.forEach((cell, index) => {
-          if (cell.rowIdx !== lastRowIdx) {
-            copyText += "\n";
-            lastRowIdx = cell.rowIdx;
-          } else if (index > 0) {
-            copyText += "\t";
-          }
-          
-          let val = cell.value;
-          // Apply basic formatting for copy
-          const col = COLUNAS_OPERACAO[cell.colIdx];
-          if (col.key === "dt_emissao_" && val) val = formatarData(val);
-          
-          copyText += val === null || val === undefined ? "" : String(val);
-        });
+        if (selecionados.size > 0) {
+          // Prioritize copying full rows that are selected via checkboxes
+          const rowsToCopy = dados.filter(d => selecionados.has(d.id));
+          copyText = rowsToCopy.map(row => {
+            return COLUNAS_OPERACAO.map(col => {
+              let val = row[col.key];
+              if (col.key === "dt_emissao_" && val) val = formatarData(val);
+              return val === null || val === undefined ? "" : String(val);
+            }).join("\t");
+          }).join("\n");
+        } else {
+          // Map and sort selected cells
+          const cellData = Array.from(selectedCells).map(cid => {
+            const [rid, ckey] = cid.split(":");
+            const rIdNum = Number(rid);
+            const rowIdx = dados.findIndex(d => d.id === rIdNum);
+            const colIdx = COLUNAS_OPERACAO.findIndex(c => c.key === ckey);
+            return { rowIdx, colIdx, value: dados[rowIdx]?.[ckey] };
+          }).filter(c => c.rowIdx !== -1).sort((a, b) => a.rowIdx - b.rowIdx || a.colIdx - b.colIdx);
 
-        navigator.clipboard.writeText(copyText);
-        showToast("Copiado para o clipboard!", "success");
-        e.preventDefault();
+          if (cellData.length === 0) return;
+
+          let lastRowIdx = cellData[0].rowIdx;
+
+          cellData.forEach((cell, index) => {
+            if (cell.rowIdx !== lastRowIdx) {
+              copyText += "\n";
+              lastRowIdx = cell.rowIdx;
+            } else if (index > 0) {
+              copyText += "\t";
+            }
+            
+            let val = cell.value;
+            // Apply basic formatting for copy
+            const col = COLUNAS_OPERACAO[cell.colIdx];
+            if (col.key === "dt_emissao_" && val) val = formatarData(val);
+            
+            copyText += val === null || val === undefined ? "" : String(val);
+          });
+        }
+
+        if (copyText) {
+          navigator.clipboard.writeText(copyText);
+          showToast("Copiado para o clipboard!", "success");
+          e.preventDefault();
+        }
       }
     };
 
     window.addEventListener("keydown", handleCopy);
     return () => window.removeEventListener("keydown", handleCopy);
-  }, [dados, selectedCells]);
+  }, [dados, selectedCells, selecionados]);
 
   return null;
 }
@@ -501,7 +516,7 @@ export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaI
 
               return (
                 <>
-                  <CopyHandler dados={dados} selectedCells={selectedCells} showToast={showToast} />
+                  <CopyHandler dados={dados} selectedCells={selectedCells} selecionados={selecionados} showToast={showToast} />
                   <div className="flex-1 overflow-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse min-w-max">
                       <thead className="sticky top-0 z-20 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">

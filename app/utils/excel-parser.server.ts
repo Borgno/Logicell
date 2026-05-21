@@ -51,8 +51,8 @@ export class ExcelParser {
       };
 
       const dtCrua = get(["dt_emissao_", "DATA EMISSÃO", "EMISSÃO", "EMISSAO"]);
-      // Respeitando o comportamento original exato de parse de data
-      const dt_emissao_ = dtCrua ? (dtCrua instanceof Date ? dtCrua : new Date(dtCrua as any)) : null;
+      // Respeitando o comportamento original de parse de data, centralizado no DateParser
+      const dt_emissao_ = DateParser.parseDataBrasileiraSegura(dtCrua);
       
       if (!dt_emissao_ || isNaN(dt_emissao_.getTime())) {
         throw new Error(`Data de Emissão inválida ou ausente na linha ${rawData.indexOf(row) + 2}. Certifique-se de que a coluna "Data Emissão" está preenchida corretamente.`);

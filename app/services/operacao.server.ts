@@ -40,14 +40,13 @@ export class OperacaoService {
     const parsedData = ExcelParser.analisarBuffer(buffer, importacao.id);
     const spreadsheetOps = parsedData.operacoes;
 
-    // Gerador de assinatura única compatível com a constraint @@unique do DB
+    // Gerador de assinatura única
     const getSig = (op: any) => {
       const ag = String(op.nm_agencia || "").trim().toUpperCase();
       const ctrc = String(op.nr_ctrc || "").trim();
       const nf = String(op.nr_nf || "").trim();
       const vl = op.vl_total ? Number(op.vl_total).toFixed(2) : "0.00";
-      const dt = op.dt_emissao_ instanceof Date ? op.dt_emissao_.getTime() : 0;
-      return `${ag}|${ctrc}|${nf}|${vl}|${dt}`;
+      return `${ag}|${ctrc}|${nf}|${vl}`;
     };
 
     // 1. Assinaturas da Planilha Nova

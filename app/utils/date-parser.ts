@@ -12,9 +12,10 @@ export class DateParser {
   static parseDataBrasileiraSegura(valor: string | Date | null | undefined): Date | null {
     if (!valor) return null;
     
-    // Se já for um objeto Date, validamos sua integridade e retornamos
+    // Se já for um objeto Date, validamos sua integridade e normalizamos para UTC meia-noite
     if (valor instanceof Date) {
-      return isNaN(valor.getTime()) ? null : valor;
+      if (isNaN(valor.getTime())) return null;
+      return new Date(Date.UTC(valor.getUTCFullYear(), valor.getUTCMonth(), valor.getUTCDate()));
     }
     
     if (typeof valor !== 'string') return null;
@@ -34,14 +35,15 @@ export class DateParser {
       // Trata anos com 2 dígitos (ex: "26" -> "2026")
       if (ano < 100) ano += 2000; 
       
-      const d = new Date(ano, mes, dia);
-      if (!isNaN(d.getTime())) dataFinal = d;
+      dataFinal = new Date(Date.UTC(ano, mes, dia));
     }
 
     // Fallback de segurança para formato ISO ou Americano se o BR falhar
     if (!dataFinal) {
       const fallback = new Date(str);
-      if (!isNaN(fallback.getTime())) dataFinal = fallback;
+      if (!isNaN(fallback.getTime())) {
+        dataFinal = new Date(Date.UTC(fallback.getUTCFullYear(), fallback.getUTCMonth(), fallback.getUTCDate()));
+      }
     }
 
     return dataFinal;
