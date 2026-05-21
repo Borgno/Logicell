@@ -1,4 +1,4 @@
-import { prisma } from "./db.server";
+import prisma from "~/lib/prisma.server";
 
 export class PastaService {
   private static cache: any[] | null = null;

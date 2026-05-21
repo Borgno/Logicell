@@ -1,4 +1,4 @@
-import { prisma } from "./db.server";
+import prisma from "~/lib/prisma.server";
 
 export class DashboardService {
   private static cache = new Map<string, { data: any, time: number }>();

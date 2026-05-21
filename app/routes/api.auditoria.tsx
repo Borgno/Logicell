@@ -1,7 +1,7 @@
 import { data } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { requireUser } from "~/services/auth.server";
-import { prisma } from "~/services/db.server";
+import prisma from "~/lib/prisma.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { response } = await requireUser(request);

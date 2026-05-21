@@ -63,6 +63,8 @@ model Operacao {
   @@index([nr_chave_acesso])
   @@index([nm_pessoa_matriz])
   @@index([status])
+  @@index([pastaId, createdAt(sort: Desc)])
+  @@index([nm_agencia, status])
 }
 
 model Importacao {

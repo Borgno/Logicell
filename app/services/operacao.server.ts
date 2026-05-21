@@ -1,4 +1,4 @@
-import { prisma } from "./db.server";
+import prisma from "~/lib/prisma.server";
 import crypto from "crypto";
 import { PastaService } from "./pasta.server";
 import { ExcelParser } from "~/utils/excel-parser.server";
