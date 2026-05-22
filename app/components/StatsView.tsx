@@ -27,33 +27,15 @@ export function StatsView({ stats, onClose, onOpenHistory, onApplyFilter, nomePa
 
   const textColor = isDark ? '#94a3b8' : '#64748b';
 
-  const statusColors: Record<string, string> = {
-    'PENDENTE': 'text-amber-600 border-amber-500/30 bg-amber-500/10',
-    'DIVERGENTE': 'text-rose-600 border-rose-500/30 bg-rose-500/10',
-    'ILEGIVEL': 'text-indigo-600 border-indigo-500/30 bg-indigo-500/10',
-    'ANEXADO': 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10',
-    'POSTO': 'text-blue-600 border-blue-500/30 bg-blue-500/10',
-    'LIBERADA': 'text-cyan-600 border-cyan-500/30 bg-cyan-500/10',
-    'MDF EM ABERTO': 'text-orange-600 border-orange-500/30 bg-orange-500/10',
-    'MDF CANCELADO': 'text-slate-500 border-slate-500/30 bg-slate-500/10',
-    'FILTRADA': 'text-violet-600 border-violet-500/30 bg-violet-500/10',
-  };
-
-  const getStatusStyle = (status: string, index: number) => {
-    const s = (status || "").trim().toUpperCase();
-    if (statusColors[s]) return statusColors[s];
-    const fallbackColors = [
-      'text-fuchsia-600 border-fuchsia-500/30 bg-fuchsia-500/10',
-      'text-teal-600 border-teal-500/30 bg-teal-500/10',
-      'text-lime-600 border-lime-500/30 bg-lime-500/10',
-      'text-sky-600 border-sky-500/30 bg-sky-500/10'
-    ];
-    return fallbackColors[index % fallbackColors.length];
-  };
-
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-400 overflow-hidden flex flex-col relative text-left">
+    <div 
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-slate-900 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-400 overflow-hidden flex flex-col relative text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* HEADER */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
@@ -88,8 +70,6 @@ export function StatsView({ stats, onClose, onOpenHistory, onApplyFilter, nomePa
           <StatusGrid 
             statusMap={stats.totais.statusMap} 
             onStatusClick={onApplyFilter} 
-            statusColors={statusColors} 
-            getStatusStyle={getStatusStyle} 
           />
 
           <FinanceSummary totais={stats.totais} />

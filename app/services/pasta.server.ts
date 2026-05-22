@@ -28,6 +28,12 @@ export class PastaService {
   }
 
   static async buscarPorId(id: number) {
+    // Tenta usar o cache que já foi populado pelo root loader para evitar ida ao banco
+    if (this.cache && (Date.now() - this.cacheTime < this.TTL)) {
+      const encontrada = this.cache.find(p => p.id === id);
+      if (encontrada) return encontrada;
+    }
+
     return prisma.pasta.findUnique({
       where: { id }
     });

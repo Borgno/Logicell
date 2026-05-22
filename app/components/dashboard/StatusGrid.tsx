@@ -1,13 +1,13 @@
 import { History } from "lucide-react";
 
+import { getStatusStyle } from "~/constants/operacoes";
+
 interface StatusGridProps {
   statusMap: Record<string, number>;
   onStatusClick: (status: string) => void;
-  statusColors: Record<string, string>;
-  getStatusStyle: (status: string, index: number) => string;
 }
 
-export function StatusGrid({ statusMap, onStatusClick, statusColors, getStatusStyle }: StatusGridProps) {
+export function StatusGrid({ statusMap, onStatusClick }: StatusGridProps) {
   const statusPrioritarios = ['PENDENTE', 'DIVERGENTE'];
   const todosStatus = Object.keys(statusMap).sort((a, b) => {
     if (statusPrioritarios.includes(a) && !statusPrioritarios.includes(b)) return -1;

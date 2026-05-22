@@ -110,8 +110,14 @@ export function AuditoriaModal({ operacaoId, pastaId, title = "Histórico de Edi
   const isLoading = historyFetcher.state !== "idle";
 
   return (
-    <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] overflow-hidden">
+    <div 
+      className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* HEADER */}
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">

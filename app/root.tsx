@@ -177,8 +177,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
 
             {modal?.isOpen && (
-              <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+              <div 
+                className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={() => setModal(null)}
+              >
+                <div 
+                  className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className={`w-16 h-16 rounded-3xl mb-6 flex items-center justify-center ${
                     modal.variant === 'danger' || modal.variant === 'error' ? 'bg-rose-100 text-rose-600' : 
                     modal.variant === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'

@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams, useNavigate, useLocation, Await, useFetcher, useRouteLoaderData } from "react-router";
 import * as XLSX from "xlsx";
 import { 
@@ -107,11 +107,15 @@ export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaI
   const statsFetcher = useFetcher();
   const { showToast, confirm, alert: showAlert } = useUI();
 
+  const lastLoadedPastaId = useRef<string | number | null>(null);
+
   const handleOpenStats = () => {
     setShowStatsModal(true);
     const pId = pastaId === null ? "null" : pastaId;
-    if (statsFetcher.state === "idle" && !statsFetcher.data) {
+    
+    if (statsFetcher.state === "idle" && (!statsFetcher.data || lastLoadedPastaId.current !== pId)) {
       statsFetcher.load(`/api/stats?pastaId=${pId}`);
+      lastLoadedPastaId.current = pId;
     }
   };
 
@@ -145,10 +149,25 @@ export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaI
   // Sincronização modular de notificações e alertas
   useActionFeedback(fetcher, { showToast, showAlert, excludeIntents: ["update"] });
 
-  // Reset de seleção ao mudar de pasta (id)
+  // Reset de seleção e sincronização visual dos filtros ao mudar de pasta
   useEffect(() => {
     setSelecionados(new Set());
-  }, [pastaId]);
+    setSelectedCells(new Set());
+    setFilters({
+      search: searchParams.get("search") || "",
+      agency: searchParams.get("nm_agencia") || "",
+      product: searchParams.get("nm_produto") || "",
+      plate: searchParams.get("ds_placa") || "",
+      payer: searchParams.get("nm_pessoa_pagador") || "",
+      sender: searchParams.get("nm_pessoa_remetente") || "",
+      recipient: searchParams.get("nm_pessoa_destinatario") || "",
+      status: searchParams.get("status") || "",
+      minPeso: searchParams.get("min_peso") || "",
+      maxPeso: searchParams.get("max_peso") || "",
+      minTotal: searchParams.get("min_total") || "",
+      maxTotal: searchParams.get("max_total") || ""
+    });
+  }, [pastaId, location.pathname]);
 
   // Efeito de busca com debounce
   useEffect(() => {
@@ -533,7 +552,7 @@ export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaI
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                           {dados.map((row: any, idx: number) => (
-                            <tr key={row.id} className={cn("hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors", selecionados.has(row.id) && "bg-indigo-50/50 dark:hover:bg-indigo-900/20")}>
+                            <tr key={row.id} className={cn("hover:bg-indigo-500/5 dark:hover:bg-indigo-500/10 transition-colors", selecionados.has(row.id) && "bg-indigo-500/10 dark:bg-indigo-500/20")}>
                               <td className="px-4 py-1.5 text-[10px] text-slate-400 font-mono text-center border-r border-slate-100 dark:border-slate-800/50 select-none">{(meta.page - 1) * meta.limit + idx + 1}</td>
                               <td className="px-2 py-1.5 border-r border-slate-100 dark:border-slate-800/50 text-center select-none"><input type="checkbox" checked={selecionados.has(row.id)} onChange={() => toggleSelecao(row.id)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 cursor-pointer" /></td>
                                 {COLUNAS_OPERACAO.map((col, colIdx) => {
@@ -649,8 +668,14 @@ export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaI
       {showStatsModal && (
         <Suspense fallback={null}>
           {statsFetcher.state === "loading" && !statsFetcher.data ? (
-            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 animate-in zoom-in-95 duration-300">
+            <div 
+              className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
+              onClick={() => setShowStatsModal(false)}
+            >
+              <div 
+                className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 animate-in zoom-in-95 duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Loader2 size={40} className="animate-spin text-indigo-500" />
                 <p className="text-xs font-black text-slate-500 uppercase tracking-widest animate-pulse">Calculando Analytics...</p>
               </div>
