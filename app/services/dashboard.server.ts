@@ -20,48 +20,52 @@ export class DashboardService {
       where.pastaId = pastaId;
     }
 
-    // OTIMIZAÇÃO: Busca contagens, faturamento, volumes e breakdowns por pasta/status em uma única query
-    // e evita buscar log de importações desnecessariamente para sub-pastas.
-    const [allCounts, porAgencia, porProduto, topOrigens, topDestinos, todasPastas, ultimasImportacoes] = await Promise.all([
-      prisma.operacao.groupBy({
-        by: ['status', 'pastaId'],
-        _count: { id: true },
-        _sum: { vl_total: true, vl_peso: true },
-        where
-      }),
-      prisma.operacao.groupBy({ 
-        by: ["nm_agencia"], 
-        _sum: { vl_total: true }, 
-        orderBy: { _sum: { vl_total: "desc" } }, 
-        take: 15,
-        where
-      }),
-      prisma.operacao.groupBy({ 
-        by: ["nm_produto"], 
-        _count: { id: true }, 
-        orderBy: { _count: { id: "desc" } }, 
-        take: 15,
-        where
-      }),
-      prisma.operacao.groupBy({ 
-        by: ["nm_cidade_origem"], 
-        _count: { id: true }, 
-        orderBy: { _count: { id: "desc" } }, 
-        take: 10,
-        where
-      }),
-      prisma.operacao.groupBy({ 
-        by: ["nm_cidade_destino"], 
-        _count: { id: true }, 
-        orderBy: { _count: { id: "desc" } }, 
-        take: 10,
-        where
-      }),
-      prisma.pasta.findMany({ select: { id: true, nome: true } }),
-      pastaId === undefined 
-        ? prisma.importacao.findMany({ orderBy: { createdAt: "desc" }, take: 50 })
-        : Promise.resolve([])
-    ]);
+    // OTIMIZAÇÃO: Resolvido o EMAXCONNSESSION fazendo as buscas de forma sequencial,
+    // para não esgotar o pool de conexões (pool_size 15) do banco com requisições simultâneas.
+    const allCounts = await prisma.operacao.groupBy({
+      by: ['status', 'pastaId'],
+      _count: { id: true },
+      _sum: { vl_total: true, vl_peso: true },
+      where
+    });
+
+    const porAgencia = await prisma.operacao.groupBy({ 
+      by: ["nm_agencia"], 
+      _sum: { vl_total: true }, 
+      orderBy: { _sum: { vl_total: "desc" } }, 
+      take: 15,
+      where
+    });
+
+    const porProduto = await prisma.operacao.groupBy({ 
+      by: ["nm_produto"], 
+      _count: { id: true }, 
+      orderBy: { _count: { id: "desc" } }, 
+      take: 15,
+      where
+    });
+
+    const topOrigens = await prisma.operacao.groupBy({ 
+      by: ["nm_cidade_origem"], 
+      _count: { id: true }, 
+      orderBy: { _count: { id: "desc" } }, 
+      take: 10,
+      where
+    });
+
+    const topDestinos = await prisma.operacao.groupBy({ 
+      by: ["nm_cidade_destino"], 
+      _count: { id: true }, 
+      orderBy: { _count: { id: "desc" } }, 
+      take: 10,
+      where
+    });
+
+    const todasPastas = await prisma.pasta.findMany({ select: { id: true, nome: true } });
+
+    const ultimasImportacoes = pastaId === undefined 
+      ? await prisma.importacao.findMany({ orderBy: { createdAt: "desc" }, take: 50 })
+      : [];
 
     let totalVal = 0;
     let totalPeso = 0;

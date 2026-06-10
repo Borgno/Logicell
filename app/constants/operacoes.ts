@@ -5,7 +5,7 @@
 export const COLUNAS_OPERACAO = [
   { key: 'nm_agencia', label: 'Agência', width: '180px' },
   { key: 'dt_emissao_', label: 'Emissão', width: '120px' },
-  { key: 'cd_pessoa_pagador', label: 'Código', width: '120px' },
+  { key: 'nm_proprietario_posse_cavalo', label: 'Proprietário', width: '200px' },
   { key: 'nm_pessoa_pagador', label: 'Cliente', width: '250px' },
   { key: 'nr_cpf_cnpj_raiz', label: 'CNPJ Raiz', width: '140px' },
   { key: 'nr_cpf_cnpj_pagador', label: 'CNPJ Pagador', width: '180px' },
@@ -30,7 +30,7 @@ export const COLUNAS_OPERACAO = [
   { key: 'nr_chave_acesso', label: 'Chave Acesso', width: '380px' },
   { key: 'nm_pessoa_usuario_lancamento', label: 'Usuário', width: '180px' },
   { key: 'id_tipo_ctrc', label: 'Tipo CTe', width: '120px' },
-  { key: 'nm_proprietario_posse_cavalo', label: 'Proprietário', width: '200px' },
+  { key: 'cd_pessoa_pagador', label: 'Código', width: '120px' },
   { key: 'nm_motorista', label: 'Motorista', width: '250px' },
 ];
 
@@ -38,7 +38,8 @@ export const STATUS_OPERACAO = [
   "PENDENTE", "ANEXADO", "DIVERGENTE", "ILEGIVEL", "POSTO", 
   "MDF EM ABERTO", "COMPLEMENTAR", "1° PERNA", "SINISTRO", 
   "DESACORDO", "CARGA RECUSADA", "AGUARDANDO LIBERAÇÃO DO CLIENTE",
-  "NÃO COBRAR / FATURAR", "COBRANÇA AUTOMÁTICA"
+  "NÃO COBRAR / FATURAR", "COBRANÇA AUTOMÁTICA", "COMPROVANTE FROTA",
+  "COMPROVANTE FINANCEIRO", "COMPROVANTE FILIAL", "EM FATURA"
 ];
 
 export const STATUS_COLORS: Record<string, string> = {
@@ -59,6 +60,10 @@ export const STATUS_COLORS: Record<string, string> = {
   'AGUARDANDO LIBERAÇÃO DO CLIENTE': 'text-teal-600 border-teal-500/30 bg-teal-500/10',
   'NÃO COBRAR / FATURAR': 'text-slate-400 border-slate-400/30 bg-slate-400/10',
   'COBRANÇA AUTOMÁTICA': 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10',
+  'COMPROVANTE FROTA': 'text-blue-500 border-blue-500/30 bg-blue-500/10',
+  'COMPROVANTE FINANCEIRO': 'text-green-500 border-green-500/30 bg-green-500/10',
+  'COMPROVANTE FILIAL': 'text-violet-500 border-violet-500/30 bg-violet-500/10',
+  'EM FATURA': 'text-fuchsia-500 border-fuchsia-500/30 bg-fuchsia-500/10',
 };
 
 export const getStatusStyle = (status: string, index?: number) => {
