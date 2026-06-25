@@ -39,7 +39,7 @@ export class PastaService {
     });
   }
 
-  static async criar(nome: string, usuario: string = "Sistema") {
+  static async criar(nome: string, cor?: string, usuario: string = "Sistema") {
     this.invalidarCache();
     
     // Validar se já existe
@@ -49,7 +49,7 @@ export class PastaService {
     }
 
     const pasta = await prisma.pasta.create({
-      data: { nome }
+      data: { nome, cor }
     });
 
     prisma.auditoria.create({
@@ -64,7 +64,7 @@ export class PastaService {
     return pasta;
   }
 
-  static async atualizar(id: number, nome: string, usuario: string = "Sistema") {
+  static async atualizar(id: number, nome: string, cor?: string, usuario: string = "Sistema") {
     this.invalidarCache();
     
     // Validar se o novo nome já existe para outra pasta
@@ -81,7 +81,7 @@ export class PastaService {
     const antiga = await this.buscarPorId(id);
     const pasta = await prisma.pasta.update({
       where: { id },
-      data: { nome }
+      data: { nome, cor }
     });
 
     prisma.auditoria.create({

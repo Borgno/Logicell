@@ -1,6 +1,7 @@
 import { ActionFunctionArgs } from "react-router";
 import { OperacaoService } from "~/services/operacao.server";
 import { PastaService } from "~/services/pasta.server";
+import { StatusService } from "~/services/status.server";
 import { requireUser } from "~/services/auth.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -14,13 +15,15 @@ export async function action({ request }: ActionFunctionArgs) {
       // --- AÇÕES DE PASTAS (SIDEPANEL) ---
       case "createFolder": {
         const nome = formData.get("nome") as string;
-        await PastaService.criar(nome, userName);
+        const cor = formData.get("cor") as string | undefined;
+        await PastaService.criar(nome, cor, userName);
         return { success: true, intent: "createFolder" };
       }
       case "renameFolder": {
         const id = Number(formData.get("id"));
         const nome = formData.get("nome") as string;
-        await PastaService.atualizar(id, nome, userName);
+        const cor = formData.get("cor") as string | undefined;
+        await PastaService.atualizar(id, nome, cor, userName);
         return { success: true, intent: "renameFolder" };
       }
       case "deleteFolder": {
@@ -57,6 +60,11 @@ export async function action({ request }: ActionFunctionArgs) {
         const filters = JSON.parse(formData.get("filters") as string);
         await OperacaoService.bulkDelete(ids, filters, userName);
         return { success: true, intent: "bulkDelete" };
+      }
+      case "createStatus": {
+        const nome = formData.get("nome") as string;
+        await StatusService.criar(nome, undefined, userName);
+        return { success: true, intent: "createStatus" };
       }
 
       default:

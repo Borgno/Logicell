@@ -9,7 +9,7 @@ import {
 import { useUI } from "~/root";
 import { MESSAGES } from "~/constants/messages";
 import { useActionFeedback } from "~/hooks/use-action-feedback";
-import { COLUNAS_OPERACAO, STATUS_OPERACAO } from "~/constants/operacoes";
+import { COLUNAS_OPERACAO } from "~/constants/operacoes";
 import { formatarMoeda, formatarData, formatarNumero } from "~/utils/formatters";
 import { AuditoriaModal } from "./AuditoriaModal";
 import { clsx, type ClassValue } from "clsx";
@@ -99,6 +99,8 @@ interface OperacoesViewProps {
 export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaId = null, showImport = true }: OperacoesViewProps) {
   const rootData = useRouteLoaderData("root") as any;
   const pastas = rootData?.pastas || [];
+  const customStatuses = rootData?.customStatuses || [];
+  const allStatuses = Array.from(new Set([...customStatuses.map((s: any) => s.nome)])).sort();
   
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -496,7 +498,7 @@ export function OperacoesView({ dadosPromise, agenciasPromise, nomePasta, pastaI
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status:</span>
             <select value={filtros.status} onChange={e => setFilters(p => ({...p, status: e.target.value}))} className="w-36 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-[10px] font-black outline-none">
               <option value="">Todos</option>
-              {STATUS_OPERACAO.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              {allStatuses.map((opt: unknown) => <option key={String(opt)} value={String(opt)}>{String(opt)}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">

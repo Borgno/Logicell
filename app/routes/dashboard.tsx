@@ -1,12 +1,6 @@
 import { useLoaderData, data, useNavigate, Link } from "react-router";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell
-} from "recharts";
-import { 
-  Clock, AlertCircle, Layers, FileSpreadsheet, ChevronRight, X, 
-  TrendingUp, Scale, MapPin, Activity, Globe, History, ChevronDown
-} from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Clock, AlertCircle, Layers, FileSpreadsheet, ChevronRight, X, TrendingUp, Scale, MapPin, Activity, Globe, History, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { requireUser } from "~/services/auth.server";
 import { AuditoriaModal } from "~/components/AuditoriaModal";

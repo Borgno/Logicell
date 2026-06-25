@@ -9,7 +9,7 @@ import {
   NavLink,
   useNavigation,
   useLocation,
-  Form,
+  Form
 } from "react-router";
 import type { LinksFunction, ShouldRevalidateFunction, LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
@@ -19,6 +19,7 @@ import {
 import { getUser, createSupabaseServerClient } from "./services/auth.server";
 import { PastaService } from "./services/pasta.server";
 import { OperacaoService } from "./services/operacao.server";
+import { StatusService } from "./services/status.server";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { MESSAGES } from "./constants/messages";
 import { useActionFeedback } from "./hooks/use-action-feedback";
@@ -56,13 +57,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 
   try {
-    const [pastas, totalInbox] = await Promise.all([
+    const [pastas, totalInbox, customStatuses] = await Promise.all([
       PastaService.listar().catch(() => []),
-      OperacaoService.contarInbox().catch(() => 0)
+      OperacaoService.contarInbox().catch(() => 0),
+      StatusService.listar().catch(() => [])
     ]);
-    return { pastas, totalInbox, user };
+    return { pastas, totalInbox, user, customStatuses };
   } catch (e) {
-    return { pastas: [], totalInbox: 0, user: null };
+    return { pastas: [], totalInbox: 0, user: null, customStatuses: [] };
   }
 }
 
@@ -232,11 +234,14 @@ export default function App() {
   
   const isLoginPage = location.pathname === "/login";
 
+  const PRESET_COLORS = ["#64748b", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
   const [isDark, setIsDark] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
   const [editingValue, setEditingValue] = useState("");
+  const [editingFolderColor, setEditingFolderColor] = useState(PRESET_COLORS[0]);
   const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderColor, setNewFolderColor] = useState(PRESET_COLORS[0]);
   const [isAddingFolder, setIsAddingFolder] = useState(false);
 
   useEffect(() => {
@@ -250,14 +255,15 @@ export default function App() {
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
-    fetcher.submit({ intent: "createFolder", nome: newFolderName }, { method: "post", action: "/api/operacoes" });
+    fetcher.submit({ intent: "createFolder", nome: newFolderName, cor: newFolderColor }, { method: "post", action: "/api/operacoes" });
     setNewFolderName("");
+    setNewFolderColor(PRESET_COLORS[0]);
     setIsAddingFolder(false);
   };
 
   const submitRename = (id: number) => {
     if (!editingValue.trim()) return;
-    fetcher.submit({ intent: "renameFolder", id: String(id), nome: editingValue }, { method: "post", action: "/api/operacoes" });
+    fetcher.submit({ intent: "renameFolder", id: String(id), nome: editingValue, cor: editingFolderColor }, { method: "post", action: "/api/operacoes" });
     setEditingFolderId(null);
   };
 
@@ -314,30 +320,52 @@ export default function App() {
 
             <div className="space-y-1">
               {isAddingFolder && !isCollapsed && (
-                <form onSubmit={handleCreateFolder} className="px-3 mb-2">
-                  <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nome..." className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none border-2 border-blue-500" />
+                <form onSubmit={handleCreateFolder} className="px-3 mb-2 space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2 border border-slate-200 dark:border-slate-700">
+                  <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nome..." className="w-full bg-white dark:bg-slate-900 rounded-lg px-2 py-1 text-xs font-bold outline-none border border-slate-300 dark:border-slate-600 focus:border-blue-500" />
+                  <div className="flex justify-between items-center px-1">
+                    <div className="flex gap-1.5">
+                      {PRESET_COLORS.map(c => (
+                        <button key={c} type="button" onClick={(e) => { e.preventDefault(); setNewFolderColor(c); }} className={`w-3.5 h-3.5 rounded-full ${newFolderColor === c ? 'ring-2 ring-offset-1 ring-slate-400 dark:ring-slate-500 dark:ring-offset-slate-800' : ''}`} style={{ backgroundColor: c }} />
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => setIsAddingFolder(false)} className="p-1 hover:text-rose-500"><X size={14}/></button>
+                      <button type="submit" className="p-1 hover:text-emerald-500"><CheckCircle2 size={14}/></button>
+                    </div>
+                  </div>
                 </form>
               )}
 
               {pastas.map((p: any) => (
                 <div key={p.id} className="relative group/item">
                   {editingFolderId === p.id ? (
-                    <div className="px-2 py-0.5">
-                      <input autoFocus value={editingValue} onChange={e => setEditingValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && submitRename(p.id)} onBlur={() => setEditingFolderId(null)} className="w-full bg-white dark:bg-slate-800 border-2 border-blue-500 rounded-lg px-2 py-1 text-xs font-bold outline-none" />
+                    <div className="mx-2 mb-1 space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2 border border-slate-200 dark:border-slate-700">
+                      <input autoFocus value={editingValue} onChange={e => setEditingValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && submitRename(p.id)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-blue-500" />
+                      <div className="flex justify-between items-center px-1">
+                        <div className="flex gap-1.5">
+                          {PRESET_COLORS.map(c => (
+                            <button key={c} type="button" onClick={(e) => { e.preventDefault(); setEditingFolderColor(c); }} className={`w-3.5 h-3.5 rounded-full ${editingFolderColor === c ? 'ring-2 ring-offset-1 ring-slate-400 dark:ring-slate-500 dark:ring-offset-slate-800' : ''}`} style={{ backgroundColor: c }} />
+                          ))}
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => setEditingFolderId(null)} className="p-1 hover:text-rose-500"><X size={14}/></button>
+                          <button onClick={() => submitRename(p.id)} className="p-1 hover:text-emerald-500"><CheckCircle2 size={14}/></button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <NavLink to={`/pastas/${p.id}`} prefetch="none" className={({ isActive }) => `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                       {({ isActive: linkActive }) => (
                         <>
                           <div className="flex items-center gap-2.5 overflow-hidden">
-                            <Folder size={18} className="shrink-0" />
+                            <Folder size={18} className="shrink-0" style={p.cor && !linkActive ? { color: p.cor } : undefined} />
                             {!isCollapsed && <span className="truncate">{p.nome}</span>}
                           </div>
                           {!isCollapsed && (
                             <div className="flex items-center gap-2">
                               {p._count?.operacoes > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-lg ${linkActive ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>{p._count.operacoes}</span>}
                               <div className="hidden group-hover/item:flex items-center gap-1.5">
-                                <button onClick={(e) => { e.preventDefault(); setEditingFolderId(p.id); setEditingValue(p.nome); }} className="hover:text-white"><Edit2 size={12} /></button>
+                                <button onClick={(e) => { e.preventDefault(); setEditingFolderId(p.id); setEditingValue(p.nome); setEditingFolderColor(p.cor || PRESET_COLORS[0]); }} className="hover:text-white"><Edit2 size={12} /></button>
                                 <button onClick={(e) => { 
                                   e.preventDefault(); 
                                   confirmAction({

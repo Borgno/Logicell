@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, memo } from "react";
-import { STATUS_OPERACAO, getStatusStyle } from "~/constants/operacoes";
+import { getStatusStyle } from "~/constants/operacoes";
 import { formatarMoeda, formatarData, formatarNumero } from "~/utils/formatters";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { useRouteLoaderData, useFetcher } from "react-router";
+import { NovoStatusModal } from "./NovoStatusModal";
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
@@ -22,9 +24,32 @@ interface EditableCellProps {
 }
 
 export const EditableCell = memo(function EditableCell({ id, campo, valor, coluna, isSelected, onSave }: EditableCellProps) {
+  const rootData = useRouteLoaderData("root") as any;
+  const customStatuses = rootData?.customStatuses || [];
+  const allStatuses = Array.from(new Set([...customStatuses.map((s: any) => s.nome)])).sort();
+  const fetcher = useFetcher();
+
   const [isEditing, setIsEditing] = useState(false);
   const [tempValue, setTempValue] = useState(String(valor || ""));
   const [isOpen, setIsOpen] = useState(false);
+  const [showNovoStatusModal, setShowNovoStatusModal] = useState(false);
+  const isModalOpenRef = useRef(false);
+
+  const handleCreateStatus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    isModalOpenRef.current = true;
+    setShowNovoStatusModal(true);
+  };
+
+  const confirmarNovoStatus = (nome: string) => {
+    fetcher.submit({ intent: "createStatus", nome }, { method: "post", action: "/api/operacoes" });
+    onSave(nome);
+    setTempValue(nome);
+    setIsOpen(false);
+    isModalOpenRef.current = false;
+    setIsEditing(false);
+    setShowNovoStatusModal(false);
+  };
   
   // Sincroniza o valor interno caso ele mude externamente
   useEffect(() => {
@@ -32,6 +57,7 @@ export const EditableCell = memo(function EditableCell({ id, campo, valor, colun
   }, [valor, isEditing]);
 
   const handleFinish = () => {
+    if (isModalOpenRef.current) return;
     const finalValue = tempValue.trim();
     if (finalValue !== String(valor || "")) onSave(finalValue);
     setIsEditing(false);
@@ -74,23 +100,41 @@ export const EditableCell = memo(function EditableCell({ id, campo, valor, colun
                 >
                   Selecione...
                 </div>
-                {STATUS_OPERACAO.map(opt => (
+                {allStatuses.map((opt: unknown) => (
                   <div
-                    key={opt}
+                    key={String(opt)}
                     className={cn(
                       "px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-all flex items-center gap-2",
-                      tempValue === opt && "bg-slate-50 dark:bg-slate-800"
+                      tempValue === String(opt) && "bg-slate-50 dark:bg-slate-800"
                     )}
-                    onClick={() => { setTempValue(opt); onSave(opt); setIsEditing(false); }}
+                    onClick={() => { setTempValue(String(opt)); onSave(String(opt)); setIsEditing(false); }}
                   >
-                    <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-black border", getStatusStyle(opt))}>
-                      {opt}
+                    <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-black border", getStatusStyle(String(opt)))}>
+                      {String(opt)}
                     </span>
                   </div>
                 ))}
+                <div
+                  className="px-3 py-2 mt-1 border-t border-slate-100 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer text-indigo-600 dark:text-indigo-400 transition-colors flex items-center gap-2 font-black text-[10px]"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleCreateStatus(e);
+                  }}
+                >
+                  <span className="text-lg leading-none">+</span> Criar Novo Status
+                </div>
               </div>
             )}
           </div>
+          {showNovoStatusModal && (
+            <NovoStatusModal 
+              onClose={() => {
+                isModalOpenRef.current = false;
+                setShowNovoStatusModal(false);
+              }}
+              onConfirm={confirmarNovoStatus}
+            />
+          )}
         </div>
       );
     }

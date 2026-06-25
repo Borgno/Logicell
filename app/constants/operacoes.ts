@@ -34,13 +34,7 @@ export const COLUNAS_OPERACAO = [
   { key: 'nm_motorista', label: 'Motorista', width: '250px' },
 ];
 
-export const STATUS_OPERACAO = [
-  "PENDENTE", "ANEXADO", "DIVERGENTE", "ILEGIVEL", "POSTO", 
-  "MDF EM ABERTO", "COMPLEMENTAR", "1° PERNA", "SINISTRO", 
-  "DESACORDO", "CARGA RECUSADA", "AGUARDANDO LIBERAÇÃO DO CLIENTE",
-  "NÃO COBRAR / FATURAR", "COBRANÇA AUTOMÁTICA", "COMPROVANTE FROTA",
-  "COMPROVANTE FINANCEIRO", "COMPROVANTE FILIAL", "EM FATURA"
-];
+
 
 export const STATUS_COLORS: Record<string, string> = {
   'PENDENTE': 'text-amber-600 border-amber-500/30 bg-amber-500/10',
