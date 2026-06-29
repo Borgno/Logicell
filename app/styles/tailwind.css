@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased text-slate-900 bg-slate-100 transition-colors duration-500 overflow-x-hidden;
+  }
+  .dark body {
+    @apply bg-slate-950 text-slate-50;
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full border-2 border-solid border-transparent bg-clip-padding;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400 dark:bg-slate-600;
+}
+
+/* React Data Grid Theme Overrides */
+.rdg-light {
+  --rdg-color: #334155; /* slate.700 */
+  --rdg-border-color: #e2e8f0; /* slate.200 */
+  --rdg-summary-border-color: #e2e8f0;
+  --rdg-background-color: #ffffff; /* white */
+  --rdg-header-background-color: #f8fafc; /* slate.50 */
+  --rdg-row-hover-background-color: #f8fafc;
+  --rdg-row-selected-background-color: #eef2ff; /* indigo.50 */
+  --rdg-row-selected-hover-background-color: #e0e7ff; /* indigo.100 */
+  --rdg-checkbox-color: #4f46e5; /* indigo.600 */
+  --rdg-checkbox-focus-color: #4f46e5;
+  --rdg-selection-color: #6366f1; /* indigo.500 */
+  --rdg-font-size: 11px;
+}
+
+.rdg-dark {
+  --rdg-color: #cbd5e1; /* slate.300 */
+  --rdg-border-color: #1e293b; /* slate.800 */
+  --rdg-summary-border-color: #1e293b;
+  --rdg-background-color: #0f172a; /* slate.900 */
+  --rdg-header-background-color: #020617; /* slate.950 */
+  --rdg-row-hover-background-color: #1e293b; /* slate.800 */
+  --rdg-row-selected-background-color: #312e81; /* indigo.900/40 approx */
+  --rdg-row-selected-hover-background-color: #3730a3; /* indigo.800/60 approx */
+  --rdg-checkbox-color: #6366f1; /* indigo.500 */
+  --rdg-checkbox-focus-color: #6366f1;
+  --rdg-selection-color: #818cf8; /* indigo.400 */
+  --rdg-font-size: 11px;
+}

@@ -47,9 +47,9 @@ export const MESSAGES = {
 
   // --- ALERTAS E MODAIS DE CONFIRMAÇÃO ---
   alerts: {
-    importSuccess: (adicionados: number, ignorados: number) => ({
+    importSuccess: (adicionados: number, ignorados: number, removidos: number = 0, modo: string = "SUBSTITUIR") => ({
       title: "Importação Concluída",
-      message: `Processamento finalizado:\n\n✅ Adicionados: ${adicionados} itens\n⚠️ Duplicatas ignoradas: ${ignorados} itens`,
+      message: `Modo: ${modo === "SUBSTITUIR" ? "Substituir (Sincronização)" : "Apenas Adicionar"}\n\n✅ Novos adicionados: ${adicionados} itens\n⚠️ Mantidos/Ignorados: ${ignorados} itens${modo === "SUBSTITUIR" ? `\n❌ Antigos removidos: ${removidos} itens` : ""}`,
       variant: "success" as const
     }),
     

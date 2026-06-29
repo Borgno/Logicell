@@ -7,7 +7,7 @@ interface StatusGridProps {
   onStatusClick: (status: string) => void;
 }
 
-export function StatusGrid({ statusMap, onStatusClick }: StatusGridProps) {
+export function StatusGridView({ statusMap, onStatusClick }: StatusGridProps) {
   const statusPrioritarios = ['PENDENTE', 'DIVERGENTE'];
   const todosStatus = Object.keys(statusMap).sort((a, b) => {
     if (statusPrioritarios.includes(a) && !statusPrioritarios.includes(b)) return -1;

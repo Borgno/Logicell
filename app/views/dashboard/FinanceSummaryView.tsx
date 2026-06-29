@@ -13,7 +13,7 @@ interface FinanceSummaryProps {
   };
 }
 
-export function FinanceSummary({ totais }: FinanceSummaryProps) {
+export function FinanceSummaryView({ totais }: FinanceSummaryProps) {
   return (
     <section>
       <div className="flex items-center gap-2 mb-4 px-1 text-left">

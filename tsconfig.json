@@ -9,10 +9,13 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "rootDirs": [".", "./.react-router/types"],
+    "types": ["@react-router/node", "vite/client"],
     "paths": {
       "~/*": ["./app/*"]
     },
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "checkJs": true,
     "noEmit": true,

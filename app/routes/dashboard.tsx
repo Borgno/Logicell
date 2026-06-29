@@ -3,9 +3,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Clock, AlertCircle, Layers, FileSpreadsheet, ChevronRight, X, TrendingUp, Scale, MapPin, Activity, Globe, History, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { requireUser } from "~/services/auth.server";
-import { AuditoriaModal } from "~/components/AuditoriaModal";
-import { ImportacaoModal } from "~/components/ImportacaoModal";
-import { GeografiaModal } from "~/components/GeografiaModal";
+import { AuditoriaModalView } from "~/views/AuditoriaModalView";
+import { ImportacaoModalView } from "~/views/ImportacaoModalView";
+import { GeografiaModalView } from "~/views/GeografiaModalView";
 import { formatarMoeda, formatarNumero } from "~/utils/formatters";
 import { getStatusStyle } from "~/constants/operacoes";
 import type { LoaderFunctionArgs } from "react-router";
@@ -340,21 +340,21 @@ export default function Dashboard() {
 
       {/* MODAIS */}
       {showGlobalHistory && (
-        <AuditoriaModal 
+        <AuditoriaModalView 
           title="Histórico Geral" 
           onClose={() => setShowGlobalHistory(false)} 
         />
       )}
 
       {showImportacaoModal && (
-        <ImportacaoModal 
+        <ImportacaoModalView 
           importacoes={estatisticas.ultimasImportacoes} 
           onClose={() => setShowImportacaoModal(false)}
         />
       )}
 
       {showGeografiaModal && (
-        <GeografiaModal 
+        <GeografiaModalView 
           topOrigens={estatisticas.topOrigens} 
           topDestinos={estatisticas.topDestinos} 
           onClose={() => setShowGeografiaModal(false)}

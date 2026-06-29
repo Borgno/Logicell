@@ -1,7 +1,4 @@
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Globe } from "lucide-react";
 
 const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'];
@@ -13,7 +10,7 @@ interface AnalyticsSectionProps {
   textColor: string;
 }
 
-export function AnalyticsSection({ porAgencia, porProduto, isDark, textColor }: AnalyticsSectionProps) {
+export function AnalyticsSectionView({ porAgencia, porProduto, isDark, textColor }: AnalyticsSectionProps) {
   return (
     <section>
       <div className="flex items-center gap-2 mb-4 px-1">

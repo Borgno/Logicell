@@ -33,7 +33,7 @@ export function useActionFeedback(
       // 1. Caso Especial: Upload/Importação (exige Alerta/Modal)
       if (data.totalLido !== undefined && actions.showAlert) {
         actions.showAlert(
-          MESSAGES.alerts.importSuccess(data.adicionados || 0, data.ignorados || 0)
+          MESSAGES.alerts.importSuccess(data.adicionados || 0, data.ignorados || 0, data.removidos || 0, data.modo || "SUBSTITUIR")
         );
         return;
       }

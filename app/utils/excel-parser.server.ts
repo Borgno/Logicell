@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { OperacaoSchema, type OperacaoType } from "~/schemas/operacao";
+import type { OperacaoType } from "~/schemas/operacao";
 import { DateParser } from "./date-parser";
 
 /**
@@ -21,9 +21,24 @@ export class ExcelParser {
   static analisarBuffer(buffer: Buffer, importacaoId: number): { operacoes: OperacaoType[], totalLido: number } {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rawData: any[] = XLSX.utils.sheet_to_json(sheet, { range: 1 });
+    
+    // Converte para matriz 2D para procurar onde estão os cabeçalhos
+    const dataAsArray: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (dataAsArray.length === 0) throw new Error("Planilha vazia");
 
-    if (rawData.length === 0) throw new Error("Planilha vazia");
+    let headerRowIndex = 0;
+    // Varre as 10 primeiras linhas procurando indícios dos cabeçalhos obrigatórios
+    for (let i = 0; i < Math.min(10, dataAsArray.length); i++) {
+      const rowStr = (dataAsArray[i] || []).map(String).map(s => s.toUpperCase());
+      if (rowStr.some(k => k === "CTRC" || k === "CTE" || k === "NR_CTRC" || k.includes("AGÊNCIA"))) {
+          headerRowIndex = i;
+          break;
+      }
+    }
+
+    const rawData: any[] = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+
+    if (rawData.length === 0) throw new Error("Não há dados na planilha além dos cabeçalhos");
 
     // Validação de Cabeçalhos (Obrigatórios: Agência, CTRC, Data Emissão)
     const availableHeaders = Object.keys(rawData[0]).map(h => h.toUpperCase());

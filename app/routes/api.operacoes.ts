@@ -2,6 +2,7 @@ import { ActionFunctionArgs } from "react-router";
 import { OperacaoService } from "~/services/operacao.server";
 import { PastaService } from "~/services/pasta.server";
 import { StatusService } from "~/services/status.server";
+import { ConfigService } from "~/services/config.server";
 import { requireUser } from "~/services/auth.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -35,8 +36,9 @@ export async function action({ request }: ActionFunctionArgs) {
       // --- AÇÕES DE OPERAÇÕES (INBOX / PASTAS) ---
       case "upload": {
         const file = formData.get("file") as File;
+        const modo = (formData.get("modo") as string) || "SUBSTITUIR";
         const buffer = Buffer.from(await file.arrayBuffer());
-        const res = await OperacaoService.processarPlanilha(buffer, file.name, userName);
+        const res = await OperacaoService.processarPlanilha(buffer, file.name, userName, modo);
         return { ...res, success: true, intent: "upload" };
       }
       case "update": {
@@ -65,6 +67,16 @@ export async function action({ request }: ActionFunctionArgs) {
         const nome = formData.get("nome") as string;
         await StatusService.criar(nome, undefined, userName);
         return { success: true, intent: "createStatus" };
+      }
+      case "reorderColumns": {
+        const order = JSON.parse(formData.get("order") as string);
+        await ConfigService.set("columnOrder", order);
+        return { success: true, intent: "reorderColumns" };
+      }
+      case "resizeColumns": {
+        const widths = JSON.parse(formData.get("widths") as string);
+        await ConfigService.set("columnWidths", widths);
+        return { success: true, intent: "resizeColumns" };
       }
 
       default:

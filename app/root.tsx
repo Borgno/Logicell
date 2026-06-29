@@ -20,11 +20,12 @@ import { getUser, createSupabaseServerClient } from "./services/auth.server";
 import { PastaService } from "./services/pasta.server";
 import { OperacaoService } from "./services/operacao.server";
 import { StatusService } from "./services/status.server";
+import { ConfigService } from "./services/config.server";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { MESSAGES } from "./constants/messages";
 import { useActionFeedback } from "./hooks/use-action-feedback";
 import { buscarNomeUsuario } from "~/constants/usuarios";
-import "./tailwind.css";
+import "./styles/tailwind.css";
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -57,14 +58,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 
   try {
-    const [pastas, totalInbox, customStatuses] = await Promise.all([
+    const [pastas, totalInbox, customStatuses, columnOrder, columnWidths] = await Promise.all([
       PastaService.listar().catch(() => []),
       OperacaoService.contarInbox().catch(() => 0),
-      StatusService.listar().catch(() => [])
+      StatusService.listar().catch(() => []),
+      ConfigService.get("columnOrder").catch(() => null),
+      ConfigService.get("columnWidths").catch(() => null)
     ]);
-    return { pastas, totalInbox, user, customStatuses };
+    return { pastas, totalInbox, user, customStatuses, columnOrder, columnWidths };
   } catch (e) {
-    return { pastas: [], totalInbox: 0, user: null, customStatuses: [] };
+    return { pastas: [], totalInbox: 0, user: null, customStatuses: [], columnOrder: null, columnWidths: null };
   }
 }
 

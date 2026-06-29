@@ -6,7 +6,7 @@ interface StatusDetailModalProps {
   onClose: () => void;
 }
 
-export function StatusDetailModal({ status, details, onClose }: StatusDetailModalProps) {
+export function StatusDetailModalView({ status, details, onClose }: StatusDetailModalProps) {
   return (
     <div 
       className="absolute inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"

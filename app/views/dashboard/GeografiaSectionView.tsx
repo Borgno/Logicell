@@ -5,7 +5,7 @@ interface GeografiaSectionProps {
   topDestinos: any[];
 }
 
-export function GeografiaSection({ topOrigens, topDestinos }: GeografiaSectionProps) {
+export function GeografiaSectionView({ topOrigens, topDestinos }: GeografiaSectionProps) {
   return (
     <section className="bg-slate-50 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-100 dark:border-slate-800/50">
       <div className="flex flex-col md:flex-row gap-10">

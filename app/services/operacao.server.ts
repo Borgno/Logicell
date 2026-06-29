@@ -29,9 +29,9 @@ export class OperacaoService {
     PastaService.invalidarCache();
   }
 
-  static async processarPlanilha(buffer: Buffer, originalName: string, usuario: string = "Sistema") {
+  static async processarPlanilha(buffer: Buffer, originalName: string, usuario: string = "Sistema", modo: string = "SUBSTITUIR") {
     this.invalidarCache();
-    const hash = crypto.createHash("md5").update(buffer).digest("hex");
+    const hash = crypto.createHash("sha256").update(buffer).digest("hex");
 
     const importacao = await prisma.importacao.create({
       data: { nomeArquivo: originalName, usuario, qtdRegistros: 0, hashArquivo: hash }
@@ -57,13 +57,17 @@ export class OperacaoService {
       select: { id: true, nm_agencia: true, nr_ctrc: true, nr_nf: true, vl_total: true, dt_emissao_: true }
     });
 
-    // 3. Identificar o que está em qualquer lugar mas NÃO na planilha nova -> DELETAR
-    const idsParaApagar = inboxItems
-      .filter(item => !spreadsheetSignatures.has(getSig(item)))
-      .map(item => item.id);
+    // 3. Tratamento de Exclusão baseado no Modo
+    let removidos = 0;
+    if (modo === "SUBSTITUIR") {
+      const idsParaApagar = inboxItems
+        .filter(item => !spreadsheetSignatures.has(getSig(item)))
+        .map(item => item.id);
 
-    if (idsParaApagar.length > 0) {
-      await prisma.operacao.deleteMany({ where: { id: { in: idsParaApagar } } });
+      if (idsParaApagar.length > 0) {
+        const resultDel = await prisma.operacao.deleteMany({ where: { id: { in: idsParaApagar } } });
+        removidos = resultDel.count;
+      }
     }
 
     // 4. Inserir novos itens (skipDuplicates garante que itens já em pastas não sejam duplicados)
@@ -84,6 +88,8 @@ export class OperacaoService {
       totalLido: parsedData.totalLido, 
       adicionados: resultado.count, 
       ignorados: parsedData.totalLido - resultado.count,
+      removidos,
+      modo,
       importId: importacao.id 
     };
   }

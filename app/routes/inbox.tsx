@@ -4,7 +4,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { AlertTriangle } from "lucide-react";
 import { requireUser } from "~/services/auth.server";
 import { OperacaoService } from "~/services/operacao.server";
-import { OperacoesView } from "~/components/OperacoesView";
+import { OperacoesView } from "~/views/OperacoesView";
 
 export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => {
   if (formData?.get("intent") === "update") return false;

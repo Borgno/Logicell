@@ -9,8 +9,21 @@ export const formatarMoeda = (val: any) => {
 
 export const formatarData = (val: any) => {
   if (!val) return "-";
-  // Usamos UTC para evitar discrepâncias de fuso horário em datas puras (YYYY-MM-DD)
-  return new Date(val).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  
+  let dataStr = typeof val === 'string' ? val : val instanceof Date ? val.toISOString() : String(val);
+  
+  // Extrai apenas a parte da data YYYY-MM-DD ignorando o fuso se for ISO
+  const match = dataStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+
+  // Fallback seguro
+  try {
+    return new Date(val).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  } catch {
+    return val;
+  }
 };
 
 export const formatarNumero = (val: any) => {

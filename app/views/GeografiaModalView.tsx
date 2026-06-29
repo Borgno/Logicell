@@ -12,7 +12,7 @@ interface GeografiaModalProps {
   onClose: () => void;
 }
 
-export function GeografiaModal({ topOrigens, topDestinos, onClose }: GeografiaModalProps) {
+export function GeografiaModalView({ topOrigens, topDestinos, onClose }: GeografiaModalProps) {
   return (
     <div 
       className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"

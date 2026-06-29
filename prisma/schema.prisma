@@ -110,3 +110,11 @@ model StatusOperacao {
   cor       String?
   createdAt DateTime @default(now())
 }
+
+model Configuracao {
+  id        Int      @id @default(autoincrement())
+  chave     String   @unique
+  valor     String   // Guardará JSON, ex: ["nr_ctrc", "nm_agencia", ...]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

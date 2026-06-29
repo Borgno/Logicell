@@ -72,7 +72,7 @@ function handleBotRequest(
       }
     );
 
-    setTimeout(abort, ABORT_DELAY);
+    setTimeout(() => abort(), ABORT_DELAY);
   });
 }
 
@@ -118,6 +118,6 @@ function handleBrowserRequest(
       }
     );
 
-    setTimeout(abort, ABORT_DELAY);
+    setTimeout(() => abort(), ABORT_DELAY);
   });
 }

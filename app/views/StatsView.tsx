@@ -1,10 +1,10 @@
 import { LayoutDashboard, X, History } from "lucide-react";
 import { useState, useEffect } from "react";
-import { StatusGrid } from "./dashboard/StatusGrid";
-import { FinanceSummary } from "./dashboard/FinanceSummary";
-import { AnalyticsSection } from "./dashboard/AnalyticsSection";
-import { GeografiaSection } from "./dashboard/GeografiaSection";
-import { StatusDetailModal } from "./dashboard/StatusDetailModal";
+import { StatusGridView } from "./dashboard/StatusGridView";
+import { FinanceSummaryView } from "./dashboard/FinanceSummaryView";
+import { AnalyticsSectionView } from "./dashboard/AnalyticsSectionView";
+import { GeografiaSectionView } from "./dashboard/GeografiaSectionView";
+import { StatusDetailModalView } from "./dashboard/StatusDetailModalView";
 
 interface StatsViewProps {
   stats: any;
@@ -67,21 +67,21 @@ export function StatsView({ stats, onClose, onOpenHistory, onApplyFilter, nomePa
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar space-y-8 pb-12">
-          <StatusGrid 
+          <StatusGridView 
             statusMap={stats.totais.statusMap} 
             onStatusClick={onApplyFilter} 
           />
 
-          <FinanceSummary totais={stats.totais} />
+          <FinanceSummaryView totais={stats.totais} />
 
-          <AnalyticsSection 
+          <AnalyticsSectionView 
             porAgencia={stats.porAgencia} 
             porProduto={stats.porProduto} 
             isDark={isDark} 
             textColor={textColor} 
           />
 
-          <GeografiaSection 
+          <GeografiaSectionView 
             topOrigens={stats.topOrigens} 
             topDestinos={stats.topDestinos} 
           />
