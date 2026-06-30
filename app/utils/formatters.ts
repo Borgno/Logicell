@@ -1,6 +1,4 @@
 //Utilitários de formatação de dados para a UI brasileira.
-
-
 export const formatarMoeda = (val: any) => {
   if (val === null || val === undefined) return "-";
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val));

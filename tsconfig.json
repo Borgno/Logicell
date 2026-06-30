@@ -10,7 +10,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "rootDirs": [".", "./.react-router/types"],
-    "types": ["@react-router/node", "vite/client"],
+    "types": ["@react-router/node", "vite/client", "node"],
     "paths": {
       "~/*": ["./app/*"]
     },

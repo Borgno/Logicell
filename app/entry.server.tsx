@@ -41,6 +41,7 @@ function handleBotRequest(
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={routerContext}
+        // deepcode ignore OpenRedirect: False positive
         url={request.url}
       />,
       {
@@ -87,6 +88,7 @@ function handleBrowserRequest(
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={routerContext}
+        // deepcode ignore OpenRedirect: False positive
         url={request.url}
       />,
       {

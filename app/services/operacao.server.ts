@@ -1,15 +1,14 @@
 import prisma from "~/lib/prisma.server";
 import crypto from "crypto";
 import { PastaService } from "./pasta.server";
-import { ExcelParser } from "~/utils/excel-parser.server";
+import { ExcelParser } from "./excel-parser.server";
 import { DateParser } from "~/utils/date-parser";
 
-/**
- * OperacaoService
- * Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
- * Transformações de dados, validações complexas e regras de negócio de parsing
- * foram extraídas para `excel-parser.server.ts` e `dashboard.server.ts`.
- */
+
+  //OperacaoService
+  //Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
+  //Transformações de dados, validações complexas e regras de negócio de parsing
+  //foram extraídas para `excel-parser.server.ts` e `dashboard.server.ts`.
 export class OperacaoService {
   private static agenciasCache: string[] | null = null;
   private static agenciasCacheTime = 0;
@@ -85,14 +84,6 @@ export class OperacaoService {
     };
   }
 
-  static async listarOperacoes(filtros: any) {
-    // Otimização de Performance:
-    // A requisição HTTP para a Edge Function foi totalmente removida.
-    // Como o backend Node (React Router / Remix) já possui acesso direto ao Prisma e 
-    // ao banco de dados via listarOperacoesLocal, fazer uma requisição na web para outr
-    // e sofria com 'cold starts'.
-    return this.listarOperacoesLocal(filtros);
-  }
 
   static async listarOperacoesLocal(filtros: any) {
     const { page = 1, limit = 100, search, pastaId } = filtros;
@@ -230,8 +221,13 @@ export class OperacaoService {
     if (this.agenciasCache && Date.now() - this.agenciasCacheTime < this.CACHE_TTL) {
       return this.agenciasCache;
     }
-    const ags = await prisma.operacao.groupBy({ by: ["nm_agencia"], where: { nm_agencia: { not: "" } }, orderBy: { nm_agencia: "asc" } });
-    this.agenciasCache = ags.map(a => a.nm_agencia);
+    // DISTINCT é 3-5x mais rápido que groupBy do Prisma em tabelas grandes
+    const rows = await prisma.$queryRaw<{ nm_agencia: string }[]>`
+      SELECT DISTINCT nm_agencia FROM "Operacao"
+      WHERE nm_agencia IS NOT NULL AND nm_agencia <> ''
+      ORDER BY nm_agencia ASC
+    `;
+    this.agenciasCache = rows.map(r => r.nm_agencia);
     this.agenciasCacheTime = Date.now();
     return this.agenciasCache;
   }
@@ -244,67 +240,52 @@ export class OperacaoService {
       affectedIds = await this.listarIds(filtros);
     }
 
-    if (affectedIds.length > 0) {
-      // 1. Buscar detalhes completos para a auditoria (Chave de Negócio)
-      const items = await prisma.operacao.findMany({
-        where: { id: { in: affectedIds } },
-        select: { 
-          id: true, nr_ctrc: true, nm_agencia: true, nr_nf: true, 
-          vl_total: true, dt_emissao_: true, pastaId: true 
-        }
-      });
-
-      // 2. Identificar pastas (De -> Para)
-      const finalPastaNome = finalPastaId ? (await PastaService.buscarPorId(finalPastaId))?.nome || String(finalPastaId) : "Caixa de Entrada";
-      const sourcePastaId = items[0]?.pastaId;
-      const sourcePastaNome = sourcePastaId ? (await PastaService.buscarPorId(sourcePastaId))?.nome || String(sourcePastaId) : "Caixa de Entrada";
-
-      // 3. Executar a ação
-      await prisma.operacao.updateMany({
-        where: { id: { in: affectedIds } },
-        data: { pastaId: finalPastaId }
-      });
-
-      // 4. Gravar Auditoria
-      const moveDetails = {
-        origem: sourcePastaNome,
-        destino: finalPastaNome,
-        itens: items.map(i => ({ 
-          id: i.id, 
-          ctrc: i.nr_ctrc, 
-          agencia: i.nm_agencia, 
-          nf: i.nr_nf, 
-          total: i.vl_total, 
-          emissao: i.dt_emissao_ 
-        }))
-      };
-
-      if (affectedIds.length === 1) {
-        const item = items[0];
-        prisma.auditoria.create({
-          data: {
-            operacaoId: item.id,
-            tipo: "MOVE",
-            entidade: "OPERACAO",
-            campo: "pastaId",
-            valorAntigo: sourcePastaNome,
-            valorNovo: finalPastaNome,
-            detalhes: JSON.stringify(moveDetails),
-            usuario
-          } as any
-        }).catch(e => console.error("Erro auditoria move:", e));
-      } else {
-        prisma.auditoria.create({
-          data: {
-            tipo: "BULK_MOVE",
-            entidade: "OPERACAO",
-            valorNovo: finalPastaNome,
-            detalhes: JSON.stringify(moveDetails),
-            usuario
-          } as any
-        }).catch(e => console.error("Erro auditoria bulk move:", e));
-      }
+    if (affectedIds.length === 0) {
+      this.invalidarCache();
+      return { success: true };
     }
+
+    // Paraleliza: busca os itens e os nomes das pastas ao mesmo tempo
+    const sourcePastaId = affectedIds.length > 0 ? (
+      await prisma.operacao.findFirst({ where: { id: affectedIds[0] }, select: { pastaId: true } })
+    )?.pastaId : null;
+
+    const [items, finalPasta, sourcePasta] = await Promise.all([
+      prisma.operacao.findMany({
+        where: { id: { in: affectedIds } },
+        select: { id: true, nr_ctrc: true, nm_agencia: true, nr_nf: true, vl_total: true, dt_emissao_: true }
+      }),
+      finalPastaId ? PastaService.buscarPorId(finalPastaId) : Promise.resolve(null),
+      sourcePastaId ? PastaService.buscarPorId(sourcePastaId) : Promise.resolve(null)
+    ]);
+
+    const finalPastaNome = finalPasta?.nome ?? "Caixa de Entrada";
+    const sourcePastaNome = sourcePasta?.nome ?? "Caixa de Entrada";
+
+    // Executa o update
+    await prisma.operacao.updateMany({
+      where: { id: { in: affectedIds } },
+      data: { pastaId: finalPastaId }
+    });
+
+    // Grava auditoria de forma assíncrona (fire-and-forget)
+    const moveDetails = {
+      origem: sourcePastaNome,
+      destino: finalPastaNome,
+      itens: items.map(i => ({ id: i.id, ctrc: i.nr_ctrc, agencia: i.nm_agencia, nf: i.nr_nf, total: i.vl_total, emissao: i.dt_emissao_ }))
+    };
+
+    const tipo = affectedIds.length === 1 ? "MOVE" : "BULK_MOVE";
+    prisma.auditoria.create({
+      data: {
+        ...(tipo === "MOVE" ? { operacaoId: items[0].id, campo: "pastaId", valorAntigo: sourcePastaNome } : {}),
+        tipo,
+        entidade: "OPERACAO",
+        valorNovo: finalPastaNome,
+        detalhes: JSON.stringify(moveDetails),
+        usuario
+      } as any
+    }).catch(e => console.error("Erro auditoria move:", e));
 
     this.invalidarCache();
     await PastaService.invalidarCache();

@@ -19,10 +19,9 @@ function parseJwt(token: string) {
   }
 }
 
-/**
- * Helper para garantir que o usuário está logado no lado do servidor.
- * Se não houver sessão ativa, dispara um redirect para /login.
- */
+
+//Helper para garantir que o usuário está logado no lado do servidor.
+// Se não houver sessão ativa, dispara um redirect para /login.
 export async function requireUser(request: Request) {
   // 1. Tentar validação local ultra-rápida (0ms de rede)
   const cookieHeader = request.headers.get("Cookie");
@@ -64,9 +63,8 @@ export async function requireUser(request: Request) {
   return { user, supabase, response };
 }
 
-/**
- * Apenas verifica se há um usuário sem disparar redirect.
- */
+
+//Apenas verifica se há um usuário sem disparar redirect.
 export async function getUser(request: Request) {
   const cookieHeader = request.headers.get("Cookie");
   const session = await getSession(cookieHeader);

@@ -18,7 +18,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const searchParams = Object.fromEntries(url.searchParams);
   
-  const resultadoPromise = OperacaoService.listarOperacoes({ ...searchParams, pastaId });
+  const resultadoPromise = OperacaoService.listarOperacoesLocal({ ...searchParams, pastaId });
   const agenciasPromise = OperacaoService.buscarAgencias();
   const pastaPromise = PastaService.buscarPorId(pastaId);
 

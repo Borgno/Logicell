@@ -1,10 +1,15 @@
 import { LayoutDashboard, X, History } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { StatusGridView } from "./dashboard/StatusGridView";
 import { FinanceSummaryView } from "./dashboard/FinanceSummaryView";
-import { AnalyticsSectionView } from "./dashboard/AnalyticsSectionView";
 import { GeografiaSectionView } from "./dashboard/GeografiaSectionView";
 import { StatusDetailModalView } from "./dashboard/StatusDetailModalView";
+
+const AnalyticsSectionView = lazy(() =>
+  import("./dashboard/AnalyticsSectionView").then(m => ({ default: m.AnalyticsSectionView }))
+);
+
+const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'];
 
 interface StatsViewProps {
   stats: any;
@@ -74,12 +79,21 @@ export function StatsView({ stats, onClose, onOpenHistory, onApplyFilter, nomePa
 
           <FinanceSummaryView totais={stats.totais} />
 
-          <AnalyticsSectionView 
-            porAgencia={stats.porAgencia} 
-            porProduto={stats.porProduto} 
-            isDark={isDark} 
-            textColor={textColor} 
-          />
+          <Suspense fallback={
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="h-[330px] rounded-[2.5rem] border border-slate-200 dark:border-slate-800 animate-pulse bg-slate-100 dark:bg-slate-800" />
+              <div className="h-[330px] rounded-[2.5rem] border border-slate-200 dark:border-slate-800 animate-pulse bg-slate-100 dark:bg-slate-800" />
+            </div>
+          }>
+            <AnalyticsSectionView
+              porAgencia={stats.porAgencia}
+              porProduto={stats.porProduto}
+              isDark={isDark}
+              textColor={textColor}
+              isMounted={isMounted}
+              CORES={CORES}
+            />
+          </Suspense>
 
           <GeografiaSectionView 
             topOrigens={stats.topOrigens} 

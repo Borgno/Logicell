@@ -1,17 +1,13 @@
-/**
- * Utilitários para parse e sanitização de dados vitais antes de chegarem ao Banco de Dados.
- */
-
+//Utilitários para parse e sanitização de dados vitais antes de chegarem ao Banco de Dados.
 export class DateParser {
-  /**
-   * Converte uma string de data (frequentemente em formatos brasileiros)
-   * para um objeto Date seguro para o banco de dados.
-   * @param valor String com a data (ex: "26/12/2026")
-   * @returns Date object ou null em caso de falha.
-   */
+
+  //Converte uma string de data (frequentemente em formatos brasileiros)
+  //para um objeto Date seguro para o banco de dados.
+  // @param valor String com a data (ex: "26/12/2026")
+  // @returns Date object ou null em caso de falha.
+  
   static parseDataBrasileiraSegura(valor: string | Date | null | undefined): Date | null {
-    if (!valor) return null;
-    
+    if (!valor) return null;  
     // Se já for um objeto Date, validamos sua integridade e normalizamos para UTC meia-noite
     if (valor instanceof Date) {
       if (isNaN(valor.getTime())) return null;
