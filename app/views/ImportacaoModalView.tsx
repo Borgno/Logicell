@@ -1,5 +1,5 @@
 import { X, FileSpreadsheet, Clock, Calendar } from "lucide-react";
-import { buscarNomeUsuario } from "~/constants/usuarios";
+import { buscarNomeUsuario } from "~/utils/formatters";
 
 interface Importacao {
   id: number;

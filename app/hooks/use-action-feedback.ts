@@ -10,11 +10,8 @@ interface FetcherData {
   error?: string;
   [key: string]: any;
 }
-
-/**
- * Hook customizado para lidar com o feedback visual das ações do sistema.
- * Desacopla a lógica de notificações dos componentes de visão.
- */
+//Hook customizado para lidar com o feedback visual das ações do sistema.
+//Desacopla a lógica de notificações dos componentes de visão.
 export function useActionFeedback(
   fetcher: { state: string; data?: FetcherData | any },
   actions: { 

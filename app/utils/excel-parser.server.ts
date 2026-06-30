@@ -1,23 +1,51 @@
 import * as XLSX from "xlsx";
-import type { OperacaoType } from "~/schemas/operacao";
 import { DateParser } from "./date-parser";
+import crypto from "crypto";
 
-/**
- * Utilitário Server-Side para Ler e Padronizar Arquivos Excel
- * Realiza toda a extração, Mapeamento (De-Para das colunas) e Validação.
- */
+export interface OperacaoType {
+  nm_agencia: string;
+  dt_emissao_: Date | null;
+  cd_pessoa_pagador?: string | null;
+  nm_pessoa_pagador?: string | null;
+  nr_cpf_cnpj_raiz?: string | null;
+  nr_cpf_cnpj_pagador?: string | null;
+  nr_ctrc: string;
+  id_tipo_documento?: string | null;
+  nm_pessoa_remetente?: string | null;
+  nm_cidade_origem?: string | null;
+  ds_sigla_origem?: string | null;
+  nm_pessoa_destinatario?: string | null;
+  nm_cidade_destino?: string | null;
+  ds_sigla_destino?: string | null;
+  nm_produto?: string | null;
+  vl_peso?: number | null;
+  vl_tarifa?: number | null;
+  vl_total?: number | null;
+  nr_nf?: string | null;
+  ds_placa?: string | null;
+  nm_pessoa_matriz?: string | null;
+  nr_contrato?: string | null;
+  nr_chave_acesso?: string | null;
+  nm_pessoa_usuario_lancamento?: string | null;
+  id_tipo_ctrc?: string | null;
+  nm_proprietario_posse_cavalo?: string | null;
+  nm_motorista?: string | null;
+  status?: string | null;
+  comentarios?: string | null;
+  hash_assinatura?: string | null;
+}
+
+
+// Utilitário Server-Side para Ler e Padronizar Arquivos Excel
+// Realiza toda a extração, Mapeamento (De-Para das colunas) e Validação.
 export class ExcelParser {
-  /**
-   * Remove espaços duplos e padroniza os traços da agência
-   */
+  // Remove espaços duplos e padroniza os traços da agência
   private static padronizarAgencia(nome: string): string {
     if (!nome) return "";
     return nome.toUpperCase().replace(/\s+/g, " ").replace(/\s*-\s*/g, " - ").trim();
   }
 
-  /**
-   * Converte um buffer de Excel cru para uma lista de operações Zod validadas
-   */
+//Converte um buffer de Excel cru para uma lista de operações rigidamente validadas e tipadas
   static analisarBuffer(buffer: Buffer, importacaoId: number): { operacoes: OperacaoType[], totalLido: number } {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -27,10 +55,12 @@ export class ExcelParser {
     if (dataAsArray.length === 0) throw new Error("Planilha vazia");
 
     let headerRowIndex = 0;
-    // Varre as 10 primeiras linhas procurando indícios dos cabeçalhos obrigatórios
-    for (let i = 0; i < Math.min(10, dataAsArray.length); i++) {
+    
+    // Conforme sua regra: Verifica a linha 1 (índice 0), se não achar as chaves exatas da interface, tenta a linha 2 (índice 1).
+    for (let i = 0; i < Math.min(2, dataAsArray.length); i++) {
       const rowStr = (dataAsArray[i] || []).map(String).map(s => s.toUpperCase());
-      if (rowStr.some(k => k === "CTRC" || k === "CTE" || k === "NR_CTRC" || k.includes("AGÊNCIA"))) {
+      // Procurando as chaves EXATAS que vêm na sua planilha
+      if (rowStr.includes("NM_AGENCIA") || rowStr.includes("DT_EMISSAO_") || rowStr.includes("NR_CTRC")) {
           headerRowIndex = i;
           break;
       }
@@ -40,16 +70,17 @@ export class ExcelParser {
 
     if (rawData.length === 0) throw new Error("Não há dados na planilha além dos cabeçalhos");
 
-    // Validação de Cabeçalhos (Obrigatórios: Agência, CTRC, Data Emissão)
+    // Validação de Cabeçalhos: Exige EXATAMENTE as 4 chaves usadas para gerar a assinatura de duplicidade
     const availableHeaders = Object.keys(rawData[0]).map(h => h.toUpperCase());
     const requiredChecks = [
-      { name: "Agência", aliases: ["NM_AGENCIA", "AGÊNCIA", "AGENCIA"] },
-      { name: "CTRC", aliases: ["NR_CTRC", "CTRC", "CTE", "CT-E"] },
-      { name: "Data Emissão", aliases: ["DT_EMISSAO_", "DATA EMISSÃO", "EMISSÃO", "EMISSAO"] }
+      { name: "NM_AGENCIA", keys: ["NM_AGENCIA"] },
+      { name: "NR_CTRC", keys: ["NR_CTRC"] },
+      { name: "NR_NF", keys: ["NR_NF"] },
+      { name: "VL_TOTAL", keys: ["VL_TOTAL"] }
     ];
 
     const missing = requiredChecks.filter(check => 
-      !check.aliases.some(alias => availableHeaders.includes(alias))
+      !check.keys.some(k => availableHeaders.includes(k))
     );
 
     if (missing.length > 0) {
@@ -102,9 +133,12 @@ export class ExcelParser {
         id_tipo_ctrc: String(get(["id_tipo_ctrc", "TIPO CTE", "TIPO CTe"]) || ""),
         nm_proprietario_posse_cavalo: String(get(["nm_proprietario_posse_cavalo", "PROPRIETÁRIO", "PROPRIETARIO"]) || ""),
         nm_motorista: String(get(["nm_motorista", "MOTORISTA"]) || ""),
-        status: get(["status", "ANEXADO ATUA TICKET/NF"]) ? String(get(["status", "ANEXADO ATUA TICKET/NF"])).trim().toUpperCase() : null,
+        status: get(["status", "Status"]) ? String(get(["status", "Status"])).trim().toUpperCase() : null,
         comentarios: get(["comentarios", "OBSERVAÇÃO", "OBSERVACAO"]) ? String(get(["comentarios", "OBSERVAÇÃO", "OBSERVACAO"])).trim() : null,
       };
+
+      const hashStr = `${op.nm_agencia}|${op.nr_ctrc}|${op.nr_nf || ""}|${op.vl_total ? op.vl_total.toFixed(2) : "0.00"}`;
+      (op as any).hash_assinatura = crypto.createHash("md5").update(hashStr).digest("hex");
 
       return op as OperacaoType; 
     });

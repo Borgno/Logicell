@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
-import { COLUNAS_OPERACAO } from "~/constants/operacoes";
+import { COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
 import { AuditoriaModalView } from "../views/AuditoriaModalView";
 
 export function AuditoriaModal({ operacaoId, pastaId, title = "Histórico de Edições", onClose }: any) {

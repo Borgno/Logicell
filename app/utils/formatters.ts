@@ -1,6 +1,5 @@
-/**
- * Utilitários de formatação de dados para a UI brasileira.
- */
+//Utilitários de formatação de dados para a UI brasileira.
+
 
 export const formatarMoeda = (val: any) => {
   if (val === null || val === undefined) return "-";
@@ -30,3 +29,8 @@ export const formatarNumero = (val: any) => {
   if (val === null || val === undefined) return "-";
   return new Intl.NumberFormat('pt-BR').format(Number(val));
 };
+
+export function buscarNomeUsuario(email: string, metadataNome?: string): string {
+  if (!email) return "Usuário";
+  return metadataNome || email;
+}

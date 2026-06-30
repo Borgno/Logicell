@@ -24,7 +24,7 @@ import { ConfigService } from "./services/config.server";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { MESSAGES } from "./constants/messages";
 import { useActionFeedback } from "./hooks/use-action-feedback";
-import { buscarNomeUsuario } from "~/constants/usuarios";
+import { buscarNomeUsuario } from "~/utils/formatters";
 import "./styles/tailwind.css";
 
 function cn(...classes: (string | boolean | undefined)[]) {

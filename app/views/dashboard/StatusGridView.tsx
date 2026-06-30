@@ -1,6 +1,5 @@
 import { History } from "lucide-react";
 
-import { getStatusStyle } from "~/constants/operacoes";
 
 interface StatusGridProps {
   statusMap: Record<string, number>;
@@ -8,10 +7,7 @@ interface StatusGridProps {
 }
 
 export function StatusGridView({ statusMap, onStatusClick }: StatusGridProps) {
-  const statusPrioritarios = ['PENDENTE', 'DIVERGENTE'];
   const todosStatus = Object.keys(statusMap).sort((a, b) => {
-    if (statusPrioritarios.includes(a) && !statusPrioritarios.includes(b)) return -1;
-    if (!statusPrioritarios.includes(a) && statusPrioritarios.includes(b)) return 1;
     return statusMap[b] - statusMap[a];
   });
 
@@ -28,15 +24,13 @@ export function StatusGridView({ statusMap, onStatusClick }: StatusGridProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
         {todosStatus.map((status, i) => {
           const count = statusMap[status];
-          const style = getStatusStyle(status, i);
-          
           return (
             <button 
               key={i} 
               onClick={() => onStatusClick(status)}
               className={cn(
                 "p-4 rounded-2xl border transition-all text-left flex flex-col justify-between group h-24 relative overflow-hidden",
-                style,
+                "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
                 "hover:shadow-md hover:scale-[1.02] active:scale-95"
               )}
             >

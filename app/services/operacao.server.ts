@@ -8,7 +8,7 @@ import { DateParser } from "~/utils/date-parser";
  * OperacaoService
  * Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
  * Transformações de dados, validações complexas e regras de negócio de parsing
- * foram extraídas para `excel-parser.server.ts`, `schemas/operacao` e `dashboard.server.ts`.
+ * foram extraídas para `excel-parser.server.ts` e `dashboard.server.ts`.
  */
 export class OperacaoService {
   private static agenciasCache: string[] | null = null;
@@ -40,28 +40,19 @@ export class OperacaoService {
     const parsedData = ExcelParser.analisarBuffer(buffer, importacao.id);
     const spreadsheetOps = parsedData.operacoes;
 
-    // Gerador de assinatura única
-    const getSig = (op: any) => {
-      const ag = String(op.nm_agencia || "").trim().toUpperCase();
-      const ctrc = String(op.nr_ctrc || "").trim();
-      const nf = String(op.nr_nf || "").trim();
-      const vl = op.vl_total ? Number(op.vl_total).toFixed(2) : "0.00";
-      return `${ag}|${ctrc}|${nf}|${vl}`;
-    };
+    // 1. Assinaturas da Planilha Nova (hashes gerados no parser)
+    const spreadsheetSignatures = new Set(spreadsheetOps.map((op: any) => op.hash_assinatura));
 
-    // 1. Assinaturas da Planilha Nova
-    const spreadsheetSignatures = new Set(spreadsheetOps.map(getSig));
-
-    // 2. Buscar TODOS os itens existentes (Caixa de Entrada + todas as Pastas)
+    // 2. Buscar APENAS o id e o hash_assinatura (Ultra rápido, baixa pouquíssimos dados)
     const inboxItems = await prisma.operacao.findMany({
-      select: { id: true, nm_agencia: true, nr_ctrc: true, nr_nf: true, vl_total: true, dt_emissao_: true }
+      select: { id: true, hash_assinatura: true }
     });
 
     // 3. Tratamento de Exclusão baseado no Modo
     let removidos = 0;
     if (modo === "SUBSTITUIR") {
       const idsParaApagar = inboxItems
-        .filter(item => !spreadsheetSignatures.has(getSig(item)))
+        .filter(item => item.hash_assinatura && !spreadsheetSignatures.has(item.hash_assinatura))
         .map(item => item.id);
 
       if (idsParaApagar.length > 0) {
@@ -98,8 +89,7 @@ export class OperacaoService {
     // Otimização de Performance:
     // A requisição HTTP para a Edge Function foi totalmente removida.
     // Como o backend Node (React Router / Remix) já possui acesso direto ao Prisma e 
-    // ao banco de dados via listarOperacoesLocal, fazer uma requisição na web para outro 
-    // servidor (Edge Function) gerava um gargalo massivo de latência (Network Waterfall)
+    // ao banco de dados via listarOperacoesLocal, fazer uma requisição na web para outr
     // e sofria com 'cold starts'.
     return this.listarOperacoesLocal(filtros);
   }

@@ -46,6 +46,7 @@ model Operacao {
   auditorias                   Auditoria[]
   importacao                   Importacao? @relation(fields: [importacaoId], references: [id])
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])
+  hash_assinatura              String?     @unique
 
   @@unique([nm_agencia, nr_ctrc, nr_nf, vl_total, dt_emissao_])
   @@index([nm_agencia])

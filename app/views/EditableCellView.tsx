@@ -1,4 +1,3 @@
-import { getStatusStyle } from "~/constants/operacoes";
 import { formatarMoeda, formatarData, formatarNumero } from "~/utils/formatters";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -52,7 +51,7 @@ export function EditableCellView(props: any) {
                     )}
                     onClick={() => { setTempValue(String(opt)); onSave(String(opt)); setIsEditing(false); }}
                   >
-                    <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-black border", getStatusStyle(String(opt)))}>
+                    <span className={cn("px-1.5 py-0.5 rounded text-[8px] font-black border bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700")}>
                       {String(opt)}
                     </span>
                   </div>
@@ -112,7 +111,7 @@ export function EditableCellView(props: any) {
     >
       <span className={cn(
         "truncate block",
-        isStatus && cn("px-1.5 py-0.5 rounded-lg text-[9px] font-black inline-block border", getStatusStyle(displayValue))
+        isStatus && cn("px-1.5 py-0.5 rounded-lg text-[9px] font-black inline-block border bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700")
       )} title={String(displayValue || "")}>
         {campo === "dt_emissao_" ? formatarData(displayValue) : (coluna.isCurrency ? formatarMoeda(displayValue) : (coluna.isNumeric ? formatarNumero(displayValue) : displayValue || "-"))}
       </span>

@@ -1,7 +1,7 @@
 import { X, History, Clock, ArrowRight, User, Trash2, Edit3, PlusCircle, LayoutList, ChevronDown, ListFilter } from "lucide-react";
-import { COLUNAS_OPERACAO } from "~/constants/operacoes";
+import { COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
 import { formatarMoeda, formatarData } from "~/utils/formatters";
-import { buscarNomeUsuario } from "~/constants/usuarios";
+import { buscarNomeUsuario } from "~/utils/formatters";
 
 interface AuditoriaModalProps {
   operacaoId?: number | null;

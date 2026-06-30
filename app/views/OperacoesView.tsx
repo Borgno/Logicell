@@ -5,7 +5,7 @@ import { Search, Download, FolderPlus, ChevronDown, CheckCircle2, Table as Table
 import { useUI } from "~/root";
 import { MESSAGES } from "~/constants/messages";
 import { useActionFeedback } from "~/hooks/use-action-feedback";
-import { COLUNAS_OPERACAO, getStatusStyle, STATUS_COLORS } from "~/constants/operacoes";
+
 import { formatarMoeda, formatarData } from "~/utils/formatters";
 import { AuditoriaModalView } from "./AuditoriaModalView";
 import { clsx, type ClassValue } from "clsx";
@@ -14,7 +14,7 @@ import "react-data-grid/lib/styles.css";
 import { StatsView } from "./StatsView";
 import { OperacoesToolbarView } from "./OperacoesToolbarView";
 import { exportarExcel } from "~/utils/export";
-import { useOperacoesGridState, type FilterType } from "~/hooks/useOperacoesGridState";
+import { useOperacoesGridState, type FilterType, COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
 
 import DataGrid, { SelectColumn } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';

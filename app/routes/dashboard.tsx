@@ -1,17 +1,15 @@
 import { useLoaderData, data, useNavigate, Link } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Clock, AlertCircle, Layers, FileSpreadsheet, ChevronRight, X, TrendingUp, Scale, MapPin, Activity, Globe, History, ChevronDown } from "lucide-react";
+import { Layers, FileSpreadsheet, ChevronRight, X, TrendingUp, Scale, MapPin, Activity, Globe, History } from "lucide-react";
 import { useState, useEffect } from "react";
 import { requireUser } from "~/services/auth.server";
 import { AuditoriaModalView } from "~/views/AuditoriaModalView";
 import { ImportacaoModalView } from "~/views/ImportacaoModalView";
 import { GeografiaModalView } from "~/views/GeografiaModalView";
-import { formatarMoeda, formatarNumero } from "~/utils/formatters";
-import { getStatusStyle } from "~/constants/operacoes";
+import { formatarMoeda, formatarNumero, buscarNomeUsuario } from "~/utils/formatters";
 import type { LoaderFunctionArgs } from "react-router";
 
 import { DashboardService } from "~/services/dashboard.server";
-import { buscarNomeUsuario } from "~/constants/usuarios";
 
 const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f43f5e'];
 
@@ -117,7 +115,6 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {todosStatus.map((status, i) => {
             const count = statusMap[status];
-            const style = getStatusStyle(status, i);
             
             return (
               <button 
@@ -125,7 +122,7 @@ export default function Dashboard() {
                 onClick={() => setModalStatus(status)}
                 className={cn(
                   "p-4 rounded-3xl border transition-all text-left flex flex-col justify-between group h-28 relative overflow-hidden",
-                  style,
+                  "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
                   "hover:shadow-md hover:scale-[1.02] active:scale-95"
                 )}
               >

@@ -1,7 +1,5 @@
-/**
- * Registro Central de Mensagens e Alertas do Sistema
- * Centraliza todos os textos para facilitar a manutenção e garantir consistência.
- */
+  //Registro Central de Mensagens e Alertas do Sistema
+  //Centraliza todos os textos para facilitar a manutenção e garantir consistência.
 
 export const MESSAGES = {
   // --- NOTIFICAÇÕES (TOASTS) ---
