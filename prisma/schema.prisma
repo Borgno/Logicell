@@ -38,7 +38,7 @@ model Operacao {
   nm_motorista                 String?
   createdAt                    DateTime    @default(now())
   updatedAt                    DateTime    @updatedAt
-  dt_emissao_                  DateTime
+  dt_emissao_                  DateTime?
   importacaoId                 Int?
   pastaId                      Int?
   comentarios                  String?
@@ -47,8 +47,6 @@ model Operacao {
   importacao                   Importacao? @relation(fields: [importacaoId], references: [id])
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])
   hash_assinatura              String?     @unique
-
-  @@unique([nm_agencia, nr_ctrc, nr_nf, vl_total, dt_emissao_])
   @@index([nm_agencia])
   @@index([nm_produto])
   @@index([nm_motorista])

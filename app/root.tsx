@@ -24,6 +24,7 @@ import { ConfigService } from "./services/config.server";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { MESSAGES } from "./constants/messages";
 import { useActionFeedback } from "./hooks/use-action-feedback";
+import { UIContext, useUI } from "./hooks/use-ui";
 import { buscarNomeUsuario } from "~/utils/formatters";
 import "./styles/tailwind.css";
 
@@ -37,21 +38,7 @@ export const links: LinksFunction = () => [
   { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" },
 ];
 
-const UIContext = createContext<{
-  showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
-  confirm: (opts: { title: string, message: string, onConfirm: () => void, variant?: 'danger' | 'primary' }) => void;
-  alert: (opts: { title: string, message: string, variant?: 'success' | 'info' | 'error' }) => void;
-} | null>(null);
 
-export const useUI = () => {
-  const context = useContext(UIContext);
-  // Fallback para evitar quebras de sistema se o provedor falhar momentaneamente
-  return context || {
-    showToast: () => {},
-    confirm: () => {},
-    alert: () => {}
-  };
-};
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request);
