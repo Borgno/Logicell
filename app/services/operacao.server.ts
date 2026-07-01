@@ -86,9 +86,9 @@ export class OperacaoService {
 
 
   static async listarOperacoesLocal(filtros: any) {
-    const { page = 1, limit = 100, search, pastaId } = filtros;
+    const { page = 1, limit = 200, search, pastaId } = filtros;
     const p = Math.max(1, Math.floor(Number(page) || 1));
-    const l = Math.max(1, Math.floor(Number(limit) || 100));
+    const l = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 200)));
     const offset = (p - 1) * l;
     
     const whereClause = this.construirWhere(search, pastaId, filtros);
@@ -153,40 +153,48 @@ export class OperacaoService {
     const params: any[] = [];
     let idx = 1;
 
-    if (search) {
-      const s = `%${search}%`;
-      whereAnd.push(`(
-        nm_agencia ILIKE $${idx} OR
-        cd_pessoa_pagador ILIKE $${idx} OR
-        nm_pessoa_pagador ILIKE $${idx} OR
-        nr_cpf_cnpj_raiz ILIKE $${idx} OR
-        nr_cpf_cnpj_pagador ILIKE $${idx} OR
-        nr_ctrc ILIKE $${idx} OR
-        status ILIKE $${idx} OR
-        comentarios ILIKE $${idx} OR
-        id_tipo_documento ILIKE $${idx} OR
-        nm_pessoa_remetente ILIKE $${idx} OR
-        nm_cidade_origem ILIKE $${idx} OR
-        ds_sigla_origem ILIKE $${idx} OR
-        nm_pessoa_destinatario ILIKE $${idx} OR
-        nm_cidade_destino ILIKE $${idx} OR
-        ds_sigla_destino ILIKE $${idx} OR
-        nm_produto ILIKE $${idx} OR
-        nr_nf ILIKE $${idx} OR
-        ds_placa ILIKE $${idx} OR
-        nm_pessoa_matriz ILIKE $${idx} OR
-        nr_contrato ILIKE $${idx} OR
-        nr_chave_acesso ILIKE $${idx} OR
-        nm_pessoa_usuario_lancamento ILIKE $${idx} OR
-        id_tipo_ctrc ILIKE $${idx} OR
-        nm_proprietario_posse_cavalo ILIKE $${idx} OR
-        nm_motorista ILIKE $${idx} OR
-        TO_CHAR(dt_emissao_, 'DD/MM/YYYY') ILIKE $${idx} OR
-        vl_peso::TEXT ILIKE $${idx} OR
-        vl_tarifa::TEXT ILIKE $${idx} OR
-        vl_total::TEXT ILIKE $${idx}
-      )`);
-      params.push(s); idx++;
+    // [REMOVIDO] A busca global pesada (ILIKE) foi removida a pedido do usuário (Clean Code: Performance Smell)
+    // Agora o sistema utiliza filtros direcionados por coluna (colFilter_)
+    
+    // Processamento genérico para os filtros de coluna do React Data Grid
+    // Formato esperado do filtro na URL: colFilter_nome_coluna=tipo:valor
+    const colunasValidas = [
+      "nm_agencia", "cd_pessoa_pagador", "nm_pessoa_pagador", "nr_cpf_cnpj_raiz", 
+      "nr_cpf_cnpj_pagador", "nr_ctrc", "status", "comentarios", "id_tipo_documento",
+      "nm_pessoa_remetente", "nm_cidade_origem", "ds_sigla_origem", "nm_pessoa_destinatario",
+      "nm_cidade_destino", "ds_sigla_destino", "nm_produto", "nr_nf", "ds_placa",
+      "nm_pessoa_matriz", "nr_contrato", "nr_chave_acesso", "nm_pessoa_usuario_lancamento",
+      "id_tipo_ctrc", "nm_proprietario_posse_cavalo", "nm_motorista", "dt_emissao_",
+      "vl_peso", "vl_tarifa", "vl_total"
+    ];
+
+    for (const [key, val] of Object.entries(filtros)) {
+      if (key.startsWith("colFilter_") && typeof val === 'string') {
+        const colName = key.replace("colFilter_", "");
+        if (colunasValidas.includes(colName)) {
+          const separatorIdx = val.indexOf(":");
+          if (separatorIdx > -1) {
+              const type = val.substring(0, separatorIdx);
+              const value = val.substring(separatorIdx + 1);
+              
+              const isNumeric = colName.startsWith("vl_");
+              
+              if (type === "blank") {
+                whereAnd.push(`("${colName}" IS NULL OR "${colName}"::TEXT = '')`);
+              } else if (type === "notBlank") {
+                whereAnd.push(`("${colName}" IS NOT NULL AND "${colName}"::TEXT <> '')`);
+              } else if (type === "equals" && value !== "") {
+                if (isNumeric || colName === "dt_emissao_") {
+                    whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(value); idx++;
+                } else {
+                    whereAnd.push(`"${colName}" ILIKE $${idx}`); params.push(value); idx++;
+                }
+              } else if (type === "contains" && value !== "") {
+                whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(`%${value}%`); idx++;
+              }
+          }
+        }
+      }
     }
 
     if (filtros.nm_agencia) { whereAnd.push(`nm_agencia = $${idx}`); params.push(filtros.nm_agencia); idx++; }

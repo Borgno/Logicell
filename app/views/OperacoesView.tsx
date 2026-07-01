@@ -63,11 +63,6 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     }
   };
 
-  const [filtros, setFilters] = useState({
-    search: searchParams.get("search") || "",
-    status: searchParams.get("status") || ""
-  });
-
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
 
   const [showPastaMenu, setShowPastaMenu] = useState(false);
@@ -83,43 +78,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
 
   useEffect(() => {
     setSelecionados(new Set());
-    setFilters({
-      search: searchParams.get("search") || "",
-      status: searchParams.get("status") || ""
-    });
-  }, [pastaId, location.pathname]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const p = new URLSearchParams(searchParams);
-      const queryNormalizada = filtros.search.trim();
-
-      const hasActiveFilters = queryNormalizada || filtros.status;
-
-      if (!hasActiveFilters && !searchParams.has("page") && !searchParams.has("limit")) {
-        return;
-      }
-
-      const currentKeys = Array.from(p.keys());
-      currentKeys.forEach(k => {
-        if (k !== 'page' && k !== 'limit') p.delete(k);
-      });
-
-      if (queryNormalizada) p.set("search", queryNormalizada);
-      if (filtros.status) p.set("status", filtros.status);
-      
-      p.set("page", "1");
-      p.set("limit", searchParams.get("limit") || "100");
-
-      const newSearch = p.toString();
-      const currentSearch = searchParams.toString();
-
-      if (newSearch !== currentSearch) {
-        navigate(`${location.pathname}?${newSearch}`, { replace: true });
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [filtros]);
+    if (!location.state) {
+      setColumnFilters({});
+    }
+  }, [pastaId, location.pathname, location.state, setColumnFilters]);
 
   const lidarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,9 +184,9 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
         renderEditCell: (props: any) => {
           let editValue = props.row[col.key];
           if (col.key === "dt_emissao_") {
-             if (editValue instanceof Date || (typeof editValue === 'string' && editValue.includes('T'))) {
-                 editValue = formatarData(editValue);
-             }
+            if (editValue instanceof Date || (typeof editValue === 'string' && editValue.includes('T'))) {
+                editValue = formatarData(editValue);
+            }
           }
           return (
             <input
@@ -241,18 +203,18 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
           let displayValue: any = value;
           
           if (col.key === "status") {
-             displayValue = value || "";
+            displayValue = value || "";
           } else if (value === null || value === undefined) {
-             displayValue = "";
+            displayValue = "";
           } else if (col.key === "dt_emissao_") {
-             displayValue = formatarData(value);
+            displayValue = formatarData(value);
           } else if (col.isCurrency) {
-             displayValue = formatarMoeda(value);
+            displayValue = formatarMoeda(value);
           }
 
           const colIdx = orderedColumns.indexOf(col) + 2;
           const isSelected = selectedRanges.some(r => {
-             return props.rowIdx >= Math.min(r.start.rowIdx, r.end.rowIdx) && 
+            return props.rowIdx >= Math.min(r.start.rowIdx, r.end.rowIdx) && 
                     props.rowIdx <= Math.max(r.start.rowIdx, r.end.rowIdx) && 
                     colIdx >= Math.min(r.start.colIdx, r.end.colIdx) && 
                     colIdx <= Math.max(r.start.colIdx, r.end.colIdx);
@@ -271,10 +233,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                 } else if (e.shiftKey || e.altKey) {
                   // Estica o último bloco (como no Excel)
                   setSelectedRanges(prev => {
-                     if (prev.length === 0) return [{ start: pos, end: pos }];
-                     const newRanges = [...prev];
-                     newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: pos };
-                     return newRanges;
+                    if (prev.length === 0) return [{ start: pos, end: pos }];
+                    const newRanges = [...prev];
+                    newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: pos };
+                    return newRanges;
                   });
                 } else {
                   // Limpa e inicia um novo
@@ -285,10 +247,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
               onMouseEnter={() => {
                 if (isDragging) {
                   setSelectedRanges(prev => {
-                     if (prev.length === 0) return prev;
-                     const newRanges = [...prev];
-                     newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: { rowIdx: props.rowIdx, colIdx } };
-                     return newRanges;
+                    if (prev.length === 0) return prev;
+                    const newRanges = [...prev];
+                    newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: { rowIdx: props.rowIdx, colIdx } };
+                    return newRanges;
                   });
                 }
               }}
@@ -314,8 +276,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
         nomePasta={nomePasta}
         showImport={showImport}
         carregando={carregando}
-        filtros={filtros}
-        setFilters={setFilters}
+        // Filtros globais removidos, DataGrid gerencia seus colFilter_ via hook
         selecionados={selecionados}
         showPastaMenu={showPastaMenu}
         setShowPastaMenu={setShowPastaMenu}
@@ -342,44 +303,80 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
         }>
           <Await resolve={dadosPromise}>
             {(resultado: any) => {
-              const { data: initialDados, meta } = resultado;
+              const { data: initialDados, meta: initialMeta } = resultado;
               const [dados, setDados] = useState(initialDados);
+              const [meta, setMeta] = useState(initialMeta);
+              const loadMoreFetcher = useFetcher();
 
-              const dadosFiltrados = useMemo(() => {
-                if (!dados) return [];
-                return dados.filter((row: any) => {
+              const mounted = useRef(false);
+
+              useEffect(() => {
+                if (!mounted.current) {
+                  mounted.current = true;
+                  if (!location.state) return; // Evita fetch duplicado no mount se não vier de um redirect com state
+                }
+                
+                const timer = setTimeout(() => {
+                  const p = new URLSearchParams();
+                  if (pastaId) p.set("pastaId", String(pastaId));
+                  p.set("page", "1");
+                  p.set("limit", searchParams.get("limit") || "200");
+                  
                   for (const [key, filter] of Object.entries(columnFilters)) {
-                    if (!filter) continue;
-                    let rawVal = row[key];
-                    if (key === "dt_emissao_") rawVal = formatarData(rawVal);
-                    else if (key.startsWith("vl_")) rawVal = formatarMoeda(rawVal); // Otimização simples para valores monetários
-
-                    const cellValue = String(rawVal || "").toLowerCase();
-                    const compareValue = filter.value.toLowerCase();
-                    
-                    switch (filter.type) {
-                      case "contains":
-                        if (!cellValue.includes(compareValue) && compareValue !== "") return false;
-                        break;
-                      case "equals":
-                        if (cellValue !== compareValue && compareValue !== "") return false;
-                        break;
-                      case "blank":
-                        if (cellValue.trim() !== "") return false;
-                        break;
-                      case "notBlank":
-                        if (cellValue.trim() === "") return false;
-                        break;
-                    }
+                    if (!filter || (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank")) continue;
+                    p.set(`colFilter_${key}`, `${filter.type}:${filter.value}`);
                   }
-                  return true;
-                });
-              }, [dados, columnFilters]);
+                  
+                  loadMoreFetcher.load(`/api/operacoes-list?${p.toString()}`);
+                }, 600);
+                return () => clearTimeout(timer);
+              }, [columnFilters, pastaId]);
               
+              // Atualiza os dados se a promessa inicial mudar (ex: troca de pasta)
               useEffect(() => {
                 setDados(initialDados);
-                setSelecionados(new Set()); // Reset selections on new data
-              }, [initialDados]);
+                setMeta(initialMeta);
+                setSelecionados(new Set());
+              }, [pastaId]); // Depender apenas do pastaId evita que re-renders do React sobrescrevam os filtros!
+
+              useEffect(() => {
+                if (loadMoreFetcher.state === "idle" && loadMoreFetcher.data) {
+                  const res = loadMoreFetcher.data as any;
+                  if (res.meta) {
+                    if (res.meta.page === 1) {
+                      setDados(res.data);
+                      setMeta(res.meta);
+                    } else if (res.meta.page > meta.page) {
+                      setDados((prev: any[]) => {
+                          const existingIds = new Set(prev.map(d => d.id));
+                          const toAdd = res.data.filter((o: any) => !existingIds.has(o.id));
+                          return [...prev, ...toAdd];
+                      });
+                      setMeta(res.meta);
+                    }
+                  }
+                }
+              }, [loadMoreFetcher.state, loadMoreFetcher.data, meta.page]);
+
+              const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+                const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+                 // Carrega a próxima página ao chegar perto do fim da rolagem
+                if (scrollHeight - scrollTop - clientHeight < 400) {
+                    if (loadMoreFetcher.state === "idle" && meta.page < meta.totalPages && !loadMoreFetcher.data?.loading) {
+                      const p = new URLSearchParams();
+                      p.set("page", String(meta.page + 1));
+                      p.set("limit", searchParams.get("limit") || "200");
+                      if (pastaId) p.set("pastaId", String(pastaId));
+                      
+                      for (const [key, filter] of Object.entries(columnFilters)) {
+                        if (!filter || (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank")) continue;
+                        p.set(`colFilter_${key}`, `${filter.type}:${filter.value}`);
+                      }
+                      
+                      loadMoreFetcher.load(`/api/operacoes-list?${p.toString()}`);
+                    }
+                }
+              };
 
               useEffect(() => {
                 const handleKeyDown = (e: KeyboardEvent) => {
@@ -413,10 +410,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                     
                     let tsv = "";
                     for (let r = minRow; r <= maxRow; r++) {
-                       const rowData = dadosFiltrados[r];
-                       if (!rowData) continue;
-                       let rowValues = [];
-                       for (let c = minCol; c <= maxCol; c++) {
+                      const rowData = dados[r];
+                      if (!rowData) continue;
+                      let rowValues = [];
+                      for (let c = minCol; c <= maxCol; c++) {
                           if (selectedSet.has(`${r},${c}`)) {
                               if (c < 2) continue;
                               const col = orderedColumns[c - 2];
@@ -429,18 +426,18 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                           } else {
                               if (c >= 2) rowValues.push("");
                           }
-                       }
-                       if (rowValues.length > 0) tsv += rowValues.join("\t") + "\n";
+                      }
+                      if (rowValues.length > 0) tsv += rowValues.join("\t") + "\n";
                     }
                     if (tsv) {
-                       navigator.clipboard.writeText(tsv);
-                       showToast("Copiado!", "success");
+                      navigator.clipboard.writeText(tsv);
+                      showToast("Copiado!", "success");
                     }
                   }
                 };
                 window.addEventListener('keydown', handleKeyDown);
                 return () => window.removeEventListener('keydown', handleKeyDown);
-              }, [selectedRanges, dadosFiltrados, orderedColumns]);
+              }, [selectedRanges, dados, orderedColumns]);
 
               const handleLocalUpdate = (id: number, campo: string, valor: string) => {
                 setDados((prev: any[]) => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));
@@ -455,30 +452,31 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                     >
                     <DataGrid
                       columns={colDefs}
-                      rows={dadosFiltrados}
+                      rows={dados}
                       rowKeyGetter={(row: any) => row.id}
                       selectedRows={selecionados}
+                      onScroll={handleScroll}
                       onSelectedRowsChange={setSelecionados as any}
                       onCellClick={(args) => {
-                         if (args.column.key !== 'select' && args.column.key !== 'rowIndex') {
+                        if (args.column.key !== 'select' && args.column.key !== 'rowIndex') {
                             args.selectCell(true);
-                         }
+                        }
                       }}
                       onColumnResize={(idx, width) => {
-                         const colKey = colDefs[idx].key;
-                         if (!colKey) return;
-                         
-                         const newWidths = { ...columnWidths, [colKey]: width };
-                         setColumnWidths(newWidths);
+                        const colKey = colDefs[idx].key;
+                        if (!colKey) return;
+                        
+                        const newWidths = { ...columnWidths, [colKey]: width };
+                        setColumnWidths(newWidths);
 
                          // Debounce para não floodar a API
-                         if ((window as any)._resizeTimeout) clearTimeout((window as any)._resizeTimeout);
-                         (window as any)._resizeTimeout = setTimeout(() => {
-                           const formData = new FormData();
-                           formData.append("intent", "resizeColumns");
-                           formData.append("widths", JSON.stringify(newWidths));
-                           fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
-                         }, 500);
+                        if ((window as any)._resizeTimeout) clearTimeout((window as any)._resizeTimeout);
+                        (window as any)._resizeTimeout = setTimeout(() => {
+                          const formData = new FormData();
+                          formData.append("intent", "resizeColumns");
+                          formData.append("widths", JSON.stringify(newWidths));
+                          fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
+                        }, 500);
                       }}
                       onColumnsReorder={(sourceKey, targetKey) => {
                         const newOrder = orderedColumns.map(c => c.key);
@@ -496,8 +494,8 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       }}
                       onRowsChange={(newRows: any[], { indexes, column }: any) => {
                         if (indexes.length > 0 && column) {
-                           const row = newRows[indexes[0]];
-                           handleLocalUpdate(row.id, column.key, row[column.key]);
+                          const row = newRows[indexes[0]];
+                          handleLocalUpdate(row.id, column.key, row[column.key]);
                         }
                         
                         // Sincroniza dados atualizados preservando os que não estão no filtro
@@ -518,72 +516,64 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                           className="fixed z-[9999] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl flex flex-col w-64 p-3 animate-in zoom-in-95 duration-100 gap-3"
                           style={{ top: openFilterCol.rect.bottom + 8, left: Math.max(10, openFilterCol.rect.left - 200 + openFilterCol.rect.width) }}
                         >
-                           <div className="flex justify-between items-center">
+                          <div className="flex justify-between items-center">
                               <span className="text-xs font-black uppercase tracking-widest text-slate-500">Filtrar Coluna</span>
                               <button onClick={() => {
                                   setColumnFilters(p => {
                                     const n = {...p}; delete n[openFilterCol.key]; return n;
                                   });
-                                  if (searchParams.has(openFilterCol.key)) {
-                                     const p = new URLSearchParams(searchParams);
-                                     p.delete(openFilterCol.key);
-                                     setSearchParams(p);
-                                  }
+                                  // searchParams is synced automatically via useEffect
                                   setOpenFilterCol(null);
                               }} className="text-[10px] text-slate-500 font-bold uppercase tracking-widest hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Limpar</button>
-                           </div>
+                          </div>
 
-                           <select 
-                             className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-700 dark:text-slate-300"
-                             value={columnFilters[openFilterCol.key]?.type || "contains"}
-                             onChange={(e) => {
-                               const type = e.target.value as FilterType;
-                               setColumnFilters(p => ({
-                                 ...p,
-                                 [openFilterCol.key]: { type, value: p[openFilterCol.key]?.value || "" }
-                               }));
-                             }}
-                           >
-                             <option value="contains">Contém</option>
-                             <option value="equals">É Igual a</option>
-                             <option value="blank">Vazio (Em branco)</option>
-                             <option value="notBlank">Não Vazio</option>
-                           </select>
+                          <select 
+                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-700 dark:text-slate-300"
+                            value={columnFilters[openFilterCol.key]?.type || "contains"}
+                            onChange={(e) => {
+                              const type = e.target.value as FilterType;
+                              setColumnFilters(p => ({
+                                ...p,
+                                [openFilterCol.key]: { type, value: p[openFilterCol.key]?.value || "" }
+                              }));
+                            }}
+                          >
+                            <option value="contains">Contém</option>
+                            <option value="equals">É Igual a</option>
+                            <option value="blank">Vazio (Em branco)</option>
+                            <option value="notBlank">Não Vazio</option>
+                          </select>
 
-                           {(columnFilters[openFilterCol.key]?.type !== "blank" && columnFilters[openFilterCol.key]?.type !== "notBlank") && (
-                             <input 
-                               type="text" 
-                               placeholder="Valor..."
-                               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-slate-400/50 transition-all"
-                               value={columnFilters[openFilterCol.key]?.value || ""}
-                               onChange={(e) => {
-                                 const value = e.target.value;
-                                 setColumnFilters(p => ({
-                                   ...p,
-                                   [openFilterCol.key]: { type: p[openFilterCol.key]?.type || "contains", value }
-                                 }));
-                                 if (searchParams.has(openFilterCol.key)) {
-                                    const p = new URLSearchParams(searchParams);
-                                    p.delete(openFilterCol.key);
-                                    setSearchParams(p);
-                                 }
-                               }}
-                               autoFocus
-                             />
-                           )}
+                          {(columnFilters[openFilterCol.key]?.type !== "blank" && columnFilters[openFilterCol.key]?.type !== "notBlank") && (
+                            <input 
+                              type="text" 
+                              placeholder="Valor..."
+                              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-slate-400/50 transition-all"
+                              value={columnFilters[openFilterCol.key]?.value || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setColumnFilters(p => ({
+                                  ...p,
+                                  [openFilterCol.key]: { type: p[openFilterCol.key]?.type || "contains", value }
+                                }));
+                                  // searchParams is synced automatically via useEffect
+                              }}
+                              autoFocus
+                            />
+                          )}
                         </div>
                       </>
                     )}
                   </div>
 
-                  {/* PAGINAÇÃO */}
+                  {/* FOOTER & SCROLL INFINITO */}
                   <div className="px-8 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total: {meta.total} registros</div>
                       </div>
                       <select 
-                        value={searchParams.get("limit") || "100"} 
+                        value={searchParams.get("limit") || "200"} 
                         onChange={(e) => {
                           const p = new URLSearchParams(searchParams);
                           p.set("limit", e.target.value);
@@ -596,10 +586,16 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       </select>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { const p = new URLSearchParams(searchParams); p.set("page", String(Math.max(1, meta.page - 1))); setSearchParams(p); }} disabled={meta.page === 1} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold disabled:opacity-30 transition-all hover:bg-slate-50 shadow-sm">Anterior</button>
-                      <div className="px-4 py-2 bg-indigo-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-500/20">{meta.page} / {meta.totalPages}</div>
-                      <button onClick={() => { const p = new URLSearchParams(searchParams); p.set("page", String(Math.min(meta.totalPages, meta.page + 1))); setSearchParams(p); }} disabled={meta.page >= meta.totalPages} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold disabled:opacity-30 transition-all hover:bg-slate-50 shadow-sm">Próxima</button>
+                    <div className="flex items-center gap-2 h-8">
+                      {loadMoreFetcher.state !== "idle" && (
+                        <div className="flex items-center gap-2 text-indigo-500 text-xs font-bold animate-pulse">
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>Carregando mais...</span>
+                        </div>
+                      )}
+                      {loadMoreFetcher.state === "idle" && meta.page >= meta.totalPages && meta.total > 0 && (
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Fim da lista</div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -643,7 +639,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                 setAuditoriaModalId(-1);
               }}
               onApplyFilter={(status) => {
-                setFilters(p => ({ ...p, status }));
+                setColumnFilters(prev => ({
+                  ...prev,
+                  status: { type: 'equals', value: status }
+                }));
                 setShowStatsModal(false);
               }}
             />

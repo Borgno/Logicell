@@ -1,21 +1,7 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useLoaderData,
-  useFetcher,
-  NavLink,
-  useNavigation,
-  useLocation,
-  Form
-} from "react-router";
+import {Links,Meta,Outlet,Scripts,ScrollRestoration,useLoaderData,useFetcher,NavLink,useNavigation,useLocation,Form} from "react-router";
 import type { LinksFunction, ShouldRevalidateFunction, LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
-import { 
-  Truck, Inbox, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, LayoutDashboard, Folder, X, Sun, Moon, CheckCircle2, AlertCircle, Info, AlertTriangle, LogOut, User as UserIcon
-} from "lucide-react";
+import { Truck, Inbox, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, LayoutDashboard, Folder, X, Sun, Moon, CheckCircle2, AlertCircle, Info, AlertTriangle, LogOut, User as UserIcon} from "lucide-react";
 import { getUser, createSupabaseServerClient } from "./services/auth.server";
 import { PastaService } from "./services/pasta.server";
 import { OperacaoService } from "./services/operacao.server";

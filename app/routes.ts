@@ -7,5 +7,6 @@ export default [
   route("api/operacoes", "routes/api.operacoes.ts"),
   route("api/auditoria", "routes/api.auditoria.tsx"),
   route("api/stats", "routes/api.stats.ts"),
+  route("api/operacoes-list", "routes/api.operacoes-list.ts"),
   route("login", "routes/login.tsx"),
 ] satisfies RouteConfig;

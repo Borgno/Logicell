@@ -47,10 +47,7 @@ export default function Dashboard() {
   if (!estatisticas || !estatisticas.porAgencia) return null;
 
   const statusMap = estatisticas.totais.statusMap || {};
-  const statusPrioritarios = ['PENDENTE', 'DIVERGENTE'];
   const todosStatus = Object.keys(statusMap).sort((a, b) => {
-    if (statusPrioritarios.includes(a) && !statusPrioritarios.includes(b)) return -1;
-    if (!statusPrioritarios.includes(a) && statusPrioritarios.includes(b)) return 1;
     return statusMap[b] - statusMap[a];
   });
 
@@ -87,7 +84,9 @@ export default function Dashboard() {
                     onClick={() => {
                       setModalStatus(null);
                       const target = item.id === null ? '/caixa-de-entrada' : `/pastas/${item.id}`;
-                      navigate(`${target}?status=${modalStatus}`);
+                      navigate(target, { 
+                        state: { colFilter_status: `equals:${modalStatus}` }
+                      });
                     }}
                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-transparent hover:border-blue-500/30 hover:bg-white dark:hover:bg-slate-800 transition-all group"
                   >

@@ -10,8 +10,7 @@ export interface OperacoesToolbarProps {
   showImport: boolean;
   carregando: boolean;
   
-  filtros: { search: string; status: string };
-  setFilters: React.Dispatch<React.SetStateAction<{ search: string; status: string }>>;
+  // Filtros removidos do toolbar para focar na busca por coluna no DataGrid
   
   selecionados: Set<number>;
   
@@ -32,7 +31,7 @@ function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
 export function OperacoesToolbarView({
   dadosPromise, pastas, nomePasta, showImport, carregando,
-  filtros, setFilters, selecionados,
+  selecionados,
   showPastaMenu, setShowPastaMenu, showActionsMenu, setShowActionsMenu, setShowImportModal,
   lidarUpload, handleOpenStats, moverParaPasta, excluirSelecionados, exportarExcel
 }: OperacoesToolbarProps) {
@@ -61,15 +60,8 @@ export function OperacoesToolbarView({
           </button>
         )}
 
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            placeholder="Busca Geral" 
-            value={filtros.search}
-            onChange={(e) => setFilters((p: any) => ({ ...p, search: e.target.value }))}
-            maxLength={500}
-            className="w-full bg-slate-100/50 dark:bg-slate-800/50 border-0 rounded-xl pl-10 pr-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm font-medium"
-          />
+        <div className="relative flex-1 flex justify-end">
+           {/* Busca global removida para priorizar filtros específicos por coluna no Grid */}
         </div>
       </div>
 

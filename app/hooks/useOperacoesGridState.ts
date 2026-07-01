@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, useLocation } from "react-router";
 
 export const COLUNAS_OPERACAO = [
   { key: 'nm_agencia', label: 'Agência', width: '180px' },
@@ -41,9 +41,44 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null, initi
   const [searchParams] = useSearchParams();
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialWidths);
   
+  const location = useLocation();
   const [columnFilters, setColumnFilters] = useState<Record<string, { type: FilterType, value: string }>>(() => {
     const init: any = {};
-    if (searchParams.get("status")) {
+    
+    // Suporte a state de navegação (hidden na URL)
+    if (location.state) {
+      for (const [key, value] of Object.entries(location.state)) {
+        if (key.startsWith("colFilter_") && typeof value === 'string') {
+          const colKey = key.replace("colFilter_", "");
+          const separatorIdx = value.indexOf(":");
+          if (separatorIdx > -1) {
+              init[colKey] = {
+                  type: value.substring(0, separatorIdx) as FilterType,
+                  value: value.substring(separatorIdx + 1)
+              };
+          } else {
+              init[colKey] = { type: value as FilterType, value: "" };
+          }
+        }
+      }
+    }
+    
+    // Suporte legado para searchParams
+    for (const [key, value] of searchParams.entries()) {
+      if (key.startsWith("colFilter_")) {
+        const colKey = key.replace("colFilter_", "");
+        const separatorIdx = value.indexOf(":");
+        if (separatorIdx > -1) {
+            init[colKey] = {
+                type: value.substring(0, separatorIdx) as FilterType,
+                value: value.substring(separatorIdx + 1)
+            };
+        } else {
+            init[colKey] = { type: value as FilterType, value: "" };
+        }
+      }
+    }
+    if (searchParams.get("status") && !init["status"]) {
       init["status"] = { type: "equals", value: searchParams.get("status")! };
     }
     return init;
