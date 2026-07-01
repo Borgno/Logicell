@@ -21,7 +21,6 @@ export interface OperacoesToolbarProps {
   setShowImportModal: (val: boolean) => void;
   
   lidarUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleOpenStats: () => void;
   moverParaPasta: (id: number | null, nome: string, total: number) => void;
   excluirSelecionados: (total: number) => void;
   exportarExcel: (data: any[]) => void;
@@ -33,32 +32,12 @@ export function OperacoesToolbarView({
   dadosPromise, pastas, nomePasta, showImport, carregando,
   selecionados,
   showPastaMenu, setShowPastaMenu, showActionsMenu, setShowActionsMenu, setShowImportModal,
-  lidarUpload, handleOpenStats, moverParaPasta, excluirSelecionados, exportarExcel
+  lidarUpload, moverParaPasta, excluirSelecionados, exportarExcel
 }: OperacoesToolbarProps) {
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-sm flex flex-col xl:flex-row gap-3 items-center justify-between shrink-0">
       <div className="flex items-center gap-3 flex-1 w-full">
         <input type="file" id="import-input" className="hidden" accept=".xls,.xlsx" onChange={lidarUpload} disabled={carregando} />
-
-        {!showImport && (
-          <button 
-            onClick={handleOpenStats}
-            className="flex items-center gap-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl shrink-0 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors group"
-          >
-            {carregando ? <Loader2 size={16} className="animate-spin text-indigo-500" /> : <LayoutDashboard size={16} className="text-indigo-500 group-hover:scale-110 transition-transform" />}
-            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{nomePasta}</span>
-          </button>
-        )}
-
-        {showImport && (
-          <button 
-            onClick={handleOpenStats}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 transition-all group shrink-0"
-          >
-            {carregando ? <Loader2 size={16} className="animate-spin text-indigo-500" /> : <LayoutDashboard size={16} className="text-indigo-500" />}
-            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">Dashboard</span>
-          </button>
-        )}
 
         <div className="relative flex-1 flex justify-end">
            {/* Busca global removida para priorizar filtros específicos por coluna no Grid */}

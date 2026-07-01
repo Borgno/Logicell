@@ -11,7 +11,7 @@ import { formatarMoeda, formatarData } from "~/utils/formatters";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import "react-data-grid/lib/styles.css";
-import { StatsView } from "./StatsView";
+
 import { OperacoesToolbarView } from "./OperacoesToolbarView";
 import { exportarExcel } from "~/utils/export";
 import { useOperacoesGridState, type FilterType, COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
@@ -48,26 +48,12 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const navigate = useNavigate();
   const location = useLocation();
   const fetcher = useFetcher();
-  const statsFetcher = useFetcher();
   const { showToast, confirm, alert: showAlert } = useUI();
   
-  const lastLoadedPastaId = useRef<string | number | null>(null);
-
-  const handleOpenStats = () => {
-    setShowStatsModal(true);
-    const pId = pastaId === null ? "null" : pastaId;
-    
-    if (statsFetcher.state === "idle" && (!statsFetcher.data || lastLoadedPastaId.current !== pId)) {
-      statsFetcher.load(`/api/stats?pastaId=${pId}`);
-      lastLoadedPastaId.current = pId;
-    }
-  };
-
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
 
   const [showPastaMenu, setShowPastaMenu] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importModo, setImportModo] = useState("SUBSTITUIR");
 
@@ -284,7 +270,6 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
         setShowActionsMenu={setShowActionsMenu}
         setShowImportModal={setShowImportModal}
         lidarUpload={lidarUpload}
-        handleOpenStats={handleOpenStats}
         moverParaPasta={moverParaPasta}
         excluirSelecionados={excluirSelecionados}
         exportarExcel={lidarExportarExcel}
@@ -607,37 +592,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
 
 
 
-      {showStatsModal && (
-        <Suspense fallback={null}>
-          {statsFetcher.state === "loading" && !statsFetcher.data ? (
-            <div 
-              className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
-              onClick={() => setShowStatsModal(false)}
-            >
-              <div 
-                className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center gap-4 animate-in zoom-in-95 duration-300"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Loader2 size={40} className="animate-spin text-indigo-500" />
-                <p className="text-xs font-black text-slate-500 uppercase tracking-widest animate-pulse">Calculando Analytics...</p>
-              </div>
-            </div>
-          ) : statsFetcher.data ? (
-            <StatsView 
-              stats={statsFetcher.data} 
-              nomePasta={nomePasta} 
-              onClose={() => setShowStatsModal(false)}
-              onApplyFilter={(status) => {
-                setColumnFilters(prev => ({
-                  ...prev,
-                  status: { type: 'equals', value: status }
-                }));
-                setShowStatsModal(false);
-              }}
-            />
-          ) : null}
-        </Suspense>
-      )}
+
 
       {/* Modal de Importação com Modos */}
       {showImportModal && (
