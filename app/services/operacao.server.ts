@@ -2,6 +2,7 @@ import prisma from "~/lib/prisma.server";
 import crypto from "crypto";
 import { PastaService } from "./pasta.server";
 import { ExcelParser } from "./excel-parser.server";
+import { AutomacaoService } from "./automacao.server";
 import { DateParser } from "~/utils/date-parser";
 
 
@@ -38,6 +39,20 @@ export class OperacaoService {
 
     const parsedData = ExcelParser.analisarBuffer(buffer, importacao.id);
     const spreadsheetOps = parsedData.operacoes;
+
+    // --- AUTOMAÇÃO (ROTEAMENTO) ---
+    const mapaRoteamento = await AutomacaoService.obterMapaRoteamento();
+    if (mapaRoteamento.size > 0) {
+      for (const op of spreadsheetOps as any[]) {
+        if (op.nm_agencia) {
+          const agenciaClean = String(op.nm_agencia).trim().toUpperCase();
+          if (mapaRoteamento.has(agenciaClean)) {
+            op.pastaId = mapaRoteamento.get(agenciaClean);
+          }
+        }
+      }
+    }
+    // -----------------------------
 
     // 1. Assinaturas da Planilha Nova (hashes gerados no parser)
     const spreadsheetSignatures = new Set(spreadsheetOps.map((op: any) => op.hash_assinatura));

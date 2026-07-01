@@ -81,8 +81,9 @@ model Pasta {
   id        Int        @id @default(autoincrement())
   nome      String     @unique
   cor       String?
-  operacoes Operacao[]
-  createdAt DateTime   @default(now())
+  operacoes  Operacao[]
+  regras     RegraAutomacao[]
+  createdAt  DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
@@ -99,4 +100,14 @@ model Configuracao {
   valor     String   // Guardará JSON, ex: ["nr_ctrc", "nm_agencia", ...]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model RegraAutomacao {
+  id        Int      @id @default(autoincrement())
+  pastaId   Int
+  agencia   String   @unique
+  createdAt DateTime @default(now())
+  pasta     Pasta    @relation(fields: [pastaId], references: [id], onDelete: Cascade)
+
+  @@index([pastaId])
 }
