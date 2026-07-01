@@ -7,7 +7,7 @@ import { MESSAGES } from "~/constants/messages";
 import { useActionFeedback } from "~/hooks/use-action-feedback";
 
 import { formatarMoeda, formatarData } from "~/utils/formatters";
-import { AuditoriaModalView } from "./AuditoriaModalView";
+
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import "react-data-grid/lib/styles.css";
@@ -70,7 +70,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importModo, setImportModo] = useState("SUBSTITUIR");
-  const [auditoriaModalId, setAuditoriaModalId] = useState<number | null>(null);
+
 
   const carregando = fetcher.state !== "idle" || fetcher.formData !== undefined;
 
@@ -605,14 +605,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
         </Suspense>
       </div>
 
-      {auditoriaModalId !== null && (
-        <AuditoriaModalView 
-          operacaoId={auditoriaModalId > 0 ? auditoriaModalId : null} 
-          pastaId={auditoriaModalId === -1 ? (pastaId === null ? "null" : pastaId) : undefined}
-          title={auditoriaModalId === -1 ? `Histórico: ${nomePasta}` : "Edições da Operação"}
-          onClose={() => setAuditoriaModalId(null)} 
-        />
-      )}
+
 
       {showStatsModal && (
         <Suspense fallback={null}>
@@ -633,11 +626,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
             <StatsView 
               stats={statsFetcher.data} 
               nomePasta={nomePasta} 
-              onClose={() => setShowStatsModal(false)} 
-              onOpenHistory={() => {
-                setShowStatsModal(false);
-                setAuditoriaModalId(-1);
-              }}
+              onClose={() => setShowStatsModal(false)}
               onApplyFilter={(status) => {
                 setColumnFilters(prev => ({
                   ...prev,

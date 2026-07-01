@@ -276,24 +276,7 @@ export class OperacaoService {
       data: { pastaId: finalPastaId }
     });
 
-    // Grava auditoria de forma assíncrona (fire-and-forget)
-    const moveDetails = {
-      origem: sourcePastaNome,
-      destino: finalPastaNome,
-      itens: items.map(i => ({ id: i.id, ctrc: i.nr_ctrc, agencia: i.nm_agencia, nf: i.nr_nf, total: i.vl_total, emissao: i.dt_emissao_ }))
-    };
 
-    const tipo = affectedIds.length === 1 ? "MOVE" : "BULK_MOVE";
-    prisma.auditoria.create({
-      data: {
-        ...(tipo === "MOVE" ? { operacaoId: items[0].id, campo: "pastaId", valorAntigo: sourcePastaNome } : {}),
-        tipo,
-        entidade: "OPERACAO",
-        valorNovo: finalPastaNome,
-        detalhes: JSON.stringify(moveDetails),
-        usuario
-      } as any
-    }).catch(e => console.error("Erro auditoria move:", e));
 
     this.invalidarCache();
     await PastaService.invalidarCache();
@@ -319,35 +302,7 @@ export class OperacaoService {
       // 2. Apaga
       await prisma.operacao.deleteMany({ where: { id: { in: affectedIds } } });
 
-      // 3. Audita com o Snapshot total do item
-      const deleteDetails = items.map(i => ({ 
-        id: i.id, 
-        ctrc: i.nr_ctrc, 
-        agencia: i.nm_agencia, 
-        nf: i.nr_nf, 
-        total: i.vl_total, 
-        emissao: i.dt_emissao_ 
-      }));
 
-      if (items.length === 1) {
-        prisma.auditoria.create({
-          data: {
-            tipo: "DELETE",
-            entidade: "OPERACAO",
-            detalhes: JSON.stringify(deleteDetails),
-            usuario
-          } as any
-        }).catch(e => console.error("Erro auditoria delete:", e));
-      } else {
-        prisma.auditoria.create({
-          data: {
-            tipo: "BULK_DELETE",
-            entidade: "OPERACAO",
-            detalhes: JSON.stringify(deleteDetails),
-            usuario
-          } as any
-        }).catch(e => console.error("Erro auditoria bulk delete:", e));
-      }
     }
 
     this.invalidarCache();
@@ -383,28 +338,7 @@ export class OperacaoService {
       return { operacaoAtualizada, valorAntigo, valorLimpo: String(valorLimpo) };
     });
 
-    // 4. Grava o rastro na Auditoria fora da transação para performance e estabilidade
-    if (res.valorAntigo !== res.valorLimpo) {
-      const { operacaoAtualizada: o } = res;
-      prisma.auditoria.create({
-        data: {
-          operacaoId: id,
-          tipo: "UPDATE",
-          entidade: "OPERACAO",
-          campo,
-          valorAntigo: res.valorAntigo,
-          valorNovo: res.valorLimpo,
-          detalhes: JSON.stringify({
-            agencia: o.nm_agencia,
-            ctrc: o.nr_ctrc,
-            nf: o.nr_nf,
-            total: o.vl_total,
-            emissao: o.dt_emissao_
-          }),
-          usuario
-        } as any
-      }).catch(e => console.error("Falha ao gravar auditoria:", e));
-    }
+
 
     return res.operacaoAtualizada;
   }

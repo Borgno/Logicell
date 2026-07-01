@@ -43,7 +43,7 @@ model Operacao {
   pastaId                      Int?
   comentarios                  String?
   status                       String?
-  auditorias                   Auditoria[]
+
   importacao                   Importacao? @relation(fields: [importacaoId], references: [id])
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])
   hash_assinatura              String?     @unique
@@ -76,23 +76,6 @@ model Importacao {
   operacoes    Operacao[]
 }
 
-model Auditoria {
-  id          Int      @id @default(autoincrement())
-  tipo        String   @default("UPDATE")
-  entidade    String   @default("OPERACAO")
-  operacaoId  Int?
-  campo       String?
-  valorAntigo String?
-  valorNovo   String?
-  detalhes    String?
-  usuario     String
-  createdAt   DateTime @default(now())
-  operacao    Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
-
-  @@index([usuario])
-  @@index([tipo])
-  @@index([operacaoId])
-}
 
 model Pasta {
   id        Int        @id @default(autoincrement())

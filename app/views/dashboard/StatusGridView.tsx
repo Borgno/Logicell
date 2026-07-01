@@ -1,4 +1,4 @@
-import { History } from "lucide-react";
+
 
 
 interface StatusGridProps {
@@ -38,11 +38,7 @@ export function StatusGridView({ statusMap, onStatusClick }: StatusGridProps) {
                 <p className="text-[8px] font-black uppercase tracking-tighter mb-1 truncate opacity-70">{status}</p>
                 <p className="text-xl font-black tracking-tighter text-slate-800 dark:text-white leading-none">{count}</p>
               </div>
-              <div className="flex items-center justify-end">
-                <div className="p-1 px-1.5 bg-white/50 dark:bg-slate-800/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                  <History size={11} />
-                </div>
-              </div>
+
             </button>
           );
         })}

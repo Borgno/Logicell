@@ -1,4 +1,4 @@
-import { LayoutDashboard, X, History } from "lucide-react";
+import { LayoutDashboard, X } from "lucide-react";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { StatusGridView } from "./dashboard/StatusGridView";
 import { FinanceSummaryView } from "./dashboard/FinanceSummaryView";
@@ -14,12 +14,11 @@ const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
 interface StatsViewProps {
   stats: any;
   onClose: () => void;
-  onOpenHistory: () => void;
   onApplyFilter: (status: string) => void;
   nomePasta: string;
 }
 
-export function StatsView({ stats, onClose, onOpenHistory, onApplyFilter, nomePasta }: StatsViewProps) {
+export function StatsView({ stats, nomePasta, onApplyFilter, onClose }: StatsViewProps) {
   const [isDark, setIsDark] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -54,13 +53,7 @@ export function StatsView({ stats, onClose, onOpenHistory, onApplyFilter, nomePa
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={onOpenHistory}
-              className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-300 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-transparent hover:border-indigo-500/30"
-            >
-              <History size={14} className="text-indigo-500" />
-              <span>Auditoria</span>
-            </button>
+
             <button 
               onClick={onClose}
               className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-rose-500 transition-all"

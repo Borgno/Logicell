@@ -1,8 +1,8 @@
 import { useLoaderData, data, useNavigate, Link } from "react-router";
-import { Layers, FileSpreadsheet, ChevronRight, X, TrendingUp, Scale, MapPin, Activity, Globe, History } from "lucide-react";
+import { Layers, FileSpreadsheet, ChevronRight, X, TrendingUp, Scale, MapPin, Activity, Globe } from "lucide-react";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { requireUser } from "~/services/auth.server";
-import { AuditoriaModalView } from "~/views/AuditoriaModalView";
+
 import { ImportacaoModalView } from "~/views/ImportacaoModalView";
 import { GeografiaModalView } from "~/views/GeografiaModalView";
 import { formatarMoeda, formatarNumero, buscarNomeUsuario } from "~/utils/formatters";
@@ -34,7 +34,7 @@ export default function Dashboard() {
   const [modalStatus, setModalStatus] = useState<string | null>(null);
   const [showGeografiaModal, setShowGeografiaModal] = useState(false);
   const [showImportacaoModal, setShowImportacaoModal] = useState(false);
-  const [showGlobalHistory, setShowGlobalHistory] = useState(false);
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -132,11 +132,7 @@ export default function Dashboard() {
                   <p className="text-[8px] font-black uppercase tracking-widest mb-1 truncate opacity-80">{status}</p>
                   <p className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">{count}</p>
                 </div>
-                <div className="flex items-center justify-end">
-                  <div className="p-1 px-2 bg-white/50 dark:bg-slate-800/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                    <History size={12} className="text-inherit" />
-                  </div>
-                </div>
+
               </button>
             );
           })}
@@ -179,14 +175,6 @@ export default function Dashboard() {
             <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
               <Layers size={20} />
             </div>
-          </button>
-
-          <button 
-            onClick={() => setShowGlobalHistory(true)}
-            className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-center aspect-square hover:border-indigo-500 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 group"
-            title="Histórico Geral do Sistema"
-          >
-            <History size={20} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
           </button>
         </div>
       </section>
@@ -304,13 +292,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* MODAIS */}
-      {showGlobalHistory && (
-        <AuditoriaModalView 
-          title="Histórico Geral" 
-          onClose={() => setShowGlobalHistory(false)} 
-        />
-      )}
 
       {showImportacaoModal && (
         <ImportacaoModalView 
