@@ -105,7 +105,8 @@ model Configuracao {
 model RegraAutomacao {
   id        Int      @id @default(autoincrement())
   pastaId   Int
-  agencia   String   @unique
+  agencia   String?  @unique
+  cliente   String?  @unique
   createdAt DateTime @default(now())
   pasta     Pasta    @relation(fields: [pastaId], references: [id], onDelete: Cascade)
 

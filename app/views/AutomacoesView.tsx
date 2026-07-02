@@ -9,17 +9,18 @@ interface AutomacoesViewProps {
 export function AutomacoesView({ pastas }: AutomacoesViewProps) {
   const fetcher = useFetcher();
   const [modalPasta, setModalPasta] = useState<any | null>(null);
-  const [novaAgencia, setNovaAgencia] = useState("");
+  const [novoValor, setNovoValor] = useState("");
+  const [tipoRegra, setTipoRegra] = useState<'agencia' | 'cliente'>('agencia');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!novaAgencia.trim() || !modalPasta) return;
+    if (!novoValor.trim() || !modalPasta) return;
     
     fetcher.submit(
-      { intent: "adicionar", pastaId: modalPasta.id.toString(), agencia: novaAgencia },
+      { intent: "adicionar", pastaId: modalPasta.id.toString(), tipo: tipoRegra, valor: novoValor },
       { method: "post" }
     );
-    setNovaAgencia("");
+    setNovoValor("");
   };
 
   const handleRemove = (regraId: number) => {
@@ -124,18 +125,27 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
             {/* Content Modal */}
             <div className="p-8 flex-1 overflow-y-auto">
               <form onSubmit={handleAdd} className="flex gap-3 mb-8">
+                <select
+                  value={tipoRegra}
+                  onChange={(e) => setTipoRegra(e.target.value as 'agencia' | 'cliente')}
+                  className="bg-slate-100 dark:bg-slate-800 border-none rounded-2xl px-4 py-4 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500"
+                  disabled={fetcher.state !== "idle"}
+                >
+                  <option value="agencia">Agência</option>
+                  <option value="cliente">Cliente</option>
+                </select>
                 <input 
                   type="text" 
-                  placeholder="EX: LUIS EDUARDO MAGALHAES - BA" 
+                  placeholder={tipoRegra === 'agencia' ? "EX: LUIS EDUARDO MAGALHAES - BA" : "EX: NOME DO CLIENTE"} 
                   className="flex-1 bg-slate-100 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-indigo-500 dark:text-white uppercase placeholder:normal-case placeholder:text-slate-400"
-                  value={novaAgencia}
-                  onChange={e => setNovaAgencia(e.target.value.toUpperCase())}
+                  value={novoValor}
+                  onChange={e => setNovoValor(e.target.value.toUpperCase())}
                   disabled={fetcher.state !== "idle"}
                   autoFocus
                 />
                 <button 
                   type="submit"
-                  disabled={!novaAgencia.trim() || fetcher.state !== "idle"}
+                  disabled={!novoValor.trim() || fetcher.state !== "idle"}
                   className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl px-6 font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
                 >
                   <Plus size={18} strokeWidth={3} />
@@ -150,18 +160,20 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
               )}
 
               <div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Agências Roteadas para esta pasta ({currentModalData.regras.length})</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Regras de Roteamento para esta pasta ({currentModalData.regras.length})</h4>
                 
                 {currentModalData.regras.length === 0 ? (
                   <div className="text-center py-10 px-4 bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
                     <Bot size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Nenhuma agência configurada.</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Nenhuma regra configurada.</p>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {currentModalData.regras.map((regra: any) => (
                       <div key={regra.id} className="group flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-4 pr-1.5 py-1.5 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{regra.agencia}</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                          {regra.agencia ? `Agência: ${regra.agencia}` : `Cliente: ${regra.cliente}`}
+                        </span>
                         <button 
                           onClick={() => handleRemove(regra.id)}
                           className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"

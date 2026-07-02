@@ -25,29 +25,52 @@ export class AutomacaoService {
     return data;
   }
 
-  static async adicionarRegra(pastaId: number, agencia: string) {
+  static async adicionarRegra(pastaId: number, tipo: 'agencia' | 'cliente', valor: string) {
     this.invalidarCache();
     
-    const existe = await prisma.regraAutomacao.findFirst({
-      where: {
-        agencia: {
-          equals: agencia,
-          mode: 'insensitive' // case insensitive for unique constraint
+    if (tipo === 'agencia') {
+      const existe = await prisma.regraAutomacao.findFirst({
+        where: {
+          agencia: {
+            equals: valor,
+            mode: 'insensitive' // case insensitive for unique constraint
+          }
         }
-      }
-    });
+      });
 
-    if (existe) {
-      if (existe.pastaId === pastaId) return existe; // Já está nesta pasta, ignora
-      throw new Error(`Esta agência já está associada a outra pasta (ID: ${existe.pastaId}). Remova-a de lá primeiro.`);
+      if (existe) {
+        if (existe.pastaId === pastaId) return existe; // Já está nesta pasta, ignora
+        throw new Error(`Esta agência já está associada a outra pasta (ID: ${existe.pastaId}). Remova-a de lá primeiro.`);
+      }
+
+      return prisma.regraAutomacao.create({
+        data: {
+          pastaId,
+          agencia: valor,
+        }
+      });
+    } else {
+      const existe = await prisma.regraAutomacao.findFirst({
+        where: {
+          cliente: {
+            equals: valor,
+            mode: 'insensitive'
+          }
+        }
+      });
+
+      if (existe) {
+        if (existe.pastaId === pastaId) return existe;
+        throw new Error(`Este cliente já está associado a outra pasta (ID: ${existe.pastaId}). Remova-o de lá primeiro.`);
+      }
+
+      return prisma.regraAutomacao.create({
+        data: {
+          pastaId,
+          cliente: valor,
+        }
+      });
     }
-
-    return prisma.regraAutomacao.create({
-      data: {
-        pastaId,
-        agencia,
-      }
-    });
   }
 
   static async removerRegra(id: number) {
@@ -57,13 +80,20 @@ export class AutomacaoService {
     });
   }
 
-  // Pega um mapa simples Agencia -> PastaId para o motor de importação ser O(1)
-  static async obterMapaRoteamento(): Promise<Map<string, number>> {
+  // Retorna dois mapas para o motor de importação ser O(1)
+  static async obterMapasRoteamento(): Promise<{ mapaAgencia: Map<string, number>, mapaCliente: Map<string, number> }> {
     const regras = await prisma.regraAutomacao.findMany();
-    const mapa = new Map<string, number>();
+    const mapaAgencia = new Map<string, number>();
+    const mapaCliente = new Map<string, number>();
+    
     for (const r of regras) {
-      mapa.set(r.agencia.toUpperCase(), r.pastaId);
+      if (r.agencia) {
+        mapaAgencia.set(r.agencia.toUpperCase(), r.pastaId);
+      }
+      if (r.cliente) {
+        mapaCliente.set(r.cliente.toUpperCase(), r.pastaId);
+      }
     }
-    return mapa;
+    return { mapaAgencia, mapaCliente };
   }
 }

@@ -41,14 +41,29 @@ export class OperacaoService {
     const spreadsheetOps = parsedData.operacoes;
 
     // --- AUTOMAÇÃO (ROTEAMENTO) ---
-    const mapaRoteamento = await AutomacaoService.obterMapaRoteamento();
-    if (mapaRoteamento.size > 0) {
+    const mapas = await AutomacaoService.obterMapasRoteamento();
+    if (mapas.mapaAgencia.size > 0 || mapas.mapaCliente.size > 0) {
       for (const op of spreadsheetOps as any[]) {
-        if (op.nm_agencia) {
-          const agenciaClean = String(op.nm_agencia).trim().toUpperCase();
-          if (mapaRoteamento.has(agenciaClean)) {
-            op.pastaId = mapaRoteamento.get(agenciaClean);
+        let matchedPastaId = null;
+
+        // Tenta rotear por cliente primeiro
+        if (op.nm_pessoa_pagador) {
+          const clienteClean = String(op.nm_pessoa_pagador).trim().toUpperCase();
+          if (mapas.mapaCliente.has(clienteClean)) {
+            matchedPastaId = mapas.mapaCliente.get(clienteClean);
           }
+        }
+
+        // Se não roteou por cliente, tenta por agência
+        if (!matchedPastaId && op.nm_agencia) {
+          const agenciaClean = String(op.nm_agencia).trim().toUpperCase();
+          if (mapas.mapaAgencia.has(agenciaClean)) {
+            matchedPastaId = mapas.mapaAgencia.get(agenciaClean);
+          }
+        }
+
+        if (matchedPastaId) {
+          op.pastaId = matchedPastaId;
         }
       }
     }

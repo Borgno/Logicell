@@ -19,11 +19,12 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     if (intent === "adicionar") {
       const pastaId = Number(formData.get("pastaId"));
-      const agencia = String(formData.get("agencia") || "").trim().toUpperCase();
+      const tipo = String(formData.get("tipo")); // 'agencia' or 'cliente'
+      const valor = String(formData.get("valor") || "").trim().toUpperCase();
       
-      if (!pastaId || !agencia) return data({ error: "Preencha todos os campos." }, { status: 400 });
+      if (!pastaId || !tipo || !valor) return data({ error: "Preencha todos os campos." }, { status: 400 });
       
-      await AutomacaoService.adicionarRegra(pastaId, agencia);
+      await AutomacaoService.adicionarRegra(pastaId, tipo as 'agencia' | 'cliente', valor);
       return data({ success: true });
     }
 
