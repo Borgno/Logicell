@@ -156,14 +156,14 @@ export class OperacaoService {
     };
   }
 
-  static async listarIds(filtros: any) {
+  static async listarIds(filtros: any, excludedIds: number[] = []) {
     const { search, pastaId } = filtros;
-    const whereClause = this.construirWhere(search, pastaId, filtros);
+    const whereClause = this.construirWhere(search, pastaId, filtros, excludedIds);
     const ids: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "Operacao" o ${whereClause.sql}`, ...whereClause.params);
     return ids.map(i => i.id);
   }
 
-  private static construirWhere(search: string, pastaId: any, filtros: any) {
+  private static construirWhere(search: string, pastaId: any, filtros: any, excludedIds: number[] = []) {
     const whereAnd: string[] = [];
     const params: any[] = [];
     let idx = 1;
@@ -227,6 +227,12 @@ export class OperacaoService {
     if (pastaId && pastaId !== "null") { whereAnd.push(`"pastaId" = $${idx}`); params.push(Number(pastaId)); idx++; }
     else { whereAnd.push(`"pastaId" IS NULL`); }
 
+    if (excludedIds && excludedIds.length > 0) {
+      whereAnd.push(`id NOT IN (${excludedIds.map((_, i) => `$${idx + i}`).join(", ")})`);
+      params.push(...excludedIds);
+      idx += excludedIds.length;
+    }
+
     return { sql: whereAnd.length > 0 ? `WHERE ${whereAnd.join(" AND ")}` : "", params };
   }
 
@@ -255,12 +261,12 @@ export class OperacaoService {
     return this.agenciasCache;
   }
 
-  static async bulkActionPasta(ids: number[], pastaId: number | null, filtros?: any, usuario: string = "Sistema") {
+  static async bulkActionPasta(ids: number[], pastaId: number | null, filtros?: any, usuario: string = "Sistema", selectAll: boolean = false, excludedIds: number[] = []) {
     const finalPastaId = (pastaId === null || isNaN(pastaId)) ? null : pastaId;
     let affectedIds = ids;
 
-    if (ids.length === 0 && filtros) {
-      affectedIds = await this.listarIds(filtros);
+    if (selectAll && filtros) {
+      affectedIds = await this.listarIds(filtros, excludedIds);
     }
 
     if (affectedIds.length === 0) {
@@ -298,10 +304,10 @@ export class OperacaoService {
     return { success: true };
   }
 
-  static async bulkDelete(ids: number[], filters?: any, usuario: string = "Sistema") {
+  static async bulkDelete(ids: number[], filters?: any, usuario: string = "Sistema", selectAll: boolean = false, excludedIds: number[] = []) {
     let affectedIds = ids;
-    if (ids.length === 0 && filters) {
-      affectedIds = await this.listarIds(filters);
+    if (selectAll && filters) {
+      affectedIds = await this.listarIds(filters, excludedIds);
     }
 
     if (affectedIds.length > 0) {

@@ -51,6 +51,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const { showToast, confirm, alert: showAlert } = useUI();
   
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [selectAllMode, setSelectAllMode] = useState<boolean>(false);
+  const [excludedIds, setExcludedIds] = useState<Set<number>>(new Set());
+  const [currentMetaTotal, setCurrentMetaTotal] = useState<number>(0);
+  const dadosRef = useRef<any[]>([]);
 
   const [showPastaMenu, setShowPastaMenu] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -90,41 +94,65 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
   };
 
-  const moverParaPasta = (pId: number | null, pNome: string, totalFiltro: number) => {
-    const idsCount = selecionados.size > 0 ? selecionados.size : totalFiltro;
+  const getActiveFilters = () => {
+    const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams), pastaId };
+    for (const [key, filter] of Object.entries(columnFilters)) {
+      if (!filter || (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank")) continue;
+      activeFilters[`colFilter_${key}`] = `${filter.type}:${filter.value}`;
+    }
+    return activeFilters;
+  };
+
+  const moverParaPasta = (pId: number | null, pNome: string, unusedTotalFiltro: number) => {
+    const idsCount = selectAllMode ? currentMetaTotal - excludedIds.size : selecionados.size;
+    if (idsCount === 0) return;
+    
     confirm({
       ...MESSAGES.alerts.bulkMoveConfirm(idsCount, pNome),
       onConfirm: () => {
         const formData = new FormData();
         formData.append("intent", "bulkMove");
         formData.append("ids", JSON.stringify(Array.from(selecionados)));
-        formData.append("filters", JSON.stringify({ ...Object.fromEntries(searchParams), pastaId }));
+        formData.append("filters", JSON.stringify(getActiveFilters()));
+        if (selectAllMode) {
+          formData.append("selectAll", "true");
+          formData.append("excludedIds", JSON.stringify(Array.from(excludedIds)));
+        }
         if (pId !== null) formData.append("pastaId", String(pId));
         fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
         setSelecionados(new Set());
+        setSelectAllMode(false);
+        setExcludedIds(new Set());
         setShowPastaMenu(false);
       }
     });
   };
 
-  const excluirSelecionados = (totalFiltro: number) => {
-    const idsCount = selecionados.size > 0 ? selecionados.size : totalFiltro;
+  const excluirSelecionados = (unusedTotalFiltro: number) => {
+    const idsCount = selectAllMode ? currentMetaTotal - excludedIds.size : selecionados.size;
     if (idsCount === 0) return;
+
     confirm({
       ...MESSAGES.alerts.bulkDeleteConfirm(idsCount),
       onConfirm: () => {
         const formData = new FormData();
         formData.append("intent", "bulkDelete");
         formData.append("ids", JSON.stringify(Array.from(selecionados)));
-        formData.append("filters", JSON.stringify({ ...Object.fromEntries(searchParams), pastaId }));
+        formData.append("filters", JSON.stringify(getActiveFilters()));
+        if (selectAllMode) {
+          formData.append("selectAll", "true");
+          formData.append("excludedIds", JSON.stringify(Array.from(excludedIds)));
+        }
         fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
         setSelecionados(new Set());
+        setSelectAllMode(false);
+        setExcludedIds(new Set());
       }
     });
   };
 
-  const lidarExportarExcel = (dados: any[]) => {
-    exportarExcel(dados, COLUNAS_OPERACAO, nomePasta, showToast, showAlert);
+  const lidarExportarExcel = () => {
+    exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showToast, showAlert);
   };
   
   const colDefs = useMemo(() => {
@@ -253,27 +281,8 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   }, [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 space-y-4 animate-in fade-in duration-500">
-            
-      {/* TOOLBAR */}
-      <OperacoesToolbarView 
-        dadosPromise={dadosPromise}
-        pastas={pastas}
-        nomePasta={nomePasta}
-        showImport={showImport}
-        carregando={carregando}
-        // Filtros globais removidos, DataGrid gerencia seus colFilter_ via hook
-        selecionados={selecionados}
-        showPastaMenu={showPastaMenu}
-        setShowPastaMenu={setShowPastaMenu}
-        showActionsMenu={showActionsMenu}
-        setShowActionsMenu={setShowActionsMenu}
-        setShowImportModal={setShowImportModal}
-        lidarUpload={lidarUpload}
-        moverParaPasta={moverParaPasta}
-        excluirSelecionados={excluirSelecionados}
-        exportarExcel={lidarExportarExcel}
-      />
+    <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
+
 
 
 
@@ -291,6 +300,12 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
               const { data: initialDados, meta: initialMeta } = resultado;
               const [dados, setDados] = useState(initialDados);
               const [meta, setMeta] = useState(initialMeta);
+              
+              useEffect(() => {
+                setCurrentMetaTotal(meta.total);
+                dadosRef.current = dados;
+              }, [meta.total, dados]);
+
               const loadMoreFetcher = useFetcher();
 
               const mounted = useRef(false);
@@ -429,11 +444,52 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                 salvarEdicao(id, campo, valor);
               };
 
+              const bannerNode = ((selecionados.size === dados.length && dados.length > 0 && meta.total > dados.length) || selectAllMode) ? (
+                  <span className="text-[13px] font-medium text-slate-800 dark:text-slate-200 animate-in fade-in">
+                    {!selectAllMode ? (
+                      <>
+                        Todas as <strong>{dados.length}</strong> operações desta página estão selecionadas.
+                        <button onClick={() => { setSelectAllMode(true); setExcludedIds(new Set()); }} className="ml-2 font-black text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none">
+                          Selecionar todas as {meta.total} operações
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        Todas as <strong>{meta.total - excludedIds.size}</strong> operações estão selecionadas.
+                        <button onClick={() => { setSelectAllMode(false); setSelecionados(new Set()); setExcludedIds(new Set()); }} className="ml-2 font-black text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none">
+                          Limpar seleção
+                        </button>
+                      </>
+                    )}
+                  </span>
+                ) : null;
+
                 return (
                   <>
+                    <OperacoesToolbarView 
+                      dadosPromise={dadosPromise}
+                      pastas={pastas}
+                      nomePasta={nomePasta}
+                      showImport={showImport}
+                      carregando={carregando}
+                      selectionCount={selectAllMode ? meta.total - excludedIds.size : selecionados.size}
+                      selecionados={selecionados}
+                      showPastaMenu={showPastaMenu}
+                      setShowPastaMenu={setShowPastaMenu}
+                      showActionsMenu={showActionsMenu}
+                      setShowActionsMenu={setShowActionsMenu}
+                      setShowImportModal={setShowImportModal}
+                      lidarUpload={lidarUpload}
+                      moverParaPasta={moverParaPasta}
+                      excluirSelecionados={excluirSelecionados}
+                      exportarExcel={lidarExportarExcel}
+                      selectionBannerNode={bannerNode}
+                    />
+
                     <div 
                       className="flex-1 w-full h-full text-xs" 
                       style={{ '--rdg-font-family': 'inherit', '--rdg-font-size': '12px' } as any}
+                      onScrollCapture={handleScroll}
                     >
                     <DataGrid
                       columns={colDefs}
@@ -441,7 +497,18 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       rowKeyGetter={(row: any) => row.id}
                       selectedRows={selecionados}
                       onScroll={handleScroll}
-                      onSelectedRowsChange={setSelecionados as any}
+                      onSelectedRowsChange={(newSelected: Set<number>) => {
+                        if (selectAllMode) {
+                          const newExcluded = new Set(excludedIds);
+                          dados.forEach((d: any) => {
+                            if (!newSelected.has(d.id)) newExcluded.add(d.id);
+                            else newExcluded.delete(d.id);
+                          });
+                          setExcludedIds(newExcluded);
+                        } else {
+                          setSelecionados(newSelected);
+                        }
+                      }}
                       onCellClick={(args) => {
                         if (args.column.key !== 'select' && args.column.key !== 'rowIndex') {
                             args.selectCell(true);

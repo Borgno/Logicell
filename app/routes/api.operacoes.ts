@@ -52,15 +52,21 @@ export async function action({ request }: ActionFunctionArgs) {
       case "bulkMove": {
         const ids = JSON.parse(formData.get("ids") as string).map(Number);
         const filters = JSON.parse(formData.get("filters") as string);
+        const selectAll = formData.get("selectAll") === "true";
+        const excludedIdsRaw = formData.get("excludedIds");
+        const excludedIds = excludedIdsRaw ? JSON.parse(excludedIdsRaw as string).map(Number) : [];
         const pastaRaw = formData.get("pastaId");
         const pastaId = (pastaRaw === "null" || !pastaRaw || pastaRaw === "undefined") ? null : Number(pastaRaw);
-        await OperacaoService.bulkActionPasta(ids, pastaId, filters, userName);
+        await OperacaoService.bulkActionPasta(ids, pastaId, filters, userName, selectAll, excludedIds);
         return { success: true, intent: "bulkMove" };
       }
       case "bulkDelete": {
         const ids = JSON.parse(formData.get("ids") as string).map(Number);
         const filters = JSON.parse(formData.get("filters") as string);
-        await OperacaoService.bulkDelete(ids, filters, userName);
+        const selectAll = formData.get("selectAll") === "true";
+        const excludedIdsRaw = formData.get("excludedIds");
+        const excludedIds = excludedIdsRaw ? JSON.parse(excludedIdsRaw as string).map(Number) : [];
+        await OperacaoService.bulkDelete(ids, filters, userName, selectAll, excludedIds);
         return { success: true, intent: "bulkDelete" };
       }
       case "createStatus": {
