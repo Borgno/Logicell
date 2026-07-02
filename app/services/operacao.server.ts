@@ -214,13 +214,19 @@ export class OperacaoService {
               } else if (type === "notBlank") {
                 whereAnd.push(`("${colName}" IS NOT NULL AND "${colName}"::TEXT <> '')`);
               } else if (type === "equals" && value !== "") {
-                if (isNumeric || colName === "dt_emissao_") {
+                if (colName === "dt_emissao_") {
+                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${idx}`); params.push(value); idx++;
+                } else if (isNumeric) {
                     whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(value); idx++;
                 } else {
                     whereAnd.push(`"${colName}" ILIKE $${idx}`); params.push(value); idx++;
                 }
               } else if (type === "contains" && value !== "") {
-                whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(`%${value}%`); idx++;
+                if (colName === "dt_emissao_") {
+                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${idx}`); params.push(`%${value}%`); idx++;
+                } else {
+                    whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(`%${value}%`); idx++;
+                }
               }
           }
         }
