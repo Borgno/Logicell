@@ -1,17 +1,17 @@
-import {Links,Meta,Outlet,Scripts,ScrollRestoration,useLoaderData,useFetcher,NavLink,useNavigation,useLocation,Form} from "react-router";
-import type { LinksFunction, ShouldRevalidateFunction, LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
-import { Truck, Inbox, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, LayoutDashboard, Folder, X, Sun, Moon, CheckCircle2, AlertCircle, Info, AlertTriangle, LogOut, User as UserIcon, Zap } from "lucide-react";
-import { getUser, createSupabaseServerClient } from "./services/auth.server";
-import { PastaService } from "./services/pasta.server";
-import { OperacaoService } from "./services/operacao.server";
-import { StatusService } from "./services/status.server";
-import { ConfigService } from "./services/config.server";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Edit2, Folder, Inbox, Info, LogOut, Moon, Plus, Sun, Trash2, Truck, User as UserIcon, X, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ActionFunctionArgs, LinksFunction, LoaderFunctionArgs, ShouldRevalidateFunction } from "react-router";
+import { Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration, useFetcher, useLoaderData, useLocation, useNavigation } from "react-router";
+import { buscarNomeUsuario } from "~/utils/formatters";
 import { MESSAGES } from "./constants/messages";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useActionFeedback } from "./hooks/use-action-feedback";
 import { UIContext, useUI } from "./hooks/use-ui";
-import { buscarNomeUsuario } from "~/utils/formatters";
+import { createSupabaseServerClient, getUser } from "./services/auth.server";
+import { ConfigService } from "./services/config.server";
+import { OperacaoService } from "./services/operacao.server";
+import { PastaService } from "./services/pasta.server";
+import { StatusService } from "./services/status.server";
 import "./styles/tailwind.css";
 
 function cn(...classes: (string | boolean | undefined)[]) {

@@ -1,15 +1,23 @@
-import prisma from "~/lib/prisma.server";
 import crypto from "crypto";
-import { PastaService } from "./pasta.server";
-import { ExcelParser } from "./excel-parser.server";
-import { AutomacaoService } from "./automacao.server";
+import prisma from "~/lib/prisma.server";
 import { DateParser } from "~/utils/date-parser";
+import { AutomacaoService } from "./automacao.server";
+import { ExcelParser } from "./excel-parser.server";
+import { PastaService } from "./pasta.server";
 
+export interface BulkActionParams {
+  ids: number[];
+  pastaId?: number | null;
+  filtros?: any;
+  usuario?: string;
+  selectAll?: boolean;
+  excludedIds?: number[];
+}
 
-  //OperacaoService
-  //Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
-  //Transformações de dados, validações complexas e regras de negócio de parsing
-  //foram extraídas para `excel-parser.server.ts` e `dashboard.server.ts`.
+//OperacaoService
+//Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
+//Transformações de dados, validações complexas e regras de negócio de parsing
+//foram extraídas para `excel-parser.server.ts` e `dashboard.server.ts`.
 export class OperacaoService {
   private static agenciasCache: string[] | null = null;
   private static agenciasCacheTime = 0;
@@ -178,16 +186,7 @@ export class OperacaoService {
     return ids.map(i => i.id);
   }
 
-  private static construirWhere(search: string, pastaId: any, filtros: any, excludedIds: number[] = []) {
-    const whereAnd: string[] = [];
-    const params: any[] = [];
-    let idx = 1;
-
-    // [REMOVIDO] A busca global pesada (ILIKE) foi removida a pedido do usuário (Clean Code: Performance Smell)
-    // Agora o sistema utiliza filtros direcionados por coluna (colFilter_)
-    
-    // Processamento genérico para os filtros de coluna do React Data Grid
-    // Formato esperado do filtro na URL: colFilter_nome_coluna=tipo:valor
+  private static processarFiltrosDinamicos(filtros: any, whereAnd: string[], params: any[]) {
     const colunasValidas = [
       "nm_agencia", "cd_pessoa_pagador", "nm_pessoa_pagador", "nr_cpf_cnpj_raiz", 
       "nr_cpf_cnpj_pagador", "nr_ctrc", "status", "comentarios", "id_tipo_documento",
@@ -206,7 +205,6 @@ export class OperacaoService {
           if (separatorIdx > -1) {
               const type = val.substring(0, separatorIdx);
               const value = val.substring(separatorIdx + 1);
-              
               const isNumeric = colName.startsWith("vl_");
               
               if (type === "blank") {
@@ -214,44 +212,63 @@ export class OperacaoService {
               } else if (type === "notBlank") {
                 whereAnd.push(`("${colName}" IS NOT NULL AND "${colName}"::TEXT <> '')`);
               } else if (type === "equals" && value !== "") {
+                params.push(value);
                 if (colName === "dt_emissao_") {
-                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${idx}`); params.push(value); idx++;
+                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
                 } else if (isNumeric) {
-                    whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(value); idx++;
+                    whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
                 } else {
-                    whereAnd.push(`"${colName}" ILIKE $${idx}`); params.push(value); idx++;
+                    whereAnd.push(`"${colName}" ILIKE $${params.length}`);
                 }
               } else if (type === "contains" && value !== "") {
+                params.push(`%${value}%`);
                 if (colName === "dt_emissao_") {
-                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${idx}`); params.push(`%${value}%`); idx++;
+                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
                 } else {
-                    whereAnd.push(`"${colName}"::TEXT ILIKE $${idx}`); params.push(`%${value}%`); idx++;
+                    whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
                 }
               }
           }
         }
       }
     }
+  }
 
-    if (filtros.nm_agencia) { whereAnd.push(`nm_agencia = $${idx}`); params.push(filtros.nm_agencia); idx++; }
-    if (filtros.nm_pessoa_pagador) { whereAnd.push(`nm_pessoa_pagador ILIKE $${idx}`); params.push(`%${filtros.nm_pessoa_pagador}%`); idx++; }
-    if (filtros.nm_pessoa_remetente) { whereAnd.push(`nm_pessoa_remetente ILIKE $${idx}`); params.push(`%${filtros.nm_pessoa_remetente}%`); idx++; }
-    if (filtros.nm_pessoa_destinatario) { whereAnd.push(`nm_pessoa_destinatario ILIKE $${idx}`); params.push(`%${filtros.nm_pessoa_destinatario}%`); idx++; }
-    if (filtros.nm_produto) { whereAnd.push(`nm_produto ILIKE $${idx}`); params.push(`%${filtros.nm_produto}%`); idx++; }
-    if (filtros.ds_placa) { whereAnd.push(`ds_placa ILIKE $${idx}`); params.push(`%${filtros.ds_placa}%`); idx++; }
-    if (filtros.min_peso) { whereAnd.push(`vl_peso >= $${idx}`); params.push(Number(filtros.min_peso)); idx++; }
-    if (filtros.max_peso) { whereAnd.push(`vl_peso <= $${idx}`); params.push(Number(filtros.max_peso)); idx++; }
-    if (filtros.min_total) { whereAnd.push(`vl_total >= $${idx}`); params.push(Number(filtros.min_total)); idx++; }
-    if (filtros.max_total) { whereAnd.push(`vl_total <= $${idx}`); params.push(Number(filtros.max_total)); idx++; }
-    if (filtros.status) { whereAnd.push(`status = $${idx}`); params.push(filtros.status); idx++; }
+  private static construirWhere(search: string, pastaId: any, filtros: any, excludedIds: number[] = []) {
+    const whereAnd: string[] = [];
+    const params: any[] = [];
 
-    if (pastaId && pastaId !== "null") { whereAnd.push(`"pastaId" = $${idx}`); params.push(Number(pastaId)); idx++; }
-    else { whereAnd.push(`"pastaId" IS NULL`); }
+    this.processarFiltrosDinamicos(filtros, whereAnd, params);
+
+    const addFilter = (condition: string, value: any) => {
+      params.push(value);
+      whereAnd.push(`${condition} $${params.length}`);
+    };
+
+    if (filtros.nm_agencia) addFilter(`nm_agencia =`, filtros.nm_agencia);
+    if (filtros.nm_pessoa_pagador) addFilter(`nm_pessoa_pagador ILIKE`, `%${filtros.nm_pessoa_pagador}%`);
+    if (filtros.nm_pessoa_remetente) addFilter(`nm_pessoa_remetente ILIKE`, `%${filtros.nm_pessoa_remetente}%`);
+    if (filtros.nm_pessoa_destinatario) addFilter(`nm_pessoa_destinatario ILIKE`, `%${filtros.nm_pessoa_destinatario}%`);
+    if (filtros.nm_produto) addFilter(`nm_produto ILIKE`, `%${filtros.nm_produto}%`);
+    if (filtros.ds_placa) addFilter(`ds_placa ILIKE`, `%${filtros.ds_placa}%`);
+    if (filtros.min_peso) addFilter(`vl_peso >=`, Number(filtros.min_peso));
+    if (filtros.max_peso) addFilter(`vl_peso <=`, Number(filtros.max_peso));
+    if (filtros.min_total) addFilter(`vl_total >=`, Number(filtros.min_total));
+    if (filtros.max_total) addFilter(`vl_total <=`, Number(filtros.max_total));
+    if (filtros.status) addFilter(`status =`, filtros.status);
+
+    if (pastaId && pastaId !== "null") { 
+      addFilter(`"pastaId" =`, Number(pastaId)); 
+    } else { 
+      whereAnd.push(`"pastaId" IS NULL`); 
+    }
 
     if (excludedIds && excludedIds.length > 0) {
-      whereAnd.push(`id NOT IN (${excludedIds.map((_, i) => `$${idx + i}`).join(", ")})`);
-      params.push(...excludedIds);
-      idx += excludedIds.length;
+      const placeholders = excludedIds.map((id) => {
+        params.push(id);
+        return `$${params.length}`;
+      });
+      whereAnd.push(`id NOT IN (${placeholders.join(", ")})`);
     }
 
     return { sql: whereAnd.length > 0 ? `WHERE ${whereAnd.join(" AND ")}` : "", params };
@@ -282,7 +299,7 @@ export class OperacaoService {
     return this.agenciasCache;
   }
 
-  static async bulkActionPasta(ids: number[], pastaId: number | null, filtros?: any, usuario: string = "Sistema", selectAll: boolean = false, excludedIds: number[] = []) {
+  static async bulkActionPasta({ ids, pastaId = null, filtros, usuario = "Sistema", selectAll = false, excludedIds = [] }: BulkActionParams) {
     const finalPastaId = (pastaId === null || isNaN(pastaId)) ? null : pastaId;
     let affectedIds = ids;
 
@@ -318,14 +335,12 @@ export class OperacaoService {
       data: { pastaId: finalPastaId }
     });
 
-
-
     this.invalidarCache();
     await PastaService.invalidarCache();
     return { success: true };
   }
 
-  static async bulkDelete(ids: number[], filters?: any, usuario: string = "Sistema", selectAll: boolean = false, excludedIds: number[] = []) {
+  static async bulkDelete({ ids, filtros: filters, usuario = "Sistema", selectAll = false, excludedIds = [] }: BulkActionParams) {
     let affectedIds = ids;
     if (selectAll && filters) {
       affectedIds = await this.listarIds(filters, excludedIds);
@@ -343,8 +358,6 @@ export class OperacaoService {
 
       // 2. Apaga
       await prisma.operacao.deleteMany({ where: { id: { in: affectedIds } } });
-
-
     }
 
     this.invalidarCache();

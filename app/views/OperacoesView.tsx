@@ -1,20 +1,20 @@
-import { useState, useEffect, Suspense, useRef, useMemo } from "react";
-import { useSearchParams, useNavigate, useLocation, Await, useFetcher, useRouteLoaderData } from "react-router";
-import * as XLSX from "xlsx";
-import { Search, Download, FolderPlus, ChevronDown, CheckCircle2, Table as TableIcon, Trash2, UploadCloud, Loader2, LayoutDashboard, Filter } from "lucide-react";
-import { useUI } from "~/hooks/use-ui";
+import { Filter, Loader2, UploadCloud } from "lucide-react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Await, useFetcher, useLocation, useNavigate, useRouteLoaderData, useSearchParams } from "react-router";
 import { MESSAGES } from "~/constants/messages";
 import { useActionFeedback } from "~/hooks/use-action-feedback";
+import { useUI } from "~/hooks/use-ui";
 
-import { formatarMoeda, formatarData } from "~/utils/formatters";
+import { formatarData, formatarMoeda } from "~/utils/formatters";
 
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import "react-data-grid/lib/styles.css";
+import { twMerge } from "tailwind-merge";
 
-import { OperacoesToolbarView } from "./OperacoesToolbarView";
+import { COLUNAS_OPERACAO, useOperacoesGridState, type FilterType } from "~/hooks/useOperacoesGridState";
+import { useOperacoesPagination } from "~/hooks/useOperacoesPagination";
 import { exportarExcel } from "~/utils/export";
-import { useOperacoesGridState, type FilterType, COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
+import { OperacoesToolbarView } from "./OperacoesToolbarView";
 
 import DataGrid, { SelectColumn } from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
@@ -298,151 +298,20 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
           <Await resolve={dadosPromise}>
             {(resultado: any) => {
               const { data: initialDados, meta: initialMeta } = resultado;
-              const [dados, setDados] = useState(initialDados);
-              const [meta, setMeta] = useState(initialMeta);
+              
+              const { dados, setDados, meta, handleScroll } = useOperacoesPagination(
+                initialDados,
+                initialMeta,
+                pastaId,
+                columnFilters
+              );
               
               useEffect(() => {
                 setCurrentMetaTotal(meta.total);
                 dadosRef.current = dados;
               }, [meta.total, dados]);
 
-              const loadMoreFetcher = useFetcher();
-              const isFetchingNextPage = useRef(false);
-
-              const mounted = useRef(false);
-
-              useEffect(() => {
-                if (!mounted.current) {
-                  mounted.current = true;
-                  if (!location.state) return; // Evita fetch duplicado no mount se não vier de um redirect com state
-                }
-                
-                const timer = setTimeout(() => {
-                  const p = new URLSearchParams();
-                  if (pastaId) p.set("pastaId", String(pastaId));
-                  p.set("page", "1");
-                  p.set("limit", searchParams.get("limit") || "200");
-                  
-                  for (const [key, filter] of Object.entries(columnFilters)) {
-                    if (!filter || (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank")) continue;
-                    p.set(`colFilter_${key}`, `${filter.type}:${filter.value}`);
-                  }
-                  
-                  isFetchingNextPage.current = true;
-                  loadMoreFetcher.load(`/api/operacoes-list?${p.toString()}`);
-                }, 600);
-                return () => clearTimeout(timer);
-              }, [columnFilters, pastaId]);
-              
-              // Atualiza os dados se a promessa inicial mudar (ex: troca de pasta)
-              useEffect(() => {
-                setDados(initialDados);
-                setMeta(initialMeta);
-                setSelecionados(new Set());
-              }, [pastaId]); // Depender apenas do pastaId evita que re-renders do React sobrescrevam os filtros!
-
-              useEffect(() => {
-                if (loadMoreFetcher.state === "idle" && loadMoreFetcher.data) {
-                  const res = loadMoreFetcher.data as any;
-                  if (res.meta) {
-                    if (res.meta.page === 1) {
-                      setDados(res.data);
-                      setMeta(res.meta);
-                    } else if (res.meta.page > meta.page) {
-                      setDados((prev: any[]) => {
-                          const existingIds = new Set(prev.map(d => d.id));
-                          const toAdd = res.data.filter((o: any) => !existingIds.has(o.id));
-                          return [...prev, ...toAdd];
-                      });
-                      setMeta(res.meta);
-                    }
-                  }
-                  isFetchingNextPage.current = false;
-                }
-              }, [loadMoreFetcher.state, loadMoreFetcher.data, meta.page]);
-
-              const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-                const target = e.target as HTMLDivElement;
-                const { scrollTop, clientHeight, scrollHeight } = target;
-                 // Carrega a próxima página ao chegar perto do fim da rolagem
-                if (scrollHeight > 0 && scrollHeight - scrollTop - clientHeight < 400) {
-                    if (loadMoreFetcher.state === "idle" && meta.page < meta.totalPages && !isFetchingNextPage.current) {
-                      isFetchingNextPage.current = true;
-                      const p = new URLSearchParams();
-                      p.set("page", String(meta.page + 1));
-                      p.set("limit", searchParams.get("limit") || "200");
-                      if (pastaId) p.set("pastaId", String(pastaId));
-                      
-                      for (const [key, filter] of Object.entries(columnFilters)) {
-                        if (!filter || (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank")) continue;
-                        p.set(`colFilter_${key}`, `${filter.type}:${filter.value}`);
-                      }
-                      
-                      loadMoreFetcher.load(`/api/operacoes-list?${p.toString()}`);
-                    }
-                }
-              };
-
-              useEffect(() => {
-                const handleKeyDown = (e: KeyboardEvent) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedRanges.length > 0) {
-                    if (document.activeElement?.tagName === 'INPUT') return;
-                    e.preventDefault();
-                    
-                    const selectedSet = new Set<string>();
-                    let minRow = Infinity, maxRow = -Infinity;
-                    let minCol = Infinity, maxCol = -Infinity;
-                    
-                    selectedRanges.forEach(r => {
-                        const rMinRow = Math.min(r.start.rowIdx, r.end.rowIdx);
-                        const rMaxRow = Math.max(r.start.rowIdx, r.end.rowIdx);
-                        const rMinCol = Math.min(r.start.colIdx, r.end.colIdx);
-                        const rMaxCol = Math.max(r.start.colIdx, r.end.colIdx);
-                        
-                        minRow = Math.min(minRow, rMinRow);
-                        maxRow = Math.max(maxRow, rMaxRow);
-                        minCol = Math.min(minCol, rMinCol);
-                        maxCol = Math.max(maxCol, rMaxCol);
-                        
-                        for (let i = rMinRow; i <= rMaxRow; i++) {
-                            for (let j = rMinCol; j <= rMaxCol; j++) {
-                                selectedSet.add(`${i},${j}`);
-                            }
-                        }
-                    });
-                    
-                    if (minRow === Infinity) return;
-                    
-                    let tsv = "";
-                    for (let r = minRow; r <= maxRow; r++) {
-                      const rowData = dados[r];
-                      if (!rowData) continue;
-                      let rowValues = [];
-                      for (let c = minCol; c <= maxCol; c++) {
-                          if (selectedSet.has(`${r},${c}`)) {
-                              if (c < 2) continue;
-                              const col = orderedColumns[c - 2];
-                              if (!col) continue;
-                              let val = rowData[col.key];
-                              if (val === null || val === undefined) val = "";
-                              else if (col.key === "dt_emissao_") val = formatarData(val);
-                              else if (col.isCurrency) val = formatarMoeda(val);
-                              rowValues.push(String(val));
-                          } else {
-                              if (c >= 2) rowValues.push("");
-                          }
-                      }
-                      if (rowValues.length > 0) tsv += rowValues.join("\t") + "\n";
-                    }
-                    if (tsv) {
-                      navigator.clipboard.writeText(tsv);
-                      showToast("Copiado!", "success");
-                    }
-                  }
-                };
-                window.addEventListener('keydown', handleKeyDown);
-                return () => window.removeEventListener('keydown', handleKeyDown);
-              }, [selectedRanges, dados, orderedColumns]);
+              // O interceptador CTRL+C foi removido conforme solicitado
 
               const handleLocalUpdate = (id: number, campo: string, valor: string) => {
                 setDados((prev: any[]) => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));
@@ -514,9 +383,23 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                           setSelecionados(newSelected);
                         }
                       }}
-                      onCellClick={(args) => {
+                      onCellDoubleClick={(args) => {
                         if (args.column.key !== 'select' && args.column.key !== 'rowIndex') {
                             args.selectCell(true);
+                        }
+                      }}
+                      onCellKeyDown={(args, event) => {
+                        // Evita que o usuário entre no modo de edição simplesmente digitando uma letra/número
+                        if (args.mode === 'SELECT') {
+                          const isPrintableKey = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
+                          
+                          if (isPrintableKey) {
+                            event.preventDefault();
+                            // 'preventGridDefault' é específico do react-data-grid para bloquear a ação padrão
+                            if ('preventGridDefault' in event) {
+                              (event as any).preventGridDefault();
+                            }
+                          }
                         }
                       }}
                       onColumnResize={(idx, width) => {
@@ -622,8 +505,6 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       </>
                     )}
                   </div>
-
-                  {/* O FOOTER FOI COMPLETAMENTE REMOVIDO AQUI CONFORME SOLICITADO */}
                 </>
               );
             }}

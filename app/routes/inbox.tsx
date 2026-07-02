@@ -1,10 +1,9 @@
-import { Suspense } from "react";
-import { useLoaderData, Await, data, isRouteErrorResponse, useRouteError } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
+import { data, useLoaderData } from "react-router";
+import { RouteErrorBoundary } from "~/components/RouteErrorBoundary";
 import { requireUser } from "~/services/auth.server";
 import { OperacaoService } from "~/services/operacao.server";
 import { OperacoesView } from "~/views/OperacoesView";
-import { RouteErrorBoundary } from "~/components/RouteErrorBoundary";
 
 export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => {
   if (formData?.get("intent") === "update") return false;

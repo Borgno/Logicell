@@ -1,7 +1,7 @@
-import { useNavigation, useActionData, redirect } from "react-router";
 import type { ActionFunctionArgs } from "react-router";
-import { createSupabaseServerClient } from "~/services/supabase.server";
+import { redirect, useActionData, useNavigation } from "react-router";
 import { sessionStorage } from "~/services/session.server";
+import { createSupabaseServerClient } from "~/services/supabase.server";
 import { LoginView } from "~/views/LoginView";
 
 export async function action({ request }: ActionFunctionArgs) {

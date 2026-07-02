@@ -1,9 +1,9 @@
 import { ActionFunctionArgs } from "react-router";
+import { requireUser } from "~/services/auth.server";
+import { ConfigService } from "~/services/config.server";
 import { OperacaoService } from "~/services/operacao.server";
 import { PastaService } from "~/services/pasta.server";
 import { StatusService } from "~/services/status.server";
-import { ConfigService } from "~/services/config.server";
-import { requireUser } from "~/services/auth.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -57,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const excludedIds = excludedIdsRaw ? JSON.parse(excludedIdsRaw as string).map(Number) : [];
         const pastaRaw = formData.get("pastaId");
         const pastaId = (pastaRaw === "null" || !pastaRaw || pastaRaw === "undefined") ? null : Number(pastaRaw);
-        await OperacaoService.bulkActionPasta(ids, pastaId, filters, userName, selectAll, excludedIds);
+        await OperacaoService.bulkActionPasta({ ids, pastaId, filtros: filters, usuario: userName, selectAll, excludedIds });
         return { success: true, intent: "bulkMove" };
       }
       case "bulkDelete": {
@@ -66,7 +66,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const selectAll = formData.get("selectAll") === "true";
         const excludedIdsRaw = formData.get("excludedIds");
         const excludedIds = excludedIdsRaw ? JSON.parse(excludedIdsRaw as string).map(Number) : [];
-        await OperacaoService.bulkDelete(ids, filters, userName, selectAll, excludedIds);
+        await OperacaoService.bulkDelete({ ids, filtros: filters, usuario: userName, selectAll, excludedIds });
         return { success: true, intent: "bulkDelete" };
       }
       case "createStatus": {

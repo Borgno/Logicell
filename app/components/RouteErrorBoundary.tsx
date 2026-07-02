@@ -1,5 +1,5 @@
-import { useRouteError, isRouteErrorResponse } from "react-router";
 import { AlertTriangle } from "lucide-react";
+import { isRouteErrorResponse, useRouteError } from "react-router";
 
 export function RouteErrorBoundary({ title = "Ops! Algo deu errado." }: { title?: string }) {
   const error = useRouteError();

@@ -1,5 +1,5 @@
+import { AlertCircle, ArrowRight, Loader2, Lock, Mail, Truck } from "lucide-react";
 import { Form } from "react-router";
-import { Truck, Lock, Mail, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 
 export function LoginView({ isSubmitting, error }: { isSubmitting: boolean, error?: string }) {
   return (

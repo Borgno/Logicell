@@ -1,10 +1,10 @@
-import { useLoaderData, data } from "react-router";
 import type { ActionFunctionArgs } from "react-router";
+import { data, useLoaderData } from "react-router";
 import { AutomacaoService } from "~/services/automacao.server";
 import { AutomacoesView } from "~/views/AutomacoesView";
 
-import { requireUser } from "~/services/auth.server";
 import { RouteErrorBoundary } from "~/components/RouteErrorBoundary";
+import { requireUser } from "~/services/auth.server";
 
 export async function loader({ request }: any) {
   const { response } = await requireUser(request);

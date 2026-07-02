@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
-import { createSupabaseServerClient } from "./supabase.server";
 import { getSession } from "./session.server";
+import { createSupabaseServerClient } from "./supabase.server";
 export { createSupabaseServerClient };
 
 function parseJwt(token: string) {

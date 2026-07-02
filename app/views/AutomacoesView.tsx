@@ -1,6 +1,6 @@
+import { Bot, FolderOpen, Home, Plus, Settings, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
-import { FolderOpen, Settings, X, Plus, Home, Bot } from "lucide-react";
 
 interface AutomacoesViewProps {
   pastas: any[];
