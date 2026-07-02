@@ -287,7 +287,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
 
 
       {/* TABELA DE DADOS - AG GRID */}
-      <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col shadow-sm relative">
+      <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 overflow-hidden flex flex-col relative">
 
         <Suspense fallback={
           <div className="flex-1 flex flex-col items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-40">
@@ -307,6 +307,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
               }, [meta.total, dados]);
 
               const loadMoreFetcher = useFetcher();
+              const isFetchingNextPage = useRef(false);
 
               const mounted = useRef(false);
 
@@ -327,6 +328,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                     p.set(`colFilter_${key}`, `${filter.type}:${filter.value}`);
                   }
                   
+                  isFetchingNextPage.current = true;
                   loadMoreFetcher.load(`/api/operacoes-list?${p.toString()}`);
                 }, 600);
                 return () => clearTimeout(timer);
@@ -355,14 +357,17 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       setMeta(res.meta);
                     }
                   }
+                  isFetchingNextPage.current = false;
                 }
               }, [loadMoreFetcher.state, loadMoreFetcher.data, meta.page]);
 
               const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-                const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+                const target = e.target as HTMLDivElement;
+                const { scrollTop, clientHeight, scrollHeight } = target;
                  // Carrega a próxima página ao chegar perto do fim da rolagem
-                if (scrollHeight - scrollTop - clientHeight < 400) {
-                    if (loadMoreFetcher.state === "idle" && meta.page < meta.totalPages && !loadMoreFetcher.data?.loading) {
+                if (scrollHeight > 0 && scrollHeight - scrollTop - clientHeight < 400) {
+                    if (loadMoreFetcher.state === "idle" && meta.page < meta.totalPages && !isFetchingNextPage.current) {
+                      isFetchingNextPage.current = true;
                       const p = new URLSearchParams();
                       p.set("page", String(meta.page + 1));
                       p.set("limit", searchParams.get("limit") || "200");
@@ -487,7 +492,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                     />
 
                     <div 
-                      className="flex-1 w-full h-full text-xs" 
+                      className="flex-1 w-full min-h-0 min-w-0 text-xs" 
                       style={{ '--rdg-font-family': 'inherit', '--rdg-font-size': '12px' } as any}
                       onScrollCapture={handleScroll}
                     >
@@ -618,38 +623,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                     )}
                   </div>
 
-                  {/* FOOTER & SCROLL INFINITO */}
-                  <div className="px-8 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total: {meta.total} registros</div>
-                      </div>
-                      <select 
-                        value={searchParams.get("limit") || "200"} 
-                        onChange={(e) => {
-                          const p = new URLSearchParams(searchParams);
-                          p.set("limit", e.target.value);
-                          p.set("page", "1");
-                          setSearchParams(p);
-                        }}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1 text-[10px] font-black outline-none text-slate-500"
-                      >
-                        {[100, 200, 500, 1000].map(v => <option key={v} value={v}>{v} por página</option>)}
-                      </select>
-                    </div>
-
-                    <div className="flex items-center gap-2 h-8">
-                      {loadMoreFetcher.state !== "idle" && (
-                        <div className="flex items-center gap-2 text-indigo-500 text-xs font-bold animate-pulse">
-                            <Loader2 size={16} className="animate-spin" />
-                            <span>Carregando mais...</span>
-                        </div>
-                      )}
-                      {loadMoreFetcher.state === "idle" && meta.page >= meta.totalPages && meta.total > 0 && (
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Fim da lista</div>
-                      )}
-                    </div>
-                  </div>
+                  {/* O FOOTER FOI COMPLETAMENTE REMOVIDO AQUI CONFORME SOLICITADO */}
                 </>
               );
             }}

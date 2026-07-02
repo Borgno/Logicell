@@ -1,7 +1,7 @@
 import {Links,Meta,Outlet,Scripts,ScrollRestoration,useLoaderData,useFetcher,NavLink,useNavigation,useLocation,Form} from "react-router";
 import type { LinksFunction, ShouldRevalidateFunction, LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useState, useEffect, createContext, useContext, useMemo, useCallback } from "react";
-import { Truck, Inbox, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, LayoutDashboard, Folder, X, Sun, Moon, CheckCircle2, AlertCircle, Info, AlertTriangle, LogOut, User as UserIcon} from "lucide-react";
+import { Truck, Inbox, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, LayoutDashboard, Folder, X, Sun, Moon, CheckCircle2, AlertCircle, Info, AlertTriangle, LogOut, User as UserIcon, Zap } from "lucide-react";
 import { getUser, createSupabaseServerClient } from "./services/auth.server";
 import { PastaService } from "./services/pasta.server";
 import { OperacaoService } from "./services/operacao.server";
@@ -281,6 +281,17 @@ export default function App() {
                   </>
                 )}
               </NavLink>
+
+              <NavLink to="/automacoes" prefetch="none" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                {({ isActive: linkActive }) => (
+                  <>
+                    <div className="flex items-center gap-2.5">
+                      <Zap size={18} className="shrink-0" />
+                      {!isCollapsed && <span>Automações</span>}
+                    </div>
+                  </>
+                )}
+              </NavLink>
             </div>
           </div>
 
@@ -399,7 +410,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 p-6 overflow-hidden h-full">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-hidden h-full">
         <Outlet />
       </main>
     </div>
