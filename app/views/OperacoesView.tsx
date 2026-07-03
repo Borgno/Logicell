@@ -1,25 +1,26 @@
-import { Filter, Loader2, UploadCloud } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Await, useFetcher, useLocation, useNavigate, useRouteLoaderData, useSearchParams } from "react-router";
-import { MESSAGES } from "~/constants/messages";
-import { useActionFeedback } from "~/hooks/use-action-feedback";
-import { useUI } from "~/hooks/use-ui";
+import { Await, useFetcher, useLocation, useRouteLoaderData, useSearchParams } from "react-router";
 
-import { formatarData, formatarMoeda } from "~/utils/formatters";
 
-import { clsx, type ClassValue } from "clsx";
+
+
+
+import { useOperacoesGridState } from "~/hooks/useOperacoesGridState";
 import "react-data-grid/lib/styles.css";
-import { twMerge } from "tailwind-merge";
-
-import { COLUNAS_OPERACAO, useOperacoesGridState, type FilterType } from "~/hooks/useOperacoesGridState";
 import { useOperacoesPagination } from "~/hooks/useOperacoesPagination";
+import { useOperacoesActions } from "~/hooks/useOperacoesActions";
+import { useUI } from "~/hooks/use-ui";
 import { exportarExcel } from "~/utils/export";
+import { ColumnFilterMenu } from "~/components/ColumnFilterMenu";
+import { ImportModal } from "~/components/ImportModal";
 import { OperacoesToolbarView } from "./OperacoesToolbarView";
+import { getOperacoesColumns } from "./OperacoesColumns";
 
-import DataGrid, { SelectColumn } from 'react-data-grid';
+import DataGrid from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
 
-function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
+
 
 interface OperacoesViewProps {
   dadosPromise: any;
@@ -44,11 +45,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     orderedColumns
   } = useOperacoesGridState(columnOrder, initialWidths);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const location = useLocation();
   const fetcher = useFetcher();
-  const { showToast, confirm, alert: showAlert } = useUI();
+  const { confirm, alert: showAlert } = useUI();
   
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
   const [selectAllMode, setSelectAllMode] = useState<boolean>(false);
@@ -59,12 +59,9 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const [showPastaMenu, setShowPastaMenu] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importModo, setImportModo] = useState("SUBSTITUIR");
 
 
   const carregando = fetcher.state !== "idle" || fetcher.formData !== undefined;
-
-  useActionFeedback(fetcher, { showToast, showAlert, excludeIntents: ["update"] });
 
   useEffect(() => {
     setSelecionados(new Set());
@@ -73,26 +70,16 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     }
   }, [pastaId, location.pathname, location.state, setColumnFilters]);
 
-  const lidarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("intent", "upload");
-    formData.append("file", file);
-    formData.append("modo", importModo);
-    fetcher.submit(formData, { method: "post", encType: "multipart/form-data", action: "/api/operacoes" });
-    e.target.value = "";
-    setShowImportModal(false);
-  };
-
-  const salvarEdicao = (id: number, campo: string, valor: string) => {
-    const formData = new FormData();
-    formData.append("intent", "update");
-    formData.append("id", String(id));
-    formData.append("campo", campo);
-    formData.append("valor", valor);
-    fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
-  };
+  useEffect(() => {
+    if (fetcher.data && (fetcher.data as any).totalLido !== undefined) {
+      const { adicionados, ignorados, removidos, modo } = fetcher.data as any;
+      showAlert({
+        title: "Importação Concluída",
+        message: `Modo: ${modo === "SUBSTITUIR" ? "Substituir (Sincronização)" : "Apenas Adicionar"}\n\n✅ Novos adicionados: ${adicionados || 0} itens\n⚠️ Mantidos/Ignorados: ${ignorados || 0} itens${modo === "SUBSTITUIR" ? `\n❌ Antigos removidos: ${removidos || 0} itens` : ""}`,
+        variant: "success"
+      });
+    }
+  }, [fetcher.data, showAlert]);
 
   const getActiveFilters = () => {
     const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams), pastaId };
@@ -103,188 +90,25 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     return activeFilters;
   };
 
-  const moverParaPasta = (pId: number | null, pNome: string, unusedTotalFiltro: number) => {
-    const idsCount = selectAllMode ? currentMetaTotal - excludedIds.size : selecionados.size;
-    if (idsCount === 0) return;
-    
-    confirm({
-      ...MESSAGES.alerts.bulkMoveConfirm(idsCount, pNome),
-      onConfirm: () => {
-        const formData = new FormData();
-        formData.append("intent", "bulkMove");
-        formData.append("ids", JSON.stringify(Array.from(selecionados)));
-        formData.append("filters", JSON.stringify(getActiveFilters()));
-        if (selectAllMode) {
-          formData.append("selectAll", "true");
-          formData.append("excludedIds", JSON.stringify(Array.from(excludedIds)));
-        }
-        if (pId !== null) formData.append("pastaId", String(pId));
-        fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
-        setSelecionados(new Set());
-        setSelectAllMode(false);
-        setExcludedIds(new Set());
-        setShowPastaMenu(false);
-      }
-    });
-  };
-
-  const excluirSelecionados = (unusedTotalFiltro: number) => {
-    const idsCount = selectAllMode ? currentMetaTotal - excludedIds.size : selecionados.size;
-    if (idsCount === 0) return;
-
-    confirm({
-      ...MESSAGES.alerts.bulkDeleteConfirm(idsCount),
-      onConfirm: () => {
-        const formData = new FormData();
-        formData.append("intent", "bulkDelete");
-        formData.append("ids", JSON.stringify(Array.from(selecionados)));
-        formData.append("filters", JSON.stringify(getActiveFilters()));
-        if (selectAllMode) {
-          formData.append("selectAll", "true");
-          formData.append("excludedIds", JSON.stringify(Array.from(excludedIds)));
-        }
-        fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
-        setSelecionados(new Set());
-        setSelectAllMode(false);
-        setExcludedIds(new Set());
-      }
-    });
-  };
+  const { lidarUpload, salvarEdicao, moverParaPasta, excluirSelecionados } = useOperacoesActions({
+    fetcher, confirm, showAlert, selecionados, setSelecionados, selectAllMode, setSelectAllMode,
+    excludedIds, setExcludedIds, currentMetaTotal, getActiveFilters, setShowPastaMenu, setShowImportModal
+  });
 
   const lidarExportarExcel = () => {
-    exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showToast, showAlert);
+    // import COLUNAS_OPERACAO on demand since we removed it from top level imports to avoid TS errors
+    import("~/hooks/useOperacoesGridState").then(({ COLUNAS_OPERACAO }) => {
+      exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showAlert);
+    });
   };
   
-  const colDefs = useMemo(() => {
-    const defs: any[] = [
-      SelectColumn,
-      {
-        key: "rowIndex",
-        name: "Nº",
-        width: columnWidths["rowIndex"] || 40,
-        minWidth: 25,
-        resizable: true,
-        frozen: true,
-        renderHeaderCell: () => <span className="text-xs font-black uppercase tracking-wider text-slate-400">Nº</span>,
-        renderCell: (props: any) => props.rowIdx + 1
-      }
-    ];
-
-    orderedColumns.forEach(col => {
-      defs.push({
-        key: col.key,
-        name: col.label,
-        draggable: true,
-        resizable: true,
-        minWidth: 30,
-        width: columnWidths[col.key] || parseInt(col.width) || 150,
-        renderHeaderCell: () => {
-          const hasFilter = !!columnFilters[col.key];
-          return (
-            <div className="flex items-center justify-between w-full group">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-400 truncate pr-2">{col.label}</span>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpenFilterCol({ key: col.key, rect: e.currentTarget.getBoundingClientRect() });
-                }}
-                className={cn("p-1.5 rounded-lg transition-all", hasFilter ? "text-slate-700 bg-slate-200 dark:bg-slate-700 dark:text-slate-200" : "text-transparent group-hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800")}
-              >
-                <Filter size={14} />
-              </button>
-            </div>
-          );
-        },
-        renderEditCell: (props: any) => {
-          let editValue = props.row[col.key];
-          if (col.key === "dt_emissao_") {
-            if (editValue instanceof Date || (typeof editValue === 'string' && editValue.includes('T'))) {
-                editValue = formatarData(editValue);
-            }
-          }
-          return (
-            <input
-              autoFocus
-              className="w-full h-full px-2 outline-none border-2 border-indigo-500 rounded text-xs bg-white text-black"
-              value={editValue || ""}
-              onChange={(e) => props.onRowChange({ ...props.row, [col.key]: e.target.value })}
-              onBlur={() => props.onClose(true)}
-            />
-          );
-        },
-        renderCell: (props: any) => {
-          const value = props.row[col.key];
-          let displayValue: any = value;
-          
-          if (col.key === "status") {
-            displayValue = value || "";
-          } else if (value === null || value === undefined) {
-            displayValue = "";
-          } else if (col.key === "dt_emissao_") {
-            displayValue = formatarData(value);
-          } else if (col.isCurrency) {
-            displayValue = formatarMoeda(value);
-          }
-
-          const colIdx = orderedColumns.indexOf(col) + 2;
-          const isSelected = selectedRanges.some(r => {
-            return props.rowIdx >= Math.min(r.start.rowIdx, r.end.rowIdx) && 
-                    props.rowIdx <= Math.max(r.start.rowIdx, r.end.rowIdx) && 
-                    colIdx >= Math.min(r.start.colIdx, r.end.colIdx) && 
-                    colIdx <= Math.max(r.start.colIdx, r.end.colIdx);
-          });
-
-          return (
-            <div 
-              className="w-full h-full flex items-center relative select-none"
-              onMouseDown={(e) => {
-                if (e.button !== 0) return;
-                const pos = { rowIdx: props.rowIdx, colIdx };
-                
-                if (e.ctrlKey || e.metaKey) {
-                  // Adiciona um novo bloco avulso
-                  setSelectedRanges(prev => [...prev, { start: pos, end: pos }]);
-                } else if (e.shiftKey || e.altKey) {
-                  // Estica o último bloco (como no Excel)
-                  setSelectedRanges(prev => {
-                    if (prev.length === 0) return [{ start: pos, end: pos }];
-                    const newRanges = [...prev];
-                    newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: pos };
-                    return newRanges;
-                  });
-                } else {
-                  // Limpa e inicia um novo
-                  setSelectedRanges([{ start: pos, end: pos }]);
-                }
-                setIsDragging(true);
-              }}
-              onMouseEnter={() => {
-                if (isDragging) {
-                  setSelectedRanges(prev => {
-                    if (prev.length === 0) return prev;
-                    const newRanges = [...prev];
-                    newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: { rowIdx: props.rowIdx, colIdx } };
-                    return newRanges;
-                  });
-                }
-              }}
-            >
-              {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-indigo-500/20 pointer-events-none z-0 mix-blend-multiply" />}
-              <div className="relative truncate w-full">{displayValue}</div>
-            </div>
-          );
-        }
-      });
-    });
-
-    return defs;
-  }, [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths]);
+  const colDefs = useMemo(() => getOperacoesColumns({
+    orderedColumns, columnWidths, columnFilters, selectedRanges, isDragging,
+    setOpenFilterCol, setSelectedRanges, setIsDragging
+  }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
-
-
-
 
       {/* TABELA DE DADOS - AG GRID */}
       <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 overflow-hidden flex flex-col relative">
@@ -318,21 +142,29 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                 salvarEdicao(id, campo, valor);
               };
 
-              const bannerNode = ((selecionados.size === dados.length && dados.length > 0 && meta.total > dados.length) || selectAllMode) ? (
+              const isAllLoadedSelected = selecionados.size === dados.length && dados.length > 0;
+              const hasMoreInDb = meta.total > dados.length;
+              const shouldShowSelectAllGlobal = hasMoreInDb && (isAllLoadedSelected || selecionados.size >= 200);
+
+              const bannerNode = (selecionados.size > 0 || selectAllMode) ? (
                   <span className="text-[13px] font-medium text-slate-800 dark:text-slate-200 animate-in fade-in">
-                    {!selectAllMode ? (
+                    {selectAllMode ? (
                       <>
-                        Todas as <strong>{dados.length}</strong> operações desta página estão selecionadas.
+                        Todas as <strong>{meta.total - excludedIds.size}</strong> operações estão selecionadas.
+                        <button onClick={() => { setSelectAllMode(false); setSelecionados(new Set()); setExcludedIds(new Set()); }} className="ml-2 font-black text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none">
+                          Limpar seleção
+                        </button>
+                      </>
+                    ) : shouldShowSelectAllGlobal ? (
+                      <>
+                        Todas as <strong>{selecionados.size}</strong> operações desta página estão selecionadas.
                         <button onClick={() => { setSelectAllMode(true); setExcludedIds(new Set()); }} className="ml-2 font-black text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none">
                           Selecionar todas as {meta.total} operações
                         </button>
                       </>
                     ) : (
                       <>
-                        Todas as <strong>{meta.total - excludedIds.size}</strong> operações estão selecionadas.
-                        <button onClick={() => { setSelectAllMode(false); setSelecionados(new Set()); setExcludedIds(new Set()); }} className="ml-2 font-black text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none">
-                          Limpar seleção
-                        </button>
+                        <strong>{selecionados.size}</strong> operação(ões) selecionada(s).
                       </>
                     )}
                   </span>
@@ -353,7 +185,6 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       showActionsMenu={showActionsMenu}
                       setShowActionsMenu={setShowActionsMenu}
                       setShowImportModal={setShowImportModal}
-                      lidarUpload={lidarUpload}
                       moverParaPasta={moverParaPasta}
                       excluirSelecionados={excluirSelecionados}
                       exportarExcel={lidarExportarExcel}
@@ -449,61 +280,12 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       headerRowHeight={42}
                     />
 
-                    {openFilterCol && (
-                      <>
-                        <div className="fixed inset-0 z-[9998]" onClick={() => setOpenFilterCol(null)} />
-                        <div 
-                          className="fixed z-[9999] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl flex flex-col w-64 p-3 animate-in zoom-in-95 duration-100 gap-3"
-                          style={{ top: openFilterCol.rect.bottom + 8, left: Math.max(10, openFilterCol.rect.left - 200 + openFilterCol.rect.width) }}
-                        >
-                          <div className="flex justify-between items-center">
-                              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Filtrar Coluna</span>
-                              <button onClick={() => {
-                                  setColumnFilters(p => {
-                                    const n = {...p}; delete n[openFilterCol.key]; return n;
-                                  });
-                                  // searchParams is synced automatically via useEffect
-                                  setOpenFilterCol(null);
-                              }} className="text-[10px] text-slate-500 font-bold uppercase tracking-widest hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Limpar</button>
-                          </div>
-
-                          <select 
-                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none text-slate-700 dark:text-slate-300"
-                            value={columnFilters[openFilterCol.key]?.type || "contains"}
-                            onChange={(e) => {
-                              const type = e.target.value as FilterType;
-                              setColumnFilters(p => ({
-                                ...p,
-                                [openFilterCol.key]: { type, value: p[openFilterCol.key]?.value || "" }
-                              }));
-                            }}
-                          >
-                            <option value="contains">Contém</option>
-                            <option value="equals">É Igual a</option>
-                            <option value="blank">Vazio (Em branco)</option>
-                            <option value="notBlank">Não Vazio</option>
-                          </select>
-
-                          {(columnFilters[openFilterCol.key]?.type !== "blank" && columnFilters[openFilterCol.key]?.type !== "notBlank") && (
-                            <input 
-                              type="text" 
-                              placeholder="Valor..."
-                              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-medium outline-none text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-slate-400/50 transition-all"
-                              value={columnFilters[openFilterCol.key]?.value || ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setColumnFilters(p => ({
-                                  ...p,
-                                  [openFilterCol.key]: { type: p[openFilterCol.key]?.type || "contains", value }
-                                }));
-                                  // searchParams is synced automatically via useEffect
-                              }}
-                              autoFocus
-                            />
-                          )}
-                        </div>
-                      </>
-                    )}
+                    <ColumnFilterMenu 
+                      openFilterCol={openFilterCol}
+                      setOpenFilterCol={setOpenFilterCol}
+                      columnFilters={columnFilters}
+                      setColumnFilters={setColumnFilters}
+                    />
                   </div>
                 </>
               );
@@ -512,59 +294,12 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
         </Suspense>
       </div>
 
-
-
-
-
-      {/* Modal de Importação com Modos */}
-      {showImportModal && (
-        <div 
-          className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setShowImportModal(false)}
-        >
-          <div 
-            className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-              <h2 className="text-lg font-black uppercase tracking-tight text-slate-800 dark:text-white">Importar Planilha</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                Escolha como deseja importar os dados
-              </p>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <label className={cn("block p-4 rounded-xl border-2 cursor-pointer transition-all", importModo === "SUBSTITUIR" ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-slate-200 dark:border-slate-800 hover:border-indigo-300")}>
-                <div className="flex items-center gap-3 mb-2">
-                  <input type="radio" name="modo_import" checked={importModo === "SUBSTITUIR"} onChange={() => setImportModo("SUBSTITUIR")} className="w-4 h-4 text-indigo-600" />
-                  <span className="font-black text-sm uppercase text-slate-800 dark:text-white">Substituir (Recomendado)</span>
-                </div>
-                <p className="text-xs text-slate-500 ml-7 leading-relaxed">Remove as operações que não estão na planilha nova e atualiza o restante. Ideal para sincronizar os dados mensais.</p>
-              </label>
-
-              <label className={cn("block p-4 rounded-xl border-2 cursor-pointer transition-all", importModo === "ADICIONAR" ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-slate-200 dark:border-slate-800 hover:border-indigo-300")}>
-                <div className="flex items-center gap-3 mb-2">
-                  <input type="radio" name="modo_import" checked={importModo === "ADICIONAR"} onChange={() => setImportModo("ADICIONAR")} className="w-4 h-4 text-indigo-600" />
-                  <span className="font-black text-sm uppercase text-slate-800 dark:text-white">Apenas Adicionar</span>
-                </div>
-                <p className="text-xs text-slate-500 ml-7 leading-relaxed">Adiciona novas operações da planilha sem excluir nada do que já está no sistema. Ignora duplicidades automaticamente.</p>
-              </label>
-            </div>
-
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex gap-3">
-              <button onClick={() => setShowImportModal(false)} className="flex-1 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-                Cancelar
-              </button>
-              <label htmlFor="import-input-modal" className={cn("flex-1 py-3 rounded-xl font-bold text-sm text-white text-center cursor-pointer shadow-lg transition-all", importModo === "SUBSTITUIR" ? "bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-700" : "bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700")}>
-                {carregando ? <Loader2 size={16} className="animate-spin inline mr-2" /> : <UploadCloud size={16} className="inline mr-2" />}
-                Selecionar Arquivo
-              </label>
-              <input type="file" id="import-input-modal" className="hidden" accept=".xls,.xlsx" onChange={lidarUpload} disabled={carregando} />
-            </div>
-          </div>
-        </div>
-      )}
-
+      <ImportModal 
+        isOpen={showImportModal} 
+        onClose={() => setShowImportModal(false)} 
+        onUpload={lidarUpload} 
+        carregando={carregando} 
+      />
     </div>
   );
 }

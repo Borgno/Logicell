@@ -16,8 +16,6 @@ export interface OperacoesToolbarProps {
   showActionsMenu: boolean;
   setShowActionsMenu: (val: boolean) => void;
   setShowImportModal: (val: boolean) => void;
-  
-  lidarUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   moverParaPasta: (id: number | null, nome: string, total: number) => void;
   excluirSelecionados: (total: number) => void;
   exportarExcel: () => void;
@@ -31,13 +29,11 @@ export function OperacoesToolbarView({
   dadosPromise, pastas, nomePasta, showImport, carregando,
   selectionCount,
   showPastaMenu, setShowPastaMenu, showActionsMenu, setShowActionsMenu, setShowImportModal,
-  lidarUpload, moverParaPasta, excluirSelecionados, exportarExcel,
+  moverParaPasta, excluirSelecionados, exportarExcel,
   selectionBannerNode
 }: OperacoesToolbarProps) {
   return (
     <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-      <input type="file" id="import-input" className="hidden" accept=".xls,.xlsx" onChange={lidarUpload} disabled={carregando} />
-
       {/* LEFT: Mover e Excluir */}
       <div className="flex items-center gap-1 shrink-0">        
         {/* Mover Para */}

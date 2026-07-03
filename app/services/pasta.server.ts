@@ -71,7 +71,7 @@ export class PastaService {
       throw new Error("Já existe uma pasta com este nome.");
     }
 
-    const antiga = await this.buscarPorId(id);
+
     const pasta = await prisma.pasta.update({
       where: { id },
       data: { nome, cor }
@@ -84,7 +84,7 @@ export class PastaService {
 
   static async excluir(id: number, usuario: string = "Sistema") {
     this.invalidarCache();
-    const pasta = await this.buscarPorId(id);
+
     
     // Transação para garantir que itens e pasta sejam excluídos juntos
     const res = await prisma.$transaction(async (tx) => {

@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pg_trgm]
 }
 
 model Operacao {
@@ -48,11 +50,8 @@ model Operacao {
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])
   hash_assinatura              String?     @unique
   @@index([nm_agencia])
-  @@index([nm_produto])
-  @@index([nm_motorista])
   @@index([pastaId])
   @@index([dt_emissao_])
-  @@index([nm_pessoa_pagador])
   @@index([nr_ctrc])
   @@index([nr_nf])
   @@index([ds_placa])
@@ -62,8 +61,12 @@ model Operacao {
   @@index([nr_chave_acesso])
   @@index([nm_pessoa_matriz])
   @@index([status])
-  @@index([pastaId, createdAt(sort: Desc)])
+  @@index([pastaId, id(sort: Desc)])
   @@index([nm_agencia, status])
+
+  @@index([nm_produto(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([nm_motorista(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([nm_pessoa_pagador(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model Importacao {

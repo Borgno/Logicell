@@ -13,7 +13,7 @@ export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => 
 };
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { user, response } = await requireUser(request);
+  const { response } = await requireUser(request);
   const pastaId = Number(params.id);
   const url = new URL(request.url);
   const searchParams = Object.fromEntries(url.searchParams);

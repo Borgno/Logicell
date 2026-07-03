@@ -1,9 +1,8 @@
 import * as XLSX from "xlsx";
 import { formatarData } from "./formatters";
 
-export function exportarExcel(dados: any[], colunas: any[], nomePasta: string, showToast: any, showAlert: any) {
+export function exportarExcel(dados: any[], colunas: any[], nomePasta: string, showAlert: any) {
   try {
-    showToast("Gerando Excel...", "info");
     const exportData = dados.map(row => {
       const obj: any = {};
       colunas.forEach(col => {
@@ -17,7 +16,6 @@ export function exportarExcel(dados: any[], colunas: any[], nomePasta: string, s
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Export");
     XLSX.writeFile(wb, `Logicell_${nomePasta}.xlsx`);
-    showToast("Download iniciado!", "success");
   } catch (e) {
     showAlert({ title: "Erro na Exportação", message: "Falha ao gerar o arquivo Excel.", type: "error" });
   }

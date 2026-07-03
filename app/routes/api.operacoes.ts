@@ -1,9 +1,10 @@
 import { ActionFunctionArgs } from "react-router";
 import { requireUser } from "~/services/auth.server";
-import { ConfigService } from "~/services/config.server";
 import { OperacaoService } from "~/services/operacao.server";
+import { OperacaoImportService } from "~/services/operacao-import.server";
 import { PastaService } from "~/services/pasta.server";
 import { StatusService } from "~/services/status.server";
+import { ConfigService, themeCookie } from "~/services/config.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -38,7 +39,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const file = formData.get("file") as File;
         const modo = (formData.get("modo") as string) || "SUBSTITUIR";
         const buffer = Buffer.from(await file.arrayBuffer());
-        const res = await OperacaoService.processarPlanilha(buffer, file.name, userName, modo);
+        const res = await OperacaoImportService.processarPlanilha(buffer, file.name, userName, modo);
         return { ...res, success: true, intent: "upload" };
       }
       case "update": {
@@ -83,6 +84,16 @@ export async function action({ request }: ActionFunctionArgs) {
         const widths = JSON.parse(formData.get("widths") as string);
         await ConfigService.set("columnWidths", widths);
         return { success: true, intent: "resizeColumns" };
+      }
+      case "setTheme": {
+        const theme = formData.get("theme") as string;
+        await ConfigService.set("theme", theme);
+        return new Response(JSON.stringify({ success: true, intent: "setTheme" }), {
+          headers: {
+            "Content-Type": "application/json",
+            "Set-Cookie": await themeCookie.serialize(theme)
+          }
+        });
       }
 
       default:

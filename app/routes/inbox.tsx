@@ -11,7 +11,7 @@ export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => 
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { user, response } = await requireUser(request);
+  const { response } = await requireUser(request);
   const url = new URL(request.url);
   const params = Object.fromEntries(url.searchParams);
   
