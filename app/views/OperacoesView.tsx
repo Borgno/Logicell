@@ -10,6 +10,7 @@ import { useOperacoesGridState } from "~/hooks/useOperacoesGridState";
 import "react-data-grid/lib/styles.css";
 import { useOperacoesPagination } from "~/hooks/useOperacoesPagination";
 import { useOperacoesActions } from "~/hooks/useOperacoesActions";
+import { useOperacoesInteractions } from "~/hooks/useOperacoesInteractions";
 import { useUI } from "~/hooks/use-ui";
 import { exportarExcel } from "~/utils/export";
 import { ColumnFilterMenu } from "~/components/ColumnFilterMenu";
@@ -42,6 +43,8 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     openFilterCol, setOpenFilterCol,
     selectedRanges, setSelectedRanges,
     isDragging, setIsDragging,
+    isFillDragging, setIsFillDragging,
+    fillRange, setFillRange,
     orderedColumns
   } = useOperacoesGridState(columnOrder, initialWidths);
 
@@ -102,10 +105,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     });
   };
   
-  const colDefs = useMemo(() => getOperacoesColumns({
-    orderedColumns, columnWidths, columnFilters, selectedRanges, isDragging,
-    setOpenFilterCol, setSelectedRanges, setIsDragging
-  }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths]);
+  // colDefs movido para dentro do Await para acessar dados e setDados
 
   return (
     <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
@@ -135,7 +135,15 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                 dadosRef.current = dados;
               }, [meta.total, dados]);
 
-              // O interceptador CTRL+C foi removido conforme solicitado
+              const { handleFillEnd } = useOperacoesInteractions({
+                dados, setDados, fetcher, selectedRanges, orderedColumns, fillRange
+              });
+
+              const colDefs = useMemo(() => getOperacoesColumns({
+                orderedColumns, columnWidths, columnFilters, selectedRanges, isDragging,
+                setOpenFilterCol, setSelectedRanges, setIsDragging,
+                isFillDragging, setIsFillDragging, fillRange, setFillRange, handleFillEnd
+              }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths, isFillDragging, fillRange, dados]);
 
               const handleLocalUpdate = (id: number, campo: string, valor: string) => {
                 setDados((prev: any[]) => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));

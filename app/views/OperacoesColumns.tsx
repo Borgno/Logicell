@@ -16,6 +16,11 @@ export function getOperacoesColumns({
   setOpenFilterCol,
   setSelectedRanges,
   setIsDragging,
+  isFillDragging,
+  setIsFillDragging,
+  fillRange,
+  setFillRange,
+  handleFillEnd,
 }: any) {
   const defs: any[] = [
     SelectColumn,
@@ -95,11 +100,35 @@ export function getOperacoesColumns({
                   colIdx <= Math.max(r.start.colIdx, r.end.colIdx);
         });
 
+        // Lógica para desenhar o quadradinho azul na última célula do selectedRanges
+        const lastRange = selectedRanges[selectedRanges.length - 1];
+        const isBottomRight = lastRange && 
+          props.rowIdx === Math.max(lastRange.start.rowIdx, lastRange.end.rowIdx) &&
+          colIdx === Math.max(lastRange.start.colIdx, lastRange.end.colIdx);
+
+        // Lógica visual do Tracejado de Drag-to-Fill
+        const isFillTarget = fillRange && 
+          props.rowIdx >= Math.min(fillRange.start.rowIdx, fillRange.end.rowIdx) &&
+          props.rowIdx <= Math.max(fillRange.start.rowIdx, fillRange.end.rowIdx) &&
+          colIdx >= Math.min(fillRange.start.colIdx, fillRange.end.colIdx) &&
+          colIdx <= Math.max(fillRange.start.colIdx, fillRange.end.colIdx);
+          
+        const isSupportedFillCol = col.key === "status" || col.key === "comentarios";
+
         return (
           <div 
             className="w-full h-full flex items-center relative select-none"
+            onMouseUp={() => {
+              if (isFillDragging) {
+                handleFillEnd(col.key);
+                setIsFillDragging(false);
+                setFillRange(null);
+              }
+            }}
             onMouseDown={(e) => {
               if (e.button !== 0) return;
+              if ((e.target as HTMLElement).id === "fill-handle") return; // Não iniciar seleção normal no drag
+
               const pos = { rowIdx: props.rowIdx, colIdx };
               
               if (e.ctrlKey || e.metaKey) {
@@ -117,18 +146,39 @@ export function getOperacoesColumns({
               setIsDragging(true);
             }}
             onMouseEnter={() => {
+              const pos = { rowIdx: props.rowIdx, colIdx };
               if (isDragging) {
                 setSelectedRanges((prev: any) => {
                   if (prev.length === 0) return prev;
                   const newRanges = [...prev];
-                  newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: { rowIdx: props.rowIdx, colIdx } };
+                  newRanges[newRanges.length - 1] = { ...newRanges[newRanges.length - 1], end: pos };
                   return newRanges;
+                });
+              } else if (isFillDragging) {
+                setFillRange((prev: any) => {
+                  if (!prev) return prev;
+                  return { start: prev.start, end: pos };
                 });
               }
             }}
           >
-            {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-indigo-500/20 pointer-events-none z-0 mix-blend-multiply" />}
+            {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-indigo-500/20 pointer-events-none mix-blend-multiply" />}
+            {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-indigo-600 bg-indigo-50/50 pointer-events-none" />}
+            
             <div className="relative truncate w-full">{displayValue}</div>
+            
+            {isBottomRight && isSupportedFillCol && (
+              <div 
+                id="fill-handle"
+                className="absolute -bottom-2 -right-2 w-3 h-3 bg-indigo-600 border border-white cursor-crosshair"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  if (e.button !== 0) return;
+                  setIsFillDragging(true);
+                  setFillRange({ start: { rowIdx: props.rowIdx, colIdx }, end: { rowIdx: props.rowIdx, colIdx } });
+                }}
+              />
+            )}
           </div>
         );
       }

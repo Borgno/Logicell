@@ -184,4 +184,20 @@ export class OperacaoService {
 
     return operacaoAtualizada;
   }
+
+  static async bulkUpdate(ids: number[], campo: string, valor: string, usuario = "Sistema") {
+    if (!['status', 'comentarios'].includes(campo)) {
+      throw new Error("Campo não permitido para atualização em lote");
+    }
+
+    if (ids.length === 0) return { success: true };
+
+    await prisma.operacao.updateMany({
+      where: { id: { in: ids } },
+      data: { [campo]: valor }
+    });
+    
+    this.invalidarCache();
+    return { success: true };
+  }
 }

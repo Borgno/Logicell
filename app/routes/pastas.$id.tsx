@@ -18,14 +18,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const searchParams = Object.fromEntries(url.searchParams);
   
-  const resultadoPromise = OperacaoService.listarOperacoesLocal({ ...searchParams, pastaId });
-  const agenciasPromise = OperacaoService.buscarAgencias();
-  const pastaPromise = PastaService.buscarPorId(pastaId);
+  const resultado = await OperacaoService.listarOperacoesLocal({ ...searchParams, pastaId });
+  const agencias = await OperacaoService.buscarAgencias();
+  const pasta = await PastaService.buscarPorId(pastaId);
 
   return data({ 
-    dadosPromise: resultadoPromise, 
-    agenciasPromise, 
-    pastaPromise,
+    dadosPromise: Promise.resolve(resultado), 
+    agenciasPromise: Promise.resolve(agencias), 
+    pastaPromise: Promise.resolve(pasta),
     pastaId 
   }, { headers: response.headers });
 }

@@ -87,9 +87,15 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null, initi
 
   const [selectedRanges, setSelectedRanges] = useState<Range[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  
+  const [isFillDragging, setIsFillDragging] = useState(false);
+  const [fillRange, setFillRange] = useState<Range | null>(null);
 
   useEffect(() => {
-    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsFillDragging(false);
+    };
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, []);
@@ -112,6 +118,8 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null, initi
     openFilterCol, setOpenFilterCol,
     selectedRanges, setSelectedRanges,
     isDragging, setIsDragging,
+    isFillDragging, setIsFillDragging,
+    fillRange, setFillRange,
     orderedColumns
   };
 }

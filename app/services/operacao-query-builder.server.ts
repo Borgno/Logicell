@@ -26,7 +26,7 @@ export class OperacaoQueryBuilder {
                 whereAnd.push(`("${colName}" IS NOT NULL AND "${colName}"::TEXT <> '')`);
               } else if (type === "equals" && value !== "") {
                 params.push(value);
-                const exatos = ["nr_ctrc", "nr_nf", "nr_chave_acesso", "nr_contrato"];
+                const exatos = ["nr_nf", "nr_chave_acesso", "nr_contrato"];
                 if (colName === "dt_emissao_") {
                     whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
                 } else if (exatos.includes(colName)) {

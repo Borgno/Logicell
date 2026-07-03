@@ -15,12 +15,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const params = Object.fromEntries(url.searchParams);
   
-  const resultadoPromise = OperacaoService.listarOperacoesLocal(params);
-  const agenciasPromise = OperacaoService.buscarAgencias();
+  const resultado = await OperacaoService.listarOperacoesLocal(params);
+  const agencias = await OperacaoService.buscarAgencias();
 
   return data({ 
-    dadosPromise: resultadoPromise, 
-    agenciasPromise,
+    dadosPromise: Promise.resolve(resultado), 
+    agenciasPromise: Promise.resolve(agencias),
     nomePasta: "Caixa de Entrada" 
   }, { headers: response.headers });
 }

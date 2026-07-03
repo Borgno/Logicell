@@ -50,6 +50,13 @@ export async function action({ request }: ActionFunctionArgs) {
         await OperacaoService.update(id, campo, valor, userName);
         return { success: true, intent: "update" };
       }
+      case "bulkUpdate": {
+        const ids = JSON.parse(formData.get("ids") as string).map(Number);
+        const campo = formData.get("campo") as string;
+        const valor = formData.get("valor") as string;
+        await OperacaoService.bulkUpdate(ids, campo, valor, userName);
+        return { success: true, intent: "bulkUpdate" };
+      }
       case "bulkMove": {
         const ids = JSON.parse(formData.get("ids") as string).map(Number);
         const filters = JSON.parse(formData.get("filters") as string);
