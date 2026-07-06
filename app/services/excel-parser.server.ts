@@ -3,7 +3,6 @@ import crypto from "crypto";
 import * as XLSX from "xlsx";
 import { DateParser } from "../utils/date-parser";
 
-
 // Utilitário Server-Side para Ler e Padronizar Arquivos Excel
 // Realiza toda a extração, Mapeamento (De-Para das colunas) e Validação.
 export class ExcelParser {

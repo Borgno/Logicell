@@ -1,9 +1,8 @@
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LinksFunction, LoaderFunctionArgs, ShouldRevalidateFunction } from "react-router";
-import { Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration, useFetcher, useLoaderData, useLocation } from "react-router";
-import { buscarNomeUsuario } from "~/utils/formatters";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useFetcher, useLoaderData, useLocation } from "react-router";
+import { AuthProvider } from "./context/AuthContext";
 import { UIContext, useUI } from "./hooks/use-ui";
 import { getUser } from "./services/auth.server";
 import { OperacaoService } from "./services/operacao.server";

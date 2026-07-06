@@ -7,7 +7,6 @@ export interface BulkActionParams {
   ids: number[];
   pastaId?: number | null;
   filtros?: any;
-  usuario?: string;
   selectAll?: boolean;
   excludedIds?: number[];
 }
@@ -43,7 +42,7 @@ export class OperacaoService {
     const l = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 200)));
     const offset = (p - 1) * l;
     
-    const whereClause = OperacaoQueryBuilder.construirWhere(search, pastaId, filtros);
+    const whereClause = OperacaoQueryBuilder.construirWhere(pastaId, filtros);
     const cacheKey = JSON.stringify({ sql: whereClause.sql, params: whereClause.params });
     const cachedEntry = this.countCache.get(cacheKey);
     const isCountCached = cachedEntry && Date.now() - cachedEntry.timestamp < this.COUNT_CACHE_TTL;
@@ -95,7 +94,7 @@ export class OperacaoService {
 
   static async listarIds(filtros: any, excludedIds: number[] = []) {
     const { search, pastaId } = filtros;
-    const whereClause = OperacaoQueryBuilder.construirWhere(search, pastaId, filtros, excludedIds);
+    const whereClause = OperacaoQueryBuilder.construirWhere(pastaId, filtros, excludedIds);
     const ids: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "Operacao" o ${whereClause.sql}`, ...whereClause.params);
     return ids.map(i => i.id);
   }
@@ -127,7 +126,7 @@ export class OperacaoService {
     return this.agenciasCache;
   }
 
-  static async bulkActionPasta({ ids, pastaId = null, filtros, usuario = "Sistema", selectAll = false, excludedIds = [] }: BulkActionParams) {
+  static async bulkActionPasta({ ids, pastaId = null, filtros, selectAll = false, excludedIds = [] }: BulkActionParams) {
     const finalPastaId = (pastaId === null || isNaN(pastaId)) ? null : pastaId;
     let affectedIds = ids;
 
@@ -151,7 +150,7 @@ export class OperacaoService {
     return { success: true };
   }
 
-  static async bulkDelete({ ids, filtros: filters, usuario = "Sistema", selectAll = false, excludedIds = [] }: BulkActionParams) {
+  static async bulkDelete({ ids, filtros: filters, selectAll = false, excludedIds = [] }: BulkActionParams) {
     let affectedIds = ids;
     if (selectAll && filters) {
       affectedIds = await this.listarIds(filters, excludedIds);
@@ -166,7 +165,7 @@ export class OperacaoService {
     return { success: true };
   }
 
-  static async update(id: number, campo: string, valorNovo: string, usuario: string) {
+  static async update(id: number, campo: string, valorNovo: string) {
     this.invalidarCache();
 
     let valorLimpo: any = valorNovo;
@@ -185,7 +184,7 @@ export class OperacaoService {
     return operacaoAtualizada;
   }
 
-  static async bulkUpdate(ids: number[], campo: string, valor: string, usuario = "Sistema") {
+  static async bulkUpdate(ids: number[], campo: string, valor: string) {
     if (!['status', 'comentarios'].includes(campo)) {
       throw new Error("Campo não permitido para atualização em lote");
     }

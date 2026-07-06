@@ -50,7 +50,7 @@ export class OperacaoQueryBuilder {
     }
   }
 
-  static construirWhere(search: string, pastaId: any, filtros: any, excludedIds: number[] = []) {
+  static construirWhere(pastaId: any, filtros: any, excludedIds: number[] = []) {
     const whereAnd: string[] = [];
     const params: any[] = [];
 

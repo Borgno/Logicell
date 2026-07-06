@@ -59,7 +59,7 @@ export const Sidebar = React.memo(({
           <p className={`${isCollapsed ? 'hidden' : 'px-3'} text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3`}>Principal</p>
           <div className="space-y-0.5">
             <NavLink to="/caixa-de-entrada" prefetch="intent" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${isActive ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-              {({ isActive: linkActive }) => (
+              {() => (
                 <>
                   <div className="flex items-center gap-2.5">
                     <Inbox size={18} className="shrink-0" />

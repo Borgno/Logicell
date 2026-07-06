@@ -1,7 +1,7 @@
 import { useOperacoesStore } from "~/store/useOperacoesStore";
 
 export function useOperacoesActions({
-  fetcher, confirm, showAlert,
+  fetcher, confirm,
   currentMetaTotal, getActiveFilters
 }: any) {
   const { 
@@ -29,7 +29,7 @@ export function useOperacoesActions({
     fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
   };
 
-  const moverParaPasta = (pId: number | null, pNome: string, unusedTotalFiltro: number) => {
+  const moverParaPasta = (pId: number | null, pNome: string) => {
     const idsCount = selectAllMode ? currentMetaTotal - excludedIds.size : selecionados.size;
     if (idsCount === 0) return;
     
@@ -56,7 +56,7 @@ export function useOperacoesActions({
     });
   };
 
-  const excluirSelecionados = (unusedTotalFiltro: number) => {
+  const excluirSelecionados = () => {
     const idsCount = selectAllMode ? currentMetaTotal - excludedIds.size : selecionados.size;
     if (idsCount === 0) return;
 

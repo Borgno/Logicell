@@ -16,7 +16,6 @@ import { OperacoesToolbarView } from "./OperacoesToolbarView";
 import { getOperacoesColumns } from "./OperacoesColumns";
 
 import DataGrid from 'react-data-grid';
-import 'react-data-grid/lib/styles.css';
 
 interface OperacoesViewProps {
   dadosPromise: any;
@@ -90,7 +89,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   };
 
   const { lidarUpload, salvarEdicao, moverParaPasta, excluirSelecionados } = useOperacoesActions({
-    fetcher, confirm, showAlert, currentMetaTotal, getActiveFilters
+    fetcher, confirm, currentMetaTotal, getActiveFilters
   });
 
   const lidarExportarExcel = () => {

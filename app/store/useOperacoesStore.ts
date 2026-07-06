@@ -6,7 +6,6 @@ interface OperacoesState {
   excludedIds: Set<number>;
   
   showPastaMenu: boolean;
-  showActionsMenu: boolean;
   showImportModal: boolean;
 
   setSelecionados: (selecionados: Set<number>) => void;
@@ -14,7 +13,6 @@ interface OperacoesState {
   setExcludedIds: (excludedIds: Set<number>) => void;
   
   setShowPastaMenu: (show: boolean) => void;
-  setShowActionsMenu: (show: boolean) => void;
   setShowImportModal: (show: boolean) => void;
 
   resetSelection: () => void;
@@ -26,7 +24,6 @@ export const useOperacoesStore = create<OperacoesState>((set) => ({
   excludedIds: new Set(),
   
   showPastaMenu: false,
-  showActionsMenu: false,
   showImportModal: false,
 
   setSelecionados: (selecionados) => set({ selecionados }),
@@ -34,7 +31,6 @@ export const useOperacoesStore = create<OperacoesState>((set) => ({
   setExcludedIds: (excludedIds) => set({ excludedIds }),
   
   setShowPastaMenu: (showPastaMenu) => set({ showPastaMenu }),
-  setShowActionsMenu: (showActionsMenu) => set({ showActionsMenu }),
   setShowImportModal: (showImportModal) => set({ showImportModal }),
 
   resetSelection: () => set({ selecionados: new Set(), selectAllMode: false, excludedIds: new Set() })

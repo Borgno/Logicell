@@ -47,14 +47,14 @@ export async function action({ request }: ActionFunctionArgs) {
         const campo = formData.get("campo") as string;
         const valor = formData.get("valor") as string;
         
-        await OperacaoService.update(id, campo, valor, userName);
+        await OperacaoService.update(id, campo, valor);
         return { success: true, intent: "update" };
       }
       case "bulkUpdate": {
         const ids = JSON.parse(formData.get("ids") as string).map(Number);
         const campo = formData.get("campo") as string;
         const valor = formData.get("valor") as string;
-        await OperacaoService.bulkUpdate(ids, campo, valor, userName);
+        await OperacaoService.bulkUpdate(ids, campo, valor);
         return { success: true, intent: "bulkUpdate" };
       }
       case "bulkMove": {
@@ -65,7 +65,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const excludedIds = excludedIdsRaw ? JSON.parse(excludedIdsRaw as string).map(Number) : [];
         const pastaRaw = formData.get("pastaId");
         const pastaId = (pastaRaw === "null" || !pastaRaw || pastaRaw === "undefined") ? null : Number(pastaRaw);
-        await OperacaoService.bulkActionPasta({ ids, pastaId, filtros: filters, usuario: userName, selectAll, excludedIds });
+        await OperacaoService.bulkActionPasta({ ids, pastaId, filtros: filters, selectAll, excludedIds });
         return { success: true, intent: "bulkMove" };
       }
       case "bulkDelete": {
@@ -74,7 +74,7 @@ export async function action({ request }: ActionFunctionArgs) {
         const selectAll = formData.get("selectAll") === "true";
         const excludedIdsRaw = formData.get("excludedIds");
         const excludedIds = excludedIdsRaw ? JSON.parse(excludedIdsRaw as string).map(Number) : [];
-        await OperacaoService.bulkDelete({ ids, filtros: filters, usuario: userName, selectAll, excludedIds });
+        await OperacaoService.bulkDelete({ ids, filtros: filters, selectAll, excludedIds });
         return { success: true, intent: "bulkDelete" };
       }
       case "createStatus": {

@@ -17,6 +17,6 @@ export function exportarExcel(dados: any[], colunas: any[], nomePasta: string, s
     XLSX.utils.book_append_sheet(wb, ws, "Export");
     XLSX.writeFile(wb, `Logicell_${nomePasta}.xlsx`);
   } catch (e) {
-    showAlert({ title: "Erro na Exportação", message: "Falha ao gerar o arquivo Excel.", type: "error" });
+    showAlert({ title: "Erro na Exportação", message: "Falha ao gerar o arquivo Excel.", variant: "error" });
   }
 }

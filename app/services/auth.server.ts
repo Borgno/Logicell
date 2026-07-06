@@ -19,7 +19,6 @@ function parseJwt(token: string) {
   }
 }
 
-
 //Helper para garantir que o usuário está logado no lado do servidor.
 // Se não houver sessão ativa, dispara um redirect para /login.
 export async function requireUser(request: Request) {
@@ -62,7 +61,6 @@ export async function requireUser(request: Request) {
 
   return { user, supabase, response };
 }
-
 
 //Apenas verifica se há um usuário sem disparar redirect.
 export async function getUser(request: Request) {
