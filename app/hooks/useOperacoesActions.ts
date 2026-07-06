@@ -1,11 +1,15 @@
+import { useOperacoesStore } from "~/store/useOperacoesStore";
+
 export function useOperacoesActions({
   fetcher, confirm, showAlert,
-  selecionados, setSelecionados,
-  selectAllMode, setSelectAllMode,
-  excludedIds, setExcludedIds,
-  currentMetaTotal, getActiveFilters,
-  setShowPastaMenu, setShowImportModal
+  currentMetaTotal, getActiveFilters
 }: any) {
+  const { 
+    selecionados, setSelecionados, 
+    selectAllMode, setSelectAllMode, 
+    excludedIds, setExcludedIds,
+    setShowPastaMenu, setShowImportModal 
+  } = useOperacoesStore();
 
   const lidarUpload = (file: File, modo: string) => {
     const formData = new FormData();

@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx";
 import { Download, FolderInput, Trash2, UploadCloud } from "lucide-react";
 import { twMerge } from "tailwind-merge";
+import { useOperacoesStore } from "~/store/useOperacoesStore";
+
 export interface OperacoesToolbarProps {
   dadosPromise: any;
   pastas: any[];
@@ -9,13 +11,7 @@ export interface OperacoesToolbarProps {
   carregando: boolean;
   
   selectionCount: number;
-  selecionados: Set<number>;
   
-  showPastaMenu: boolean;
-  setShowPastaMenu: (val: boolean) => void;
-  showActionsMenu: boolean;
-  setShowActionsMenu: (val: boolean) => void;
-  setShowImportModal: (val: boolean) => void;
   moverParaPasta: (id: number | null, nome: string, total: number) => void;
   excluirSelecionados: (total: number) => void;
   exportarExcel: () => void;
@@ -28,10 +24,13 @@ function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 export function OperacoesToolbarView({
   dadosPromise, pastas, nomePasta, showImport, carregando,
   selectionCount,
-  showPastaMenu, setShowPastaMenu, showActionsMenu, setShowActionsMenu, setShowImportModal,
   moverParaPasta, excluirSelecionados, exportarExcel,
   selectionBannerNode
 }: OperacoesToolbarProps) {
+  const showPastaMenu = useOperacoesStore(s => s.showPastaMenu);
+  const setShowPastaMenu = useOperacoesStore(s => s.setShowPastaMenu);
+  const setShowImportModal = useOperacoesStore(s => s.setShowImportModal);
+
   return (
     <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
       {/* LEFT: Mover e Excluir */}

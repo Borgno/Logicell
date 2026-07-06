@@ -2,11 +2,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Await, useFetcher, useLocation, useRouteLoaderData, useSearchParams } from "react-router";
 
-
-
-
-
 import { useOperacoesGridState } from "~/hooks/useOperacoesGridState";
+import { useOperacoesStore } from "~/store/useOperacoesStore";
 import "react-data-grid/lib/styles.css";
 import { useOperacoesPagination } from "~/hooks/useOperacoesPagination";
 import { useOperacoesActions } from "~/hooks/useOperacoesActions";
@@ -20,8 +17,6 @@ import { getOperacoesColumns } from "./OperacoesColumns";
 
 import DataGrid from 'react-data-grid';
 import 'react-data-grid/lib/styles.css';
-
-
 
 interface OperacoesViewProps {
   dadosPromise: any;
@@ -53,25 +48,26 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const fetcher = useFetcher();
   const { confirm, alert: showAlert } = useUI();
   
-  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
-  const [selectAllMode, setSelectAllMode] = useState<boolean>(false);
-  const [excludedIds, setExcludedIds] = useState<Set<number>>(new Set());
+  const {
+    selecionados, setSelecionados,
+    selectAllMode, setSelectAllMode,
+    excludedIds, setExcludedIds,
+    showImportModal, setShowImportModal,
+    resetSelection
+  } = useOperacoesStore();
+
   const [currentMetaTotal, setCurrentMetaTotal] = useState<number>(0);
   const dadosRef = useRef<any[]>([]);
-
-  const [showPastaMenu, setShowPastaMenu] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
 
 
   const carregando = fetcher.state !== "idle" || fetcher.formData !== undefined;
 
   useEffect(() => {
-    setSelecionados(new Set());
+    resetSelection();
     if (!location.state) {
       setColumnFilters({});
     }
-  }, [pastaId, location.pathname, location.state, setColumnFilters]);
+  }, [pastaId, location.pathname, location.state, setColumnFilters, resetSelection]);
 
   useEffect(() => {
     if (fetcher.data && (fetcher.data as any).totalLido !== undefined) {
@@ -94,8 +90,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   };
 
   const { lidarUpload, salvarEdicao, moverParaPasta, excluirSelecionados } = useOperacoesActions({
-    fetcher, confirm, showAlert, selecionados, setSelecionados, selectAllMode, setSelectAllMode,
-    excludedIds, setExcludedIds, currentMetaTotal, getActiveFilters, setShowPastaMenu, setShowImportModal
+    fetcher, confirm, showAlert, currentMetaTotal, getActiveFilters
   });
 
   const lidarExportarExcel = () => {
@@ -182,12 +177,6 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       showImport={showImport}
                       carregando={carregando}
                       selectionCount={selectAllMode ? meta.total - excludedIds.size : selecionados.size}
-                      selecionados={selecionados}
-                      showPastaMenu={showPastaMenu}
-                      setShowPastaMenu={setShowPastaMenu}
-                      showActionsMenu={showActionsMenu}
-                      setShowActionsMenu={setShowActionsMenu}
-                      setShowImportModal={setShowImportModal}
                       moverParaPasta={moverParaPasta}
                       excluirSelecionados={excluirSelecionados}
                       exportarExcel={lidarExportarExcel}
