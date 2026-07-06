@@ -37,12 +37,15 @@ function handleBotRequest(
   routerContext: EntryContext
 ) {
   return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(request.url);
+    const url = parsedUrl.origin + parsedUrl.pathname + parsedUrl.search;
+
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={routerContext}
-        // deepcode ignore OpenRedirect: False positive
-        url={request.url}
+        // deepcode ignore OpenRedirect: False positive 
+        url={url}
       />,
       {
         onAllReady() {
@@ -84,12 +87,15 @@ function handleBrowserRequest(
   routerContext: EntryContext
 ) {
   return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(request.url);
+    const url = parsedUrl.origin + parsedUrl.pathname + parsedUrl.search;
+
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={routerContext}
-        // deepcode ignore OpenRedirect: False positive
-        url={request.url}
+        // deepcode ignore OpenRedirect: False positive 
+        url={url}
       />,
       {
         onShellReady() {

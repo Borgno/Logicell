@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LinksFunction, LoaderFunctionArgs, ShouldRevalidateFunction } from "react-router";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useFetcher, useLoaderData, useLocation } from "react-router";
 import { AuthProvider } from "./context/AuthContext";
-import { UIContext, useUI } from "./hooks/use-ui";
+import { UIContext } from "./hooks/use-ui";
 import { getUser } from "./services/auth.server";
 import { OperacaoService } from "./services/operacao.server";
 import { PastaService } from "./services/pasta.server";
@@ -35,9 +35,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const cookieHeader = request.headers.get("Cookie");
     const themeFromCookie = await themeCookie.parse(cookieHeader) || "light";
 
-    return { pastas, totalInbox, user, customStatuses, columnOrder, columnWidths, theme: themeFromCookie };
+    const ENV = {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
+    };
+
+    return { pastas, totalInbox, user, customStatuses, columnOrder, columnWidths, theme: themeFromCookie, ENV };
   } catch (e) {
-    return { pastas: [], totalInbox: 0, user: null, customStatuses: [], columnOrder: null, columnWidths: null, theme: "light" };
+    const ENV = {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
+    };
+    return { pastas: [], totalInbox: 0, user: null, customStatuses: [], columnOrder: null, columnWidths: null, theme: "light", ENV };
   }
 }
 
@@ -129,6 +138,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </AuthProvider>
         </UIContext.Provider>
         <ScrollRestoration />
+        <script dangerouslySetInnerHTML={{ __html: `window.ENV = ${JSON.stringify(data?.ENV || {})}` }} />
         <Scripts />
       </body>
     </html>

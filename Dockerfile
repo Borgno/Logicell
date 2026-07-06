@@ -1,5 +1,5 @@
 # Estágio 1: Dependências e Build
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Instala dependências nativas necessárias para compilação (ex: bcrypt, prisma) e OpenSSL
 RUN apk add --no-cache openssl
@@ -27,7 +27,7 @@ RUN npm prune --production
 
 # ==========================================
 # Estágio 2: Runner de Produção
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 # O Prisma pode precisar do OpenSSL nativo mesmo na imagem de produção
 RUN apk add --no-cache openssl

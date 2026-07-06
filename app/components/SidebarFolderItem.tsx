@@ -105,7 +105,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed }: SidebarFol
     <div className={`relative group/item ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
       <NavLink
         to={`/pastas/${folder.id}`}
-        prefetch="intent"
+        prefetch="none"
         className={({ isActive }) =>
           `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
             isActive
