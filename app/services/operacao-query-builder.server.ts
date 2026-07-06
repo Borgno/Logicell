@@ -25,23 +25,50 @@ export class OperacaoQueryBuilder {
               } else if (type === "notBlank") {
                 whereAnd.push(`("${colName}" IS NOT NULL AND "${colName}"::TEXT <> '')`);
               } else if (type === "equals" && value !== "") {
-                params.push(value);
-                const exatos = ["nr_nf", "nr_chave_acesso", "nr_contrato"];
-                if (colName === "dt_emissao_") {
-                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
-                } else if (exatos.includes(colName)) {
-                    whereAnd.push(`"${colName}" = $${params.length}`);
-                } else if (isNumeric) {
-                    whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
-                } else {
-                    whereAnd.push(`"${colName}" ILIKE $${params.length}`);
+                const values = value.split(',').map(v => v.trim()).filter(Boolean);
+                if (values.length > 1) {
+                  const placeholders = values.map(v => {
+                    params.push(v);
+                    return `$${params.length}`;
+                  });
+                  if (colName === "dt_emissao_") {
+                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') IN (${placeholders.join(', ')})`);
+                  } else {
+                    whereAnd.push(`"${colName}"::TEXT IN (${placeholders.join(', ')})`);
+                  }
+                } else if (values.length === 1) {
+                  const singleValue = values[0];
+                  params.push(singleValue);
+                  const exatos = ["nr_nf", "nr_chave_acesso", "nr_contrato"];
+                  if (colName === "dt_emissao_") {
+                      whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
+                  } else if (exatos.includes(colName)) {
+                      whereAnd.push(`"${colName}" = $${params.length}`);
+                  } else if (isNumeric) {
+                      whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
+                  } else {
+                      whereAnd.push(`"${colName}" ILIKE $${params.length}`);
+                  }
                 }
               } else if (type === "contains" && value !== "") {
-                params.push(`%${value}%`);
-                if (colName === "dt_emissao_") {
-                    whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
-                } else {
-                    whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
+                const values = value.split(',').map(v => v.trim()).filter(Boolean);
+                if (values.length > 1) {
+                  const orClauses = values.map(v => {
+                    params.push(`%${v}%`);
+                    if (colName === "dt_emissao_") {
+                      return `TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`;
+                    } else {
+                      return `"${colName}"::TEXT ILIKE $${params.length}`;
+                    }
+                  });
+                  whereAnd.push(`(${orClauses.join(' OR ')})`);
+                } else if (values.length === 1) {
+                  params.push(`%${values[0]}%`);
+                  if (colName === "dt_emissao_") {
+                      whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
+                  } else {
+                      whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
+                  }
                 }
               }
           }
