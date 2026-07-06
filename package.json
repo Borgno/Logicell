@@ -33,7 +33,9 @@
   "overrides": {
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "morgan": "1.11.0",
+    "qs": "6.15.2"
   },
   "devDependencies": {
     "@react-router/dev": "7.15.1",
