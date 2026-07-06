@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Await, useFetcher, useLocation, useRouteLoaderData, useSearchParams } from "react-router";
 
@@ -113,12 +113,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
       {/* TABELA DE DADOS - AG GRID */}
       <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 overflow-hidden flex flex-col relative">
 
-        <Suspense fallback={
-          <div className="flex-1 flex flex-col items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-40">
-            <Loader2 size={40} className="animate-spin text-indigo-500 mb-4" />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Carregando Operações...</p>
-          </div>
-        }>
+        <Suspense fallback={null}>
           <Await resolve={dadosPromise}>
             {(resultado: any) => {
               const { data: initialDados, meta: initialMeta } = resultado;

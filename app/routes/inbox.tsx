@@ -1,9 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { data, useLoaderData } from "react-router";
-import { RouteErrorBoundary } from "~/components/RouteErrorBoundary";
+import { data } from "react-router";
 import { requireUser } from "~/services/auth.server";
 import { OperacaoService } from "~/services/operacao.server";
-import { OperacoesView } from "~/views/OperacoesView";
 
 export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => {
   if (formData?.get("intent") === "update") return false;
@@ -15,29 +13,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const params = Object.fromEntries(url.searchParams);
   
-  const resultado = await OperacaoService.listarOperacoesLocal(params);
-  const agencias = await OperacaoService.buscarAgencias();
+  // Sem await para fazer streaming (defer)
+  const resultado = OperacaoService.listarOperacoesLocal(params);
+  const agencias = OperacaoService.buscarAgencias();
 
   return data({ 
-    dadosPromise: Promise.resolve(resultado), 
-    agenciasPromise: Promise.resolve(agencias),
-    nomePasta: "Caixa de Entrada" 
+    dadosPromise: resultado, 
+    agenciasPromise: agencias,
+    nomePasta: "Caixa de Entrada",
+    showImport: true
   }, { headers: response.headers });
 }
 
-export function ErrorBoundary() {
-  return <RouteErrorBoundary title="Ops! Algo deu errado." />;
-}
-
 export default function Inbox() {
-  const { dadosPromise, agenciasPromise, nomePasta } = useLoaderData<typeof loader>();
-
-  return (
-    <OperacoesView 
-      dadosPromise={dadosPromise}
-      agenciasPromise={agenciasPromise}
-      nomePasta={nomePasta}
-      showImport={true}
-    />
-  );
+  return null;
 }

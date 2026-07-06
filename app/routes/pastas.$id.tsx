@@ -1,11 +1,8 @@
-import { Suspense } from "react";
 import type { LoaderFunctionArgs } from "react-router";
-import { Await, data, useLoaderData } from "react-router";
-import { RouteErrorBoundary } from "~/components/RouteErrorBoundary";
+import { data } from "react-router";
 import { requireUser } from "~/services/auth.server";
 import { OperacaoService } from "~/services/operacao.server";
 import { PastaService } from "~/services/pasta.server";
-import { OperacoesView } from "~/views/OperacoesView";
 
 export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => {
   if (formData?.get("intent") === "update") return false;
@@ -18,38 +15,22 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const searchParams = Object.fromEntries(url.searchParams);
   
-  const resultado = await OperacaoService.listarOperacoesLocal({ ...searchParams, pastaId });
-  const agencias = await OperacaoService.buscarAgencias();
+  // Apenas a pasta recebe await pois é bem rápido e precisamos do nome para o layout
   const pasta = await PastaService.buscarPorId(pastaId);
+  
+  // Sem await para fazer streaming (defer)
+  const resultado = OperacaoService.listarOperacoesLocal({ ...searchParams, pastaId });
+  const agencias = OperacaoService.buscarAgencias();
 
   return data({ 
-    dadosPromise: Promise.resolve(resultado), 
-    agenciasPromise: Promise.resolve(agencias), 
-    pastaPromise: Promise.resolve(pasta),
-    pastaId 
+    dadosPromise: resultado, 
+    agenciasPromise: agencias, 
+    nomePasta: pasta?.nome || "Pasta",
+    pastaId,
+    showImport: false
   }, { headers: response.headers });
 }
 
-export function ErrorBoundary() {
-  return <RouteErrorBoundary title="Ops! Erro na Pasta" />;
-}
-
 export default function FolderView() {
-  const { dadosPromise, agenciasPromise, pastaPromise, pastaId } = useLoaderData<typeof loader>();
-
-  return (
-    <Suspense fallback={null}>
-      <Await resolve={pastaPromise}>
-        {(pasta: any) => (
-          <OperacoesView 
-            dadosPromise={dadosPromise}
-            agenciasPromise={agenciasPromise}
-            nomePasta={pasta?.nome || "Pasta"}
-            pastaId={pastaId}
-            showImport={false}
-          />
-        )}
-      </Await>
-    </Suspense>
-  );
+  return null;
 }

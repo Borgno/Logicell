@@ -9,12 +9,15 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
   const loadMoreFetcher = useFetcher();
   const isFetchingNextPage = useRef(false);
   const mounted = useRef(false);
+  const processedDataRef = useRef<any>(null);
 
-  // Atualiza os dados se a promessa inicial mudar (ex: troca de pasta)
-  useEffect(() => {
+  // Sincronização de estado síncrona (React pattern) para evitar 1 frame de dados antigos ao trocar de pasta
+  const [prevInitial, setPrevInitial] = useState(initialDados);
+  if (initialDados !== prevInitial) {
+    setPrevInitial(initialDados);
     setDados(initialDados);
     setMeta(initialMeta);
-  }, [pastaId, initialDados, initialMeta]);
+  }
 
   // Busca dados ao montar (se houver location.state) ou ao mudar filtros
   useEffect(() => {
@@ -43,7 +46,8 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
 
   // Sincroniza dados novos da paginação
   useEffect(() => {
-    if (loadMoreFetcher.state === "idle" && loadMoreFetcher.data) {
+    if (loadMoreFetcher.state === "idle" && loadMoreFetcher.data && loadMoreFetcher.data !== processedDataRef.current) {
+      processedDataRef.current = loadMoreFetcher.data;
       const res = loadMoreFetcher.data as any;
       if (res.meta) {
         if (res.meta.page === 1) {
