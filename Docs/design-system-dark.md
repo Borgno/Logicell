@@ -56,7 +56,7 @@ Cole no topo do CSS global. Tudo no projeto referencia estas variáveis — nunc
   --text-dim:   #556070;  /* terciário / desativado */
 
   /* Semântica */
-  --success: #00d084;
+  --success: #0066ff;
   --error:   #ff4a5a;
   --warning: #ffb700;
 

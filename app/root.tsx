@@ -17,7 +17,7 @@ import "./styles/tailwind.css";
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" },
+  { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" },
 ];
 
 
@@ -92,7 +92,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased overflow-hidden w-screen font-sans">
+      <body className="h-full bg-bg text-text antialiased overflow-hidden w-screen font-sans">
         <UIContext.Provider value={uiContextValue}>
           <AuthProvider initialSession={data?.user ?? null}>
 
@@ -102,31 +102,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             {modal?.isOpen && (
               <div 
-                className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
+                className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md backdrop-saturate-150 animate-in fade-in duration-200"
                 onClick={() => setModal(null)}
               >
                 <div 
-                  className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300"
+                  className="bg-card-bg w-full max-w-md rounded-[2rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.4)] border border-glass-border animate-in zoom-in-95 duration-300"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className={`w-16 h-16 rounded-3xl mb-6 flex items-center justify-center ${
-                    modal.variant === 'danger' || modal.variant === 'error' ? 'bg-rose-100 text-rose-600' : 
-                    modal.variant === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
+                  <div className={`w-12 h-12 rounded-2xl mb-6 flex items-center justify-center ${
+                    modal.variant === 'danger' || modal.variant === 'error' ? 'bg-error/10 text-error' : 
+                    modal.variant === 'success' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
                   }`}>
-                    {modal.variant === 'danger' || modal.variant === 'error' ? <AlertTriangle size={32} /> : 
-                    modal.variant === 'success' ? <CheckCircle2 size={32} /> : <Info size={32} />}
+                    {modal.variant === 'danger' || modal.variant === 'error' ? <AlertTriangle size={24} /> : 
+                    modal.variant === 'success' ? <CheckCircle2 size={24} /> : <Info size={24} />}
                   </div>
-                  <h2 className="text-xl font-black mb-2 text-slate-800 dark:text-white uppercase tracking-tight">{modal.title}</h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed mb-8 whitespace-pre-line">{modal.message}</p>
+                  <h2 className="text-xl font-bold mb-2 text-text flex items-center gap-3 tracking-tight">{modal.title}</h2>
+                  <p className="text-text-muted text-sm font-inter leading-relaxed mb-8 whitespace-pre-line">{modal.message}</p>
                   <div className="flex gap-3">
                     {!modal.isAlert && (
-                      <button onClick={() => setModal(null)} className="flex-1 py-4 px-6 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold text-sm transition-all hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
+                      <button onClick={() => setModal(null)} className="flex-1 py-3 px-6 bg-surface border border-glass-border text-text rounded-xl font-bold text-sm transition-all hover:bg-surface-light">Cancelar</button>
                     )}
                     <button 
                       onClick={() => { if(modal.onConfirm) modal.onConfirm(); setModal(null); }} 
-                      className={`flex-1 py-4 px-6 rounded-2xl font-bold text-sm text-white shadow-lg transition-all ${
-                        modal.variant === 'danger' || modal.variant === 'error' ? 'bg-rose-600 hover:bg-rose-700' : 
-                        modal.variant === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
+                      className={`flex-1 py-3 px-6 rounded-xl font-bold text-sm text-white transition-all border-none ${
+                        modal.variant === 'danger' || modal.variant === 'error' ? 'bg-error hover:shadow-[0_0_16px_rgba(255,74,90,0.15)] hover:brightness-110' : 
+                        modal.variant === 'success' ? 'bg-success hover:shadow-[0_0_16px_rgba(0,208,132,0.15)] hover:brightness-110' : 'bg-primary hover:shadow-primary-glow hover:brightness-110'
                       }`}
                     >
                       {modal.isAlert ? "Entendido" : "Confirmar"}
@@ -171,7 +171,7 @@ export default function App() {
 
   if (isLoginPage) {
     return (
-      <main className="h-screen w-screen overflow-hidden bg-slate-950">
+      <main className="h-screen w-screen overflow-hidden bg-[#090b0e]">
         <Outlet />
       </main>
     );
@@ -189,7 +189,7 @@ export default function App() {
         setIsCollapsed={setIsCollapsed} 
       />
 
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-hidden h-full">
+      <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden h-full">
         <Outlet />
       </main>
     </div>

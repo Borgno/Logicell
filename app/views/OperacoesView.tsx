@@ -105,7 +105,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     <div className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-500">
 
       {/* TABELA DE DADOS - AG GRID */}
-      <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 overflow-hidden flex flex-col relative">
+      <div className="flex-1 min-h-0 bg-transparent overflow-hidden flex flex-col relative">
 
         <Suspense fallback={null}>
           <Await resolve={dadosPromise}>

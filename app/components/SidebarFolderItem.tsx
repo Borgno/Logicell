@@ -59,13 +59,13 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed }: SidebarFol
 
   if (isEditing) {
     return (
-      <div className="mx-2 mb-1 space-y-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-2 border border-slate-200 dark:border-slate-700">
+      <div className="mx-2 mb-1 space-y-2 bg-surface rounded-xl p-2 border border-glass-border">
         <input
           autoFocus
           value={editingValue}
           onChange={(e) => setEditingValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submitRename()}
-          className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-blue-500"
+          className="w-full bg-card-bg dark:bg-bg border border-[rgba(0,0,0,0.12)] dark:border-glass-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-primary text-text placeholder:text-text-dim"
         />
         <div className="flex justify-between items-center px-1">
           <div className="flex gap-1.5">
@@ -79,7 +79,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed }: SidebarFol
                 }}
                 className={`w-3.5 h-3.5 rounded-full ${
                   editingColor === c
-                    ? "ring-2 ring-offset-1 ring-slate-400 dark:ring-slate-500 dark:ring-offset-slate-800"
+                    ? "ring-2 ring-offset-1 ring-primary dark:ring-offset-bg"
                     : ""
                 }`}
                 style={{ backgroundColor: c }}
@@ -107,10 +107,10 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed }: SidebarFol
         to={`/pastas/${folder.id}`}
         prefetch="none"
         className={({ isActive }) =>
-          `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+          `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
             isActive
-              ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
-              : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              ? "text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r"
+              : "text-text-muted hover:text-text hover:bg-surface-light"
           }`
         }
       >
@@ -125,17 +125,17 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed }: SidebarFol
                 {(folder._count?.operacoes ?? 0) > 0 && (
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-lg ${
-                      linkActive ? "bg-white/20 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                      linkActive ? "bg-primary/20 text-primary" : "bg-surface text-text-muted"
                     }`}
                   >
                     {folder._count?.operacoes}
                   </span>
                 )}
                 <div className="hidden group-hover/item:flex items-center gap-1.5">
-                  <button onClick={startEditing} className="hover:text-white">
+                  <button onClick={startEditing} className="hover:text-primary transition-colors">
                     <Edit2 size={12} />
                   </button>
-                  <button onClick={handleDelete} className="hover:text-rose-400">
+                  <button onClick={handleDelete} className="hover:text-error transition-colors">
                     <Trash2 size={12} />
                   </button>
                 </div>

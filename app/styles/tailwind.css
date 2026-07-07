@@ -3,56 +3,161 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Chronos Mono Blue Light */
+    --primary:      #0066ff;
+    --primary-glow: rgba(0, 102, 255, 0.08);
+    --secondary:    #0044cc;
+
+    --bg:       #f0f2f5;
+    --card-bg:  #ffffff;
+
+    --text:       #0d1117;
+    --text-muted: #5a6472;
+    --text-dim:   #9aa3ad;
+
+    --success: #0066ff;
+    --error:   #e03048;
+    --warning: #d97706;
+
+    --glass-border:  rgba(0, 0, 0, 0.08);
+    --border-focus:  rgba(0, 102, 255, 0.4);
+    --surface:       rgba(0, 0, 0, 0.03);
+    --surface-light: rgba(0, 0, 0, 0.05);
+
+    --space-1: 8px;
+    --space-2: 16px;
+    --space-3: 24px;
+    --space-4: 32px;
+    --space-5: 40px;
+    --space-6: 48px;
+    --space-8: 64px;
+  }
+
+  .dark {
+    /* Chronos Mono Blue Dark */
+    --primary:      #0066ff;
+    --primary-glow: rgba(0, 102, 255, 0.12);
+    --secondary:    #0044cc;
+
+    --bg:       #090b0e;
+    --card-bg:  #0f1217;
+
+    --text:       #f3f5f8;
+    --text-muted: #8e99a7;
+    --text-dim:   #556070;
+
+    --success: #0066ff;
+    --error:   #ff4a5a;
+    --warning: #ffb700;
+
+    --glass-border:  rgba(255, 255, 255, 0.2);
+    --border-focus:  rgba(0, 102, 255, 0.4);
+    --surface:       rgba(255, 255, 255, 0.03);
+    --surface-light: rgba(255, 255, 255, 0.06);
+  }
+
   body {
-    @apply antialiased text-slate-900 bg-slate-100 transition-colors duration-500 overflow-x-hidden;
+    background-color: var(--bg);
+    color: var(--text);
+    @apply antialiased transition-colors duration-500 overflow-x-hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
   }
-  .dark body {
-    @apply bg-slate-950 text-slate-50;
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.015'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.25;
   }
+
+  .dark body::before {
+    opacity: 0.5;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  h1 { font-size: 3rem;   font-weight: 500; line-height: 1.1; }
+  h2 { font-size: 1.5rem; font-weight: 600; }
+  h3 { font-size: 1.1rem; font-weight: 600; }
 }
 
 /* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+::-webkit-scrollbar {
+  width: 6px;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  @apply bg-transparent;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full border-2 border-solid border-transparent bg-clip-padding;
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400 dark:bg-slate-600;
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 /* React Data Grid Theme Overrides */
-.rdg-light {
-  --rdg-color: #334155; /* slate.700 */
-  --rdg-border-color: #e2e8f0; /* slate.200 */
-  --rdg-summary-border-color: #e2e8f0;
-  --rdg-background-color: #ffffff; /* white */
-  --rdg-header-background-color: #f8fafc; /* slate.50 */
-  --rdg-row-hover-background-color: #f8fafc;
-  --rdg-row-selected-background-color: #eef2ff; /* indigo.50 */
-  --rdg-row-selected-hover-background-color: #e0e7ff; /* indigo.100 */
-  --rdg-checkbox-color: #4f46e5; /* indigo.600 */
-  --rdg-checkbox-focus-color: #4f46e5;
-  --rdg-selection-color: #6366f1; /* indigo.500 */
-  --rdg-font-size: 11px;
+.rdg {
+  --rdg-color: var(--text);
+  --rdg-border-color: var(--glass-border);
+  --rdg-summary-border-color: var(--glass-border);
+  --rdg-background-color: var(--card-bg);
+  --rdg-header-background-color: var(--bg);
+  --rdg-row-hover-background-color: var(--surface-light);
+  --rdg-row-selected-background-color: var(--primary-glow);
+  --rdg-row-selected-hover-background-color: rgba(0, 102, 255, 0.15);
+  --rdg-checkbox-color: var(--primary);
+  --rdg-checkbox-focus-color: var(--primary);
+  --rdg-selection-color: var(--primary);
+  
+  --rdg-font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  
+  border: 1px solid var(--glass-border);
+  border-radius: 0px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.rdg-dark {
-  --rdg-color: #cbd5e1; /* slate.300 */
-  --rdg-border-color: #1e293b; /* slate.800 */
-  --rdg-summary-border-color: #1e293b;
-  --rdg-background-color: #0f172a; /* slate.900 */
-  --rdg-header-background-color: #020617; /* slate.950 */
-  --rdg-row-hover-background-color: #1e293b; /* slate.800 */
-  --rdg-row-selected-background-color: #312e81; /* indigo.900/40 approx */
-  --rdg-row-selected-hover-background-color: #3730a3; /* indigo.800/60 approx */
-  --rdg-checkbox-color: #6366f1; /* indigo.500 */
-  --rdg-checkbox-focus-color: #6366f1;
-  --rdg-selection-color: #818cf8; /* indigo.400 */
-  --rdg-font-size: 11px;
+/* Força as linhas de grade estilo Excel para todas as células */
+.rdg-cell, .rdg-header-cell {
+  border-right: 1px solid var(--rdg-border-color) !important;
+  border-bottom: 1px solid var(--rdg-border-color) !important;
+}
+
+.dark .rdg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.rdg-light, .rdg-dark {
+  --rdg-color: var(--text);
+  --rdg-border-color: var(--glass-border);
+  --rdg-summary-border-color: var(--glass-border);
+  --rdg-background-color: var(--card-bg);
+  --rdg-header-background-color: var(--bg);
+  --rdg-row-hover-background-color: var(--surface-light);
+  --rdg-row-selected-background-color: var(--primary-glow);
+  --rdg-row-selected-hover-background-color: rgba(0, 102, 255, 0.15);
+  --rdg-checkbox-color: var(--primary);
+  --rdg-checkbox-focus-color: var(--primary);
+  --rdg-selection-color: var(--primary);
 }

@@ -26,43 +26,43 @@ export function ImportModal({ isOpen, onClose, onUpload, carregando }: ImportMod
 
   return (
     <div 
-      className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 
-        className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
+        className="bg-card-bg w-full max-w-2xl rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] border border-glass-border animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-          <h2 className="text-lg font-black uppercase tracking-tight text-slate-800 dark:text-white">Importar Planilha</h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+        <div className="p-6 border-b border-glass-border">
+          <h2 className="text-base font-black uppercase tracking-tight text-text">Importar Planilha</h2>
+          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">
             Escolha como deseja importar os dados
           </p>
         </div>
         
         <div className="p-6 space-y-4">
-          <label className={cn("block p-4 rounded-xl border-2 cursor-pointer transition-all", importModo === "SUBSTITUIR" ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-slate-200 dark:border-slate-800 hover:border-indigo-300")}>
+          <label className={cn("block p-4 rounded-xl border-2 cursor-pointer transition-all", importModo === "SUBSTITUIR" ? "border-primary bg-primary/10" : "border-glass-border hover:border-primary/50 bg-surface")}>
             <div className="flex items-center gap-3 mb-2">
-              <input type="radio" name="modo_import" checked={importModo === "SUBSTITUIR"} onChange={() => setImportModo("SUBSTITUIR")} className="w-4 h-4 text-indigo-600" />
-              <span className="font-black text-sm uppercase text-slate-800 dark:text-white">Substituir (Recomendado)</span>
+              <input type="radio" name="modo_import" checked={importModo === "SUBSTITUIR"} onChange={() => setImportModo("SUBSTITUIR")} className="w-4 h-4 text-primary accent-primary" />
+              <span className="font-black text-sm uppercase text-text">Substituir (Recomendado)</span>
             </div>
-            <p className="text-xs text-slate-500 ml-7 leading-relaxed">Remove as operações que não estão na planilha nova e atualiza o restante. Ideal para sincronizar os dados mensais.</p>
+            <p className="text-xs text-text-dim ml-7 leading-relaxed">Remove as operações que não estão na planilha nova e atualiza o restante. Ideal para sincronizar os dados mensais.</p>
           </label>
 
-          <label className={cn("block p-4 rounded-xl border-2 cursor-pointer transition-all", importModo === "ADICIONAR" ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-slate-200 dark:border-slate-800 hover:border-indigo-300")}>
+          <label className={cn("block p-4 rounded-xl border-2 cursor-pointer transition-all", importModo === "ADICIONAR" ? "border-primary bg-primary/10" : "border-glass-border hover:border-primary/50 bg-surface")}>
             <div className="flex items-center gap-3 mb-2">
-              <input type="radio" name="modo_import" checked={importModo === "ADICIONAR"} onChange={() => setImportModo("ADICIONAR")} className="w-4 h-4 text-indigo-600" />
-              <span className="font-black text-sm uppercase text-slate-800 dark:text-white">Apenas Adicionar</span>
+              <input type="radio" name="modo_import" checked={importModo === "ADICIONAR"} onChange={() => setImportModo("ADICIONAR")} className="w-4 h-4 text-primary accent-primary" />
+              <span className="font-black text-sm uppercase text-text">Apenas Adicionar</span>
             </div>
-            <p className="text-xs text-slate-500 ml-7 leading-relaxed">Adiciona novas operações da planilha sem excluir nada do que já está no sistema. Ignora duplicidades automaticamente.</p>
+            <p className="text-xs text-text-dim ml-7 leading-relaxed">Adiciona novas operações da planilha sem excluir nada do que já está no sistema. Ignora duplicidades automaticamente.</p>
           </label>
         </div>
 
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
+        <div className="p-6 border-t border-glass-border bg-surface-light flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 bg-surface border border-glass-border rounded-xl font-bold text-sm text-text-muted hover:text-text hover:bg-surface-light transition-all">
             Cancelar
           </button>
-          <label htmlFor="import-input-modal" className={cn("flex-1 py-3 rounded-xl font-bold text-sm text-white text-center cursor-pointer shadow-lg transition-all", importModo === "SUBSTITUIR" ? "bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-700" : "bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700")}>
+          <label htmlFor="import-input-modal" className={cn("flex-1 py-3 rounded-xl font-bold text-sm text-white text-center cursor-pointer shadow-lg transition-all", importModo === "SUBSTITUIR" ? "bg-primary shadow-primary-glow hover:bg-primary/90" : "bg-success shadow-[0_0_15px_rgba(0,102,255,0.3)] hover:bg-success/90")}>
             {carregando ? <Loader2 size={16} className="animate-spin inline mr-2" /> : <UploadCloud size={16} className="inline mr-2" />}
             Selecionar Arquivo
           </label>

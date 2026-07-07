@@ -161,15 +161,15 @@ export function getOperacoesColumns({
               }
             }}
           >
-            {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-indigo-500/20 pointer-events-none mix-blend-multiply" />}
-            {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-indigo-600 bg-indigo-50/50 pointer-events-none" />}
+            {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-[rgba(0,102,255,0.15)] pointer-events-none" />}
+            {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-primary bg-[rgba(0,102,255,0.1)] pointer-events-none" />}
             
             <div className="relative truncate w-full">{displayValue}</div>
             
             {isBottomRight && isSupportedFillCol && (
               <div 
                 id="fill-handle"
-                className="absolute -bottom-2 -right-2 w-3 h-3 bg-indigo-600 border border-white cursor-crosshair"
+                className="absolute -bottom-2 -right-2 w-3 h-3 bg-primary border border-white dark:border-[#0f1217] cursor-crosshair"
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   if (e.button !== 0) return;
