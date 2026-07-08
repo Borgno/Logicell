@@ -25,13 +25,17 @@
     --surface:       rgba(0, 0, 0, 0.03);
     --surface-light: rgba(0, 0, 0, 0.05);
 
-    --space-1: 8px;
-    --space-2: 16px;
-    --space-3: 24px;
-    --space-4: 32px;
-    --space-5: 40px;
-    --space-6: 48px;
-    --space-8: 64px;
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-card-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.06);
+    --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.1), 0 24px 56px rgba(0, 0, 0, 0.14);
+    --shadow-primary-glow: 0 4px 12px var(--primary-glow);
+
+    --badge-primary-text: #0050cc;
+    --badge-primary-bg: rgba(0, 102, 255, 0.1);
+    --badge-error-text: #b02030;
+    --badge-error-bg: rgba(224, 48, 72, 0.1);
+    --badge-warning-text: #92580a;
+    --badge-warning-bg: rgba(217, 119, 6, 0.1);
   }
 
   .dark {
@@ -55,6 +59,18 @@
     --border-focus:  rgba(0, 102, 255, 0.4);
     --surface:       rgba(255, 255, 255, 0.03);
     --surface-light: rgba(255, 255, 255, 0.06);
+
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-card-elevated: 0 10px 40px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.45);
+    --shadow-modal: 0 10px 40px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.45);
+    --shadow-primary-glow: 0 0 16px var(--primary-glow);
+
+    --badge-primary-text: var(--primary);
+    --badge-primary-bg: rgba(0, 102, 255, 0.12);
+    --badge-error-text: var(--error);
+    --badge-error-bg: rgba(255, 74, 90, 0.12);
+    --badge-warning-text: var(--warning);
+    --badge-warning-bg: rgba(255, 183, 0, 0.12);
   }
 
   body {

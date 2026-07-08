@@ -1,5 +1,4 @@
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { LinksFunction, LoaderFunctionArgs, ShouldRevalidateFunction } from "react-router";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useFetcher, useLoaderData, useLocation } from "react-router";
 import { AuthProvider } from "./context/AuthContext";
@@ -10,6 +9,7 @@ import { PastaService } from "./services/pasta.server";
 import { StatusService } from "./services/status.server";
 import { ConfigService, themeCookie } from "./services/config.server";
 import { Sidebar } from "./components/Sidebar";
+import { GlobalModal } from "./components/GlobalModal";
 import "./styles/tailwind.css";
 
 
@@ -85,7 +85,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const uiContextValue = useMemo(() => ({ confirm: confirmAction, alert: showAlert }), [confirmAction, showAlert]);
 
   return (
-    <html lang="pt-BR" className={`h-full ${data?.theme === 'dark' ? 'dark' : ''}`}>
+    <html lang="pt-BR" className={`h-full ${data?.theme === 'dark' ? 'dark' : ''}`} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -99,41 +99,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {children}
             
             {/* Overlay UI components (Global) */}
-
-            {modal?.isOpen && (
-              <div 
-                className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md backdrop-saturate-150 animate-in fade-in duration-200"
-                onClick={() => setModal(null)}
-              >
-                <div 
-                  className="bg-card-bg w-full max-w-md rounded-[2rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.4)] border border-glass-border animate-in zoom-in-95 duration-300"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className={`w-12 h-12 rounded-2xl mb-6 flex items-center justify-center ${
-                    modal.variant === 'danger' || modal.variant === 'error' ? 'bg-error/10 text-error' : 
-                    modal.variant === 'success' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
-                  }`}>
-                    {modal.variant === 'danger' || modal.variant === 'error' ? <AlertTriangle size={24} /> : 
-                    modal.variant === 'success' ? <CheckCircle2 size={24} /> : <Info size={24} />}
-                  </div>
-                  <h2 className="text-xl font-bold mb-2 text-text flex items-center gap-3 tracking-tight">{modal.title}</h2>
-                  <p className="text-text-muted text-sm font-inter leading-relaxed mb-8 whitespace-pre-line">{modal.message}</p>
-                  <div className="flex gap-3">
-                    {!modal.isAlert && (
-                      <button onClick={() => setModal(null)} className="flex-1 py-3 px-6 bg-surface border border-glass-border text-text rounded-xl font-bold text-sm transition-all hover:bg-surface-light">Cancelar</button>
-                    )}
-                    <button 
-                      onClick={() => { if(modal.onConfirm) modal.onConfirm(); setModal(null); }} 
-                      className={`flex-1 py-3 px-6 rounded-xl font-bold text-sm text-white transition-all border-none ${
-                        modal.variant === 'danger' || modal.variant === 'error' ? 'bg-error hover:shadow-[0_0_16px_rgba(255,74,90,0.15)] hover:brightness-110' : 
-                        modal.variant === 'success' ? 'bg-success hover:shadow-[0_0_16px_rgba(0,208,132,0.15)] hover:brightness-110' : 'bg-primary hover:shadow-primary-glow hover:brightness-110'
-                      }`}
-                    >
-                      {modal.isAlert ? "Entendido" : "Confirmar"}
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {modal && (
+              <GlobalModal
+                isOpen={modal.isOpen}
+                title={modal.title}
+                message={modal.message}
+                variant={modal.variant as 'primary' | 'success' | 'error' | 'danger'}
+                isAlert={modal.isAlert}
+                onConfirm={modal.onConfirm}
+                onClose={() => setModal(null)}
+              />
             )}
           </AuthProvider>
         </UIContext.Provider>
@@ -158,14 +133,10 @@ export default function App() {
   const [isDark, setIsDark] = useState(data?.theme === 'dark');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  useEffect(() => {
-    if (isDark) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [isDark]);
-
   const toggleTheme = () => {
     const newTheme = !isDark ? 'dark' : 'light';
     setIsDark(!isDark);
+    document.documentElement.classList.toggle("dark", !isDark);
     fetcher.submit({ intent: "setTheme", theme: newTheme }, { method: "post", action: "/api/operacoes" });
   };
 

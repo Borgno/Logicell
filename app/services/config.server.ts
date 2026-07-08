@@ -1,8 +1,11 @@
 import { createCookie } from "react-router";
 import db from "~/lib/prisma.server";
 
-export const themeCookie = createCookie("theme", {
+export const themeCookie = createCookie("app_theme", {
   maxAge: 31536000, // 1 year
+  sameSite: "lax",
+  path: "/",
+  secure: process.env.NODE_ENV === "production",
 });
 
 export const ConfigService = {

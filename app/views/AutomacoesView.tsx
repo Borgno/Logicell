@@ -186,7 +186,7 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
                     {currentModalData.regras.map((regra: any) => (
                       <div key={regra.id} className="group flex items-center justify-between px-3 py-2 rounded-lg bg-surface hover:bg-surface-light border border-glass-border hover:border-glass-border transition-all">
                         <div className="flex items-center gap-4 overflow-hidden">
-                          <span className={`shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${regra.agencia ? 'bg-indigo-500/10 text-indigo-500 dark:text-indigo-400' : 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400'}`}>
+                          <span className={`shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${regra.agencia ? 'bg-badge-primary-bg text-badge-primary-text' : 'bg-surface text-text-muted border border-glass-border'}`}>
                             {regra.agencia ? 'Agência' : 'Cliente'}
                           </span>
                           <span className="text-sm font-bold text-text truncate" title={regra.agencia || regra.cliente}>
