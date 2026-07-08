@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: logicell-app
+    container_name: logicell-web
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3011}:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+      - NODE_ENV=production

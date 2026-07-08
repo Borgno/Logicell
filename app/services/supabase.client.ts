@@ -8,8 +8,8 @@ export function getSupabaseBrowserClient() {
 
   if (supabaseClient) return supabaseClient;
 
-  const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || "";
-  const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
+  const supabaseUrl = (typeof window !== "undefined" && (window as any).ENV?.VITE_SUPABASE_URL) || (import.meta as any).env.VITE_SUPABASE_URL || "";
+  const supabaseAnonKey = (typeof window !== "undefined" && (window as any).ENV?.VITE_SUPABASE_ANON_KEY) || (import.meta as any).env.VITE_SUPABASE_ANON_KEY || "";
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error("VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set");

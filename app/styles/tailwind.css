@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Chronos Mono Blue Light */
+    --primary:      #0066ff;
+    --primary-glow: rgba(0, 102, 255, 0.08);
+    --secondary:    #0044cc;
+
+    --bg:       #f0f2f5;
+    --card-bg:  #ffffff;
+
+    --text:       #0d1117;
+    --text-muted: #5a6472;
+    --text-dim:   #9aa3ad;
+
+    --success: #0066ff;
+    --error:   #e03048;
+    --warning: #d97706;
+
+    --glass-border:  rgba(0, 0, 0, 0.08);
+    --border-focus:  rgba(0, 102, 255, 0.4);
+    --surface:       rgba(0, 0, 0, 0.03);
+    --surface-light: rgba(0, 0, 0, 0.05);
+
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-card-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.06);
+    --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.1), 0 24px 56px rgba(0, 0, 0, 0.14);
+    --shadow-primary-glow: 0 4px 12px var(--primary-glow);
+
+    --badge-primary-text: #0050cc;
+    --badge-primary-bg: rgba(0, 102, 255, 0.1);
+    --badge-error-text: #b02030;
+    --badge-error-bg: rgba(224, 48, 72, 0.1);
+    --badge-warning-text: #92580a;
+    --badge-warning-bg: rgba(217, 119, 6, 0.1);
+  }
+
+  .dark {
+    /* Chronos Mono Blue Dark */
+    --primary:      #0066ff;
+    --primary-glow: rgba(0, 102, 255, 0.12);
+    --secondary:    #0044cc;
+
+    --bg:       #090b0e;
+    --card-bg:  #0f1217;
+
+    --text:       #f3f5f8;
+    --text-muted: #8e99a7;
+    --text-dim:   #556070;
+
+    --success: #0066ff;
+    --error:   #ff4a5a;
+    --warning: #ffb700;
+
+    --glass-border:  rgba(255, 255, 255, 0.2);
+    --border-focus:  rgba(0, 102, 255, 0.4);
+    --surface:       rgba(255, 255, 255, 0.03);
+    --surface-light: rgba(255, 255, 255, 0.06);
+
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-card-elevated: 0 10px 40px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.45);
+    --shadow-modal: 0 10px 40px rgba(0, 0, 0, 0.1), 0 20px 50px rgba(0, 0, 0, 0.45);
+    --shadow-primary-glow: 0 0 16px var(--primary-glow);
+
+    --badge-primary-text: var(--primary);
+    --badge-primary-bg: rgba(0, 102, 255, 0.12);
+    --badge-error-text: var(--error);
+    --badge-error-bg: rgba(255, 74, 90, 0.12);
+    --badge-warning-text: var(--warning);
+    --badge-warning-bg: rgba(255, 183, 0, 0.12);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    @apply antialiased transition-colors duration-500 overflow-x-hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.015'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.25;
+  }
+
+  .dark body::before {
+    opacity: 0.5;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  h1 { font-size: 3rem;   font-weight: 500; line-height: 1.1; }
+  h2 { font-size: 1.5rem; font-weight: 600; }
+  h3 { font-size: 1.1rem; font-weight: 600; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* React Data Grid Theme Overrides */
+.rdg {
+  --rdg-color: var(--text);
+  --rdg-border-color: var(--glass-border);
+  --rdg-summary-border-color: var(--glass-border);
+  --rdg-background-color: var(--card-bg);
+  --rdg-header-background-color: var(--bg);
+  --rdg-row-hover-background-color: var(--surface-light);
+  --rdg-row-selected-background-color: var(--primary-glow);
+  --rdg-row-selected-hover-background-color: rgba(0, 102, 255, 0.15);
+  --rdg-checkbox-color: var(--primary);
+  --rdg-checkbox-focus-color: var(--primary);
+  --rdg-selection-color: var(--primary);
+  
+  --rdg-font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  
+  border: 1px solid var(--glass-border);
+  border-radius: 0px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Força as linhas de grade estilo Excel para todas as células */
+.rdg-cell, .rdg-header-cell {
+  border-right: 1px solid var(--rdg-border-color) !important;
+  border-bottom: 1px solid var(--rdg-border-color) !important;
+}
+
+.dark .rdg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.rdg-light, .rdg-dark {
+  --rdg-color: var(--text);
+  --rdg-border-color: var(--glass-border);
+  --rdg-summary-border-color: var(--glass-border);
+  --rdg-background-color: var(--card-bg);
+  --rdg-header-background-color: var(--bg);
+  --rdg-row-hover-background-color: var(--surface-light);
+  --rdg-row-selected-background-color: var(--primary-glow);
+  --rdg-row-selected-hover-background-color: rgba(0, 102, 255, 0.15);
+  --rdg-checkbox-color: var(--primary);
+  --rdg-checkbox-focus-color: var(--primary);
+  --rdg-selection-color: var(--primary);
+}

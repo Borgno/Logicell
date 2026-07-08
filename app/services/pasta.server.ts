@@ -52,14 +52,7 @@ export class PastaService {
       data: { nome, cor }
     });
 
-    prisma.auditoria.create({
-      data: {
-        tipo: "CREATE",
-        entidade: "PASTA",
-        detalhes: JSON.stringify({ mensagem: `Criou a pasta: ${nome}` }),
-        usuario
-      } as any
-    }).catch(e => console.error("Erro auditoria pasta create:", e));
+
 
     return pasta;
   }
@@ -78,31 +71,20 @@ export class PastaService {
       throw new Error("Já existe uma pasta com este nome.");
     }
 
-    const antiga = await this.buscarPorId(id);
+
     const pasta = await prisma.pasta.update({
       where: { id },
       data: { nome, cor }
     });
 
-    prisma.auditoria.create({
-      data: {
-        tipo: "UPDATE",
-        entidade: "PASTA",
-        detalhes: JSON.stringify({ 
-          mensagem: `Renomeou pasta de "${antiga?.nome}" para "${nome}"`,
-          antigo: antiga?.nome,
-          novo: nome 
-        }),
-        usuario
-      } as any
-    }).catch(e => console.error("Erro auditoria pasta update:", e));
+
 
     return pasta;
   }
 
   static async excluir(id: number, usuario: string = "Sistema") {
     this.invalidarCache();
-    const pasta = await this.buscarPorId(id);
+
     
     // Transação para garantir que itens e pasta sejam excluídos juntos
     const res = await prisma.$transaction(async (tx) => {
@@ -117,14 +99,7 @@ export class PastaService {
       });
     });
 
-    prisma.auditoria.create({
-      data: {
-        tipo: "DELETE",
-        entidade: "PASTA",
-        detalhes: JSON.stringify({ mensagem: `Excluiu a pasta: ${pasta?.nome}`, nome: pasta?.nome }),
-        usuario
-      } as any
-    }).catch(e => console.error("Erro auditoria pasta delete:", e));
+
 
     return res;
   }

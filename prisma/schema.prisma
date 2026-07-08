@@ -1,11 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pg_trgm]
 }
 
 model Operacao {
@@ -38,33 +40,33 @@ model Operacao {
   nm_motorista                 String?
   createdAt                    DateTime    @default(now())
   updatedAt                    DateTime    @updatedAt
-  dt_emissao_                  DateTime
+  dt_emissao_                  DateTime?
   importacaoId                 Int?
   pastaId                      Int?
   comentarios                  String?
   status                       String?
-  auditorias                   Auditoria[]
+
   importacao                   Importacao? @relation(fields: [importacaoId], references: [id])
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])
-
-  @@unique([nm_agencia, nr_ctrc, nr_nf, vl_total, dt_emissao_])
+  hash_assinatura              String?     @unique
   @@index([nm_agencia])
-  @@index([nm_produto])
-  @@index([nm_motorista])
   @@index([pastaId])
   @@index([dt_emissao_])
-  @@index([nm_pessoa_pagador])
-  @@index([nr_ctrc])
   @@index([nr_nf])
-  @@index([ds_placa])
   @@index([nm_pessoa_remetente])
   @@index([nm_pessoa_destinatario])
   @@index([nr_contrato])
+  @@index([nm_motorista])
   @@index([nr_chave_acesso])
   @@index([nm_pessoa_matriz])
   @@index([status])
-  @@index([pastaId, createdAt(sort: Desc)])
+  @@index([pastaId, id(sort: Desc)])
   @@index([nm_agencia, status])
+
+  @@index([nm_produto(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([nm_pessoa_pagador(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([ds_placa(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([nr_ctrc(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model Importacao {
@@ -77,30 +79,14 @@ model Importacao {
   operacoes    Operacao[]
 }
 
-model Auditoria {
-  id          Int      @id @default(autoincrement())
-  tipo        String   @default("UPDATE")
-  entidade    String   @default("OPERACAO")
-  operacaoId  Int?
-  campo       String?
-  valorAntigo String?
-  valorNovo   String?
-  detalhes    String?
-  usuario     String
-  createdAt   DateTime @default(now())
-  operacao    Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
-
-  @@index([usuario])
-  @@index([tipo])
-  @@index([operacaoId])
-}
 
 model Pasta {
   id        Int        @id @default(autoincrement())
   nome      String     @unique
   cor       String?
-  operacoes Operacao[]
-  createdAt DateTime   @default(now())
+  operacoes  Operacao[]
+  regras     RegraAutomacao[]
+  createdAt  DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
@@ -109,4 +95,23 @@ model StatusOperacao {
   nome      String   @unique
   cor       String?
   createdAt DateTime @default(now())
+}
+
+model Configuracao {
+  id        Int      @id @default(autoincrement())
+  chave     String   @unique
+  valor     String   // Guardará JSON, ex: ["nr_ctrc", "nm_agencia", ...]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RegraAutomacao {
+  id        Int      @id @default(autoincrement())
+  pastaId   Int
+  agencia   String?  @unique
+  cliente   String?  @unique
+  createdAt DateTime @default(now())
+  pasta     Pasta    @relation(fields: [pastaId], references: [id], onDelete: Cascade)
+
+  @@index([pastaId])
 }

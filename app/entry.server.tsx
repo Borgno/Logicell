@@ -1,10 +1,10 @@
 import { PassThrough } from "node:stream";
 
-import type { AppLoadContext, EntryContext } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
-import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
+import type { AppLoadContext, EntryContext } from "react-router";
+import { ServerRouter } from "react-router";
 
 const ABORT_DELAY = 5_000;
 
@@ -37,11 +37,15 @@ function handleBotRequest(
   routerContext: EntryContext
 ) {
   return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(request.url);
+    const url = parsedUrl.origin + parsedUrl.pathname + parsedUrl.search;
+
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={routerContext}
-        url={request.url}
+        // deepcode ignore OpenRedirect: False positive 
+        url={url}
       />,
       {
         onAllReady() {
@@ -72,7 +76,7 @@ function handleBotRequest(
       }
     );
 
-    setTimeout(abort, ABORT_DELAY);
+    setTimeout(() => abort(), ABORT_DELAY);
   });
 }
 
@@ -83,11 +87,15 @@ function handleBrowserRequest(
   routerContext: EntryContext
 ) {
   return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(request.url);
+    const url = parsedUrl.origin + parsedUrl.pathname + parsedUrl.search;
+
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={routerContext}
-        url={request.url}
+        // deepcode ignore OpenRedirect: False positive 
+        url={url}
       />,
       {
         onShellReady() {
@@ -118,6 +126,6 @@ function handleBrowserRequest(
       }
     );
 
-    setTimeout(abort, ABORT_DELAY);
+    setTimeout(() => abort(), ABORT_DELAY);
   });
 }

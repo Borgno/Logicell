@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
-import type { User, SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseBrowserClient } from "~/services/supabase.client";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { getSupabaseBrowserClient } from "~/services/supabase.client";
 
 type AuthContextType = {
   user: User | null;
