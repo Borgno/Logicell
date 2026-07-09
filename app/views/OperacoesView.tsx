@@ -29,7 +29,6 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const rootData = useRouteLoaderData("root") as any;
   const pastas = rootData?.pastas || [];
   const columnOrder = rootData?.columnOrder || null;
-  const initialWidths = rootData?.columnWidths || {};
   
   const {
     columnWidths, setColumnWidths,
@@ -40,7 +39,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
     isFillDragging, setIsFillDragging,
     fillRange, setFillRange,
     orderedColumns
-  } = useOperacoesGridState(columnOrder, initialWidths);
+  } = useOperacoesGridState(columnOrder);
 
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -231,13 +230,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                         const newWidths = { ...columnWidths, [colKey]: width };
                         setColumnWidths(newWidths);
 
-                         // Debounce para não floodar a API
+                         // Debounce para salvar no localStorage
                         if ((window as any)._resizeTimeout) clearTimeout((window as any)._resizeTimeout);
                         (window as any)._resizeTimeout = setTimeout(() => {
-                          const formData = new FormData();
-                          formData.append("intent", "resizeColumns");
-                          formData.append("widths", JSON.stringify(newWidths));
-                          fetcher.submit(formData, { method: "post", action: "/api/operacoes" });
+                          localStorage.setItem("columnWidths", JSON.stringify(newWidths));
                         }, 500);
                       }}
                       onColumnsReorder={(sourceKey, targetKey) => {

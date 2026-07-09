@@ -1,7 +1,10 @@
 import prisma from "~/lib/prisma.server";
+import { Pasta } from "@prisma/client";
+
+type PastaComCount = Pasta & { _count: { operacoes: number } };
 
 export class PastaService {
-  private static cache: any[] | null = null;
+  private static cache: PastaComCount[] | null = null;
   private static cacheTime = 0;
   private static readonly TTL = 1000 * 60; // 1 minuto
 
@@ -39,7 +42,7 @@ export class PastaService {
     });
   }
 
-  static async criar(nome: string, cor?: string, usuario: string = "Sistema") {
+  static async criar(nome: string, cor?: string) {
     this.invalidarCache();
     
     // Validar se já existe
@@ -57,7 +60,7 @@ export class PastaService {
     return pasta;
   }
 
-  static async atualizar(id: number, nome: string, cor?: string, usuario: string = "Sistema") {
+  static async atualizar(id: number, nome: string, cor?: string) {
     this.invalidarCache();
     
     // Validar se o novo nome já existe para outra pasta
@@ -82,7 +85,7 @@ export class PastaService {
     return pasta;
   }
 
-  static async excluir(id: number, usuario: string = "Sistema") {
+  static async excluir(id: number) {
     this.invalidarCache();
 
     

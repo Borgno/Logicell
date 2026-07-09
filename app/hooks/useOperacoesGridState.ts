@@ -37,9 +37,19 @@ export const COLUNAS_OPERACAO = [
 export type FilterType = "contains" | "equals" | "blank" | "notBlank";
 export type Range = { start: {rowIdx: number, colIdx: number}, end: {rowIdx: number, colIdx: number} };
 
-export function useOperacoesGridState(initialColumnOrder: string[] | null, initialWidths: Record<string, number>) {
+export function useOperacoesGridState(initialColumnOrder: string[] | null) {
   const [searchParams] = useSearchParams();
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(initialWidths);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("columnWidths");
+        return saved ? JSON.parse(saved) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
   
   const location = useLocation();
   const [columnFilters, setColumnFilters] = useState<Record<string, { type: FilterType, value: string }>>(() => {

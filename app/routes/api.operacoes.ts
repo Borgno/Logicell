@@ -3,8 +3,7 @@ import { requireUser } from "~/services/auth.server";
 import { OperacaoService } from "~/services/operacao.server";
 import { OperacaoImportService } from "~/services/operacao-import.server";
 import { PastaService } from "~/services/pasta.server";
-import { StatusService } from "~/services/status.server";
-import { ConfigService, themeCookie } from "~/services/config.server";
+import { OrdemColunasService, themeCookie } from "~/services/config.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -18,19 +17,19 @@ export async function action({ request }: ActionFunctionArgs) {
       case "createFolder": {
         const nome = formData.get("nome") as string;
         const cor = formData.get("cor") as string | undefined;
-        await PastaService.criar(nome, cor, userName);
+        await PastaService.criar(nome, cor);
         return { success: true, intent: "createFolder" };
       }
       case "renameFolder": {
         const id = Number(formData.get("id"));
         const nome = formData.get("nome") as string;
         const cor = formData.get("cor") as string | undefined;
-        await PastaService.atualizar(id, nome, cor, userName);
+        await PastaService.atualizar(id, nome, cor);
         return { success: true, intent: "renameFolder" };
       }
       case "deleteFolder": {
         const id = Number(formData.get("id"));
-        await PastaService.excluir(id, userName);
+        await PastaService.excluir(id);
         return { success: true, intent: "deleteFolder" };
       }
 
@@ -77,24 +76,13 @@ export async function action({ request }: ActionFunctionArgs) {
         await OperacaoService.bulkDelete({ ids, filtros: filters, selectAll, excludedIds });
         return { success: true, intent: "bulkDelete" };
       }
-      case "createStatus": {
-        const nome = formData.get("nome") as string;
-        await StatusService.criar(nome, undefined, userName);
-        return { success: true, intent: "createStatus" };
-      }
       case "reorderColumns": {
         const order = JSON.parse(formData.get("order") as string);
-        await ConfigService.set("columnOrder", order);
+        await OrdemColunasService.set(order);
         return { success: true, intent: "reorderColumns" };
-      }
-      case "resizeColumns": {
-        const widths = JSON.parse(formData.get("widths") as string);
-        await ConfigService.set("columnWidths", widths);
-        return { success: true, intent: "resizeColumns" };
       }
       case "setTheme": {
         const theme = formData.get("theme") as string;
-        await ConfigService.set("theme", theme);
         return new Response(JSON.stringify({ success: true, intent: "setTheme" }), {
           headers: {
             "Content-Type": "application/json",

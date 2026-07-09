@@ -8,23 +8,23 @@ export const themeCookie = createCookie("app_theme", {
   secure: process.env.NODE_ENV === "production",
 });
 
-export const ConfigService = {
-  get: async (chave: string) => {
-    const conf = await db.configuracao.findUnique({ where: { chave } });
+export const OrdemColunasService = {
+  get: async () => {
+    const conf = await db.ordemColunas.findUnique({ where: { id: 1 } });
     if (!conf) return null;
     try {
-      return JSON.parse(conf.valor);
+      return JSON.parse(conf.ordem);
     } catch {
-      return conf.valor;
+      return conf.ordem;
     }
   },
   
-  set: async (chave: string, valor: any) => {
+  set: async (valor: any) => {
     const v = typeof valor === 'string' ? valor : JSON.stringify(valor);
-    return db.configuracao.upsert({
-      where: { chave },
-      update: { valor: v },
-      create: { chave, valor: v }
+    return db.ordemColunas.upsert({
+      where: { id: 1 },
+      update: { ordem: v },
+      create: { id: 1, ordem: v }
     });
   }
 };

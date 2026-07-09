@@ -90,17 +90,10 @@ model Pasta {
   updatedAt DateTime   @updatedAt
 }
 
-model StatusOperacao {
-  id        Int      @id @default(autoincrement())
-  nome      String   @unique
-  cor       String?
-  createdAt DateTime @default(now())
-}
 
-model Configuracao {
+model OrdemColunas {
   id        Int      @id @default(autoincrement())
-  chave     String   @unique
-  valor     String   // Guardará JSON, ex: ["nr_ctrc", "nm_agencia", ...]
+  ordem     String   // JSON com array de strings
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

@@ -6,8 +6,7 @@ import { UIContext } from "./hooks/use-ui";
 import { getUser } from "./services/auth.server";
 import { OperacaoService } from "./services/operacao.server";
 import { PastaService } from "./services/pasta.server";
-import { StatusService } from "./services/status.server";
-import { ConfigService, themeCookie } from "./services/config.server";
+import { OrdemColunasService, themeCookie } from "./services/config.server";
 import { Sidebar } from "./components/Sidebar";
 import { GlobalModal } from "./components/GlobalModal";
 import "./styles/tailwind.css";
@@ -25,12 +24,10 @@ export const links: LinksFunction = () => [
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const user = await getUser(request).catch(() => null);
-    const [pastas, totalInbox, customStatuses, columnOrder, columnWidths] = await Promise.all([
+    const [pastas, totalInbox, columnOrder] = await Promise.all([
       PastaService.listar().catch(() => []),
       OperacaoService.contarInbox().catch(() => 0),
-      StatusService.listar().catch(() => []),
-      ConfigService.get("columnOrder").catch(() => null),
-      ConfigService.get("columnWidths").catch(() => null)
+      OrdemColunasService.get().catch(() => null)
     ]);
     const cookieHeader = request.headers.get("Cookie");
     const themeFromCookie = await themeCookie.parse(cookieHeader) || "light";
@@ -40,13 +37,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
     };
 
-    return { pastas, totalInbox, user, customStatuses, columnOrder, columnWidths, theme: themeFromCookie, ENV };
+    return { pastas, totalInbox, user, columnOrder, theme: themeFromCookie, ENV };
   } catch (e) {
     const ENV = {
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
       VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
     };
-    return { pastas: [], totalInbox: 0, user: null, customStatuses: [], columnOrder: null, columnWidths: null, theme: "light", ENV };
+    return { pastas: [], totalInbox: 0, user: null, columnOrder: null, theme: "light", ENV };
   }
 }
 

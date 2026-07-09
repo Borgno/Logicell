@@ -14,7 +14,7 @@ export interface BulkActionParams {
 //OperacaoService
 //Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
 //Transformações de dados, validações complexas e regras de negócio de parsing
-//foram extraídas para `excel-parser.server.ts` e `dashboard.server.ts`.
+//foram extraídas para `excel-parser.server.ts` e `operacao-query-builder.server.ts`.
 export class OperacaoService {
   private static agenciasCache: string[] | null = null;
   private static agenciasCacheTime = 0;

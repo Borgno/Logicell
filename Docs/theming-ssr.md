@@ -4,7 +4,7 @@
 > Esta é a referência ÚNICA e obrigatória para implementar a troca de tema (Light/Dark) em qualquer projeto Remix / React Router (SSR).
 > Sempre que for implementar theming, siga este documento à risca — ele existe para eliminar o "flash branco" no carregamento e manter o padrão consistente entre projetos.
 >
-> Este doc assume que o projeto já usa o `docs/design-system.md` (Huashu Design System — Chronos Mono Blue), cujas variáveis CSS dependem da classe `.dark` no `<html>`.
+> Este doc assume que o projeto já usa o `docs/design-system.md`, cujas variáveis CSS dependem da classe `.dark` no `<html>`.
 
 ---
 
