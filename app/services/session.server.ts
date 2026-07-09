@@ -16,4 +16,4 @@ export const sessionStorage = createCookieSessionStorage({
   },
 });
 
-export const { getSession, commitSession, destroySession } = sessionStorage;
+export const { getSession } = sessionStorage;

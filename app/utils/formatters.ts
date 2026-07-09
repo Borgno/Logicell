@@ -23,10 +23,6 @@ export const formatarData = (val: any) => {
   }
 };
 
-export const formatarNumero = (val: any) => {
-  if (val === null || val === undefined) return "-";
-  return new Intl.NumberFormat('pt-BR').format(Number(val));
-};
 
 export function buscarNomeUsuario(email: string, metadataNome?: string): string {
   if (!email) return "Usuário";

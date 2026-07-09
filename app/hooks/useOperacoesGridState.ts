@@ -88,9 +88,6 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null) {
         }
       }
     }
-    if (searchParams.get("status") && !init["status"]) {
-      init["status"] = { type: "equals", value: searchParams.get("status")! };
-    }
     return init;
   });
   const [openFilterCol, setOpenFilterCol] = useState<{ key: string, rect: DOMRect } | null>(null);

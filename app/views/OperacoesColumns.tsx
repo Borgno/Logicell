@@ -62,11 +62,6 @@ export function getOperacoesColumns({
       },
       renderEditCell: (props: any) => {
         let editValue = props.row[col.key];
-        if (col.key === "dt_emissao_") {
-          if (editValue instanceof Date || (typeof editValue === 'string' && editValue.includes('T'))) {
-              editValue = formatarData(editValue);
-          }
-        }
         return (
           <input
             autoFocus
@@ -86,7 +81,7 @@ export function getOperacoesColumns({
         } else if (value === null || value === undefined) {
           displayValue = "";
         } else if (col.key === "dt_emissao_") {
-          displayValue = formatarData(value);
+          displayValue = value || "";
         } else if (col.isCurrency) {
           displayValue = formatarMoeda(value);
         }

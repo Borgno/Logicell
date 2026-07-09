@@ -88,17 +88,6 @@ export class OperacaoQueryBuilder {
       whereAnd.push(`${condition} $${params.length}`);
     };
 
-    if (filtros.nm_agencia) addFilter(`nm_agencia =`, filtros.nm_agencia);
-    if (filtros.nm_pessoa_pagador) addFilter(`nm_pessoa_pagador ILIKE`, `%${filtros.nm_pessoa_pagador}%`);
-    if (filtros.nm_pessoa_remetente) addFilter(`nm_pessoa_remetente ILIKE`, `%${filtros.nm_pessoa_remetente}%`);
-    if (filtros.nm_pessoa_destinatario) addFilter(`nm_pessoa_destinatario ILIKE`, `%${filtros.nm_pessoa_destinatario}%`);
-    if (filtros.nm_produto) addFilter(`nm_produto ILIKE`, `%${filtros.nm_produto}%`);
-    if (filtros.ds_placa) addFilter(`ds_placa ILIKE`, `%${filtros.ds_placa}%`);
-    if (filtros.min_peso) addFilter(`vl_peso >=`, Number(filtros.min_peso));
-    if (filtros.max_peso) addFilter(`vl_peso <=`, Number(filtros.max_peso));
-    if (filtros.min_total) addFilter(`vl_total >=`, Number(filtros.min_total));
-    if (filtros.max_total) addFilter(`vl_total <=`, Number(filtros.max_total));
-    if (filtros.status) addFilter(`status =`, filtros.status);
 
     if (pastaId && pastaId !== "null") { 
       addFilter(`"pastaId" =`, Number(pastaId)); 

@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher, useLocation, useSearchParams } from "react-router";
+import { formatarData } from "~/utils/formatters";
+
+function processarDatas(dados: any[]) {
+  if (!dados) return [];
+  return dados.map(o => ({
+    ...o,
+    dt_emissao_: o.dt_emissao_ && !(typeof o.dt_emissao_ === 'string' && o.dt_emissao_.includes('/')) 
+      ? formatarData(o.dt_emissao_) 
+      : o.dt_emissao_
+  }));
+}
 
 export function useOperacoesPagination(initialDados: any[], initialMeta: any, pastaId: number | null, columnFilters: any) {
-  const [dados, setDados] = useState(initialDados);
+  const [dados, setDados] = useState(() => processarDatas(initialDados));
   const [meta, setMeta] = useState(initialMeta);
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -15,7 +26,7 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
   const [prevInitial, setPrevInitial] = useState(initialDados);
   if (initialDados !== prevInitial) {
     setPrevInitial(initialDados);
-    setDados(initialDados);
+    setDados(processarDatas(initialDados));
     setMeta(initialMeta);
   }
 
@@ -51,12 +62,12 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
       const res = loadMoreFetcher.data as any;
       if (res.meta) {
         if (res.meta.page === 1) {
-          setDados(res.data);
+          setDados(processarDatas(res.data));
           setMeta(res.meta);
         } else if (res.meta.page > meta.page) {
           setDados((prev: any[]) => {
             const existingIds = new Set(prev.map(d => d.id));
-            const toAdd = res.data.filter((o: any) => !existingIds.has(o.id));
+            const toAdd = processarDatas(res.data).filter((o: any) => !existingIds.has(o.id));
             return [...prev, ...toAdd];
           });
           setMeta(res.meta);
