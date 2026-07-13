@@ -4,7 +4,7 @@ export default [
   layout("routes/_operacoes.layout.tsx", [
     index("routes/index.tsx", { id: "home" }),
     route("caixa-de-entrada", "routes/inbox.tsx"),
-    route("pastas/:id", "routes/pastas.$id.tsx"),
+    route("pastas/:nome", "routes/pastas.$nome.tsx"),
   ]),
   route("automacoes", "routes/automacoes.tsx"),
   route("api/operacoes", "routes/api.operacoes.ts"),

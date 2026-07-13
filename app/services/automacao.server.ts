@@ -1,4 +1,5 @@
 import prisma from "~/lib/prisma.server";
+import { VerificadorConflitosService } from "./verificador-conflitos.server";
 
 export class AutomacaoService {
   private static cache: any[] | null = null;
@@ -20,58 +21,46 @@ export class AutomacaoService {
         regras: true,
       }
     });
-    this.cache = data;
+
+    const dataComConflitos = VerificadorConflitosService.marcarConflitos(data);
+
+    this.cache = dataComConflitos;
     this.cacheTime = Date.now();
-    return data;
+    return dataComConflitos;
   }
 
-  static async adicionarRegra(pastaId: number, tipo: 'agencia' | 'cliente', valor: string) {
+  static async adicionarRegra(pastaId: number, tipo: 'agencia' | 'cliente' | 'produto', valor: string) {
     this.invalidarCache();
     
     if (tipo === 'agencia') {
-      const existe = await prisma.regraAutomacao.findFirst({
-        where: {
-          agencia: {
-            equals: valor,
-            mode: 'insensitive' // case insensitive for unique constraint
-          }
-        }
+      const existeNestaPasta = await prisma.regraAutomacao.findFirst({
+        where: { agencia: { equals: valor, mode: 'insensitive' }, pastaId }
       });
+      if (existeNestaPasta) return { regra: existeNestaPasta };
 
-      if (existe) {
-        if (existe.pastaId === pastaId) return existe; // Já está nesta pasta, ignora
-        throw new Error(`Esta agência já está associada a outra pasta (ID: ${existe.pastaId}). Remova-a de lá primeiro.`);
-      }
-
-      return prisma.regraAutomacao.create({
-        data: {
-          pastaId,
-          agencia: valor,
-        }
+      const regra = await prisma.regraAutomacao.create({ data: { pastaId, agencia: valor } });
+      return { regra };
+    } else if (tipo === 'cliente') {
+      const existeNestaPasta = await prisma.regraAutomacao.findFirst({
+        where: { cliente: { equals: valor, mode: 'insensitive' }, pastaId }
       });
-    } else {
-      const existe = await prisma.regraAutomacao.findFirst({
-        where: {
-          cliente: {
-            equals: valor,
-            mode: 'insensitive'
-          }
-        }
-      });
+      if (existeNestaPasta) return { regra: existeNestaPasta };
 
-      if (existe) {
-        if (existe.pastaId === pastaId) return existe;
-        throw new Error(`Este cliente já está associado a outra pasta (ID: ${existe.pastaId}). Remova-o de lá primeiro.`);
-      }
-
-      return prisma.regraAutomacao.create({
-        data: {
-          pastaId,
-          cliente: valor,
-        }
+      const regra = await prisma.regraAutomacao.create({ data: { pastaId, cliente: valor } });
+      return { regra };
+    } else if (tipo === 'produto') {
+      const existeNestaPasta = await prisma.regraAutomacao.findFirst({
+        where: { produto: { equals: valor, mode: 'insensitive' }, pastaId }
       });
+      if (existeNestaPasta) return { regra: existeNestaPasta };
+
+      const regra = await prisma.regraAutomacao.create({ data: { pastaId, produto: valor } });
+      return { regra };
     }
+    
+    throw new Error('Tipo de regra inválido');
   }
+
 
   static async removerRegra(id: number) {
     this.invalidarCache();
@@ -80,20 +69,33 @@ export class AutomacaoService {
     });
   }
 
-  // Retorna dois mapas para o motor de importação ser O(1)
-  static async obterMapasRoteamento(): Promise<{ mapaAgencia: Map<string, number>, mapaCliente: Map<string, number> }> {
+  // Retorna mapas para o motor de importação
+  static async obterMapasRoteamento(): Promise<{ 
+    mapaAgencia: Map<string, number[]>, 
+    mapaCliente: Map<string, number[]>,
+    mapaProdutosPorPasta: Map<number, Set<string>>
+  }> {
     const regras = await prisma.regraAutomacao.findMany();
-    const mapaAgencia = new Map<string, number>();
-    const mapaCliente = new Map<string, number>();
+    const mapaAgencia = new Map<string, number[]>();
+    const mapaCliente = new Map<string, number[]>();
+    const mapaProdutosPorPasta = new Map<number, Set<string>>();
     
     for (const r of regras) {
       if (r.agencia) {
-        mapaAgencia.set(r.agencia.toUpperCase(), r.pastaId);
+        const k = r.agencia.toUpperCase();
+        if (!mapaAgencia.has(k)) mapaAgencia.set(k, []);
+        mapaAgencia.get(k)!.push(r.pastaId);
       }
       if (r.cliente) {
-        mapaCliente.set(r.cliente.toUpperCase(), r.pastaId);
+        const k = r.cliente.toUpperCase();
+        if (!mapaCliente.has(k)) mapaCliente.set(k, []);
+        mapaCliente.get(k)!.push(r.pastaId);
+      }
+      if (r.produto) {
+        if (!mapaProdutosPorPasta.has(r.pastaId)) mapaProdutosPorPasta.set(r.pastaId, new Set<string>());
+        mapaProdutosPorPasta.get(r.pastaId)!.add(r.produto.toUpperCase());
       }
     }
-    return { mapaAgencia, mapaCliente };
+    return { mapaAgencia, mapaCliente, mapaProdutosPorPasta };
   }
 }
