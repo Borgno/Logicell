@@ -1,6 +1,6 @@
 import { Filter } from "lucide-react";
 import { SelectColumn } from 'react-data-grid';
-import { formatarData, formatarMoeda } from "~/utils/formatters";
+import { formatarMoeda } from "~/utils/formatters";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 

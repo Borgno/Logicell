@@ -11,12 +11,23 @@ export const shouldRevalidate = ({ formData, defaultShouldRevalidate }: any) => 
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { response } = await requireUser(request);
-  const pastaId = Number(params.id);
+  const pastaNome = params.nome;
   const url = new URL(request.url);
   const searchParams = Object.fromEntries(url.searchParams);
   
+  if (!pastaNome) {
+    throw new Response("Not Found", { status: 404 });
+  }
+
   // Apenas a pasta recebe await pois é bem rápido e precisamos do nome para o layout
-  const pasta = await PastaService.buscarPorId(pastaId);
+  // O nome recebido na URL deve corresponder à pasta no banco de dados.
+  const pasta = await PastaService.buscarPorNome(decodeURIComponent(pastaNome));
+  
+  if (!pasta) {
+    throw new Response("Not Found", { status: 404 });
+  }
+
+  const pastaId = pasta.id;
   
   // Sem await para fazer streaming (defer)
   const resultado = OperacaoService.listarOperacoesLocal({ ...searchParams, pastaId });
@@ -25,7 +36,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return data({ 
     dadosPromise: resultado, 
     agenciasPromise: agencias, 
-    nomePasta: pasta?.nome || "Pasta",
+    nomePasta: pasta.nome,
     pastaId,
     showImport: false
   }, { headers: response.headers });

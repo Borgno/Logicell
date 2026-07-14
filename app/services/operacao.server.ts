@@ -37,7 +37,7 @@ export class OperacaoService {
 
 
   static async listarOperacoesLocal(filtros: any) {
-    const { page = 1, limit = 200, search, pastaId } = filtros;
+    const { page = 1, limit = 200, pastaId } = filtros;
     const p = Math.max(1, Math.floor(Number(page) || 1));
     const l = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 200)));
     const offset = (p - 1) * l;
@@ -93,7 +93,7 @@ export class OperacaoService {
   }
 
   static async listarIds(filtros: any, excludedIds: number[] = []) {
-    const { search, pastaId } = filtros;
+    const { pastaId } = filtros;
     const whereClause = OperacaoQueryBuilder.construirWhere(pastaId, filtros, excludedIds);
     const ids: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "Operacao" o ${whereClause.sql}`, ...whereClause.params);
     return ids.map(i => i.id);

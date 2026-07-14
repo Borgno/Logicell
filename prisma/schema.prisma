@@ -101,8 +101,9 @@ model OrdemColunas {
 model RegraAutomacao {
   id        Int      @id @default(autoincrement())
   pastaId   Int
-  agencia   String?  @unique
-  cliente   String?  @unique
+  agencia   String?
+  cliente   String?
+  produto   String?
   createdAt DateTime @default(now())
   pasta     Pasta    @relation(fields: [pastaId], references: [id], onDelete: Cascade)
 

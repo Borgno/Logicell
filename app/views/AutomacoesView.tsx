@@ -1,4 +1,4 @@
-import { Bot, FolderOpen, Plus, Settings, X, Folder } from "lucide-react";
+import { FolderOpen, Plus, X, Folder } from "lucide-react";
 import { useState } from "react";
 import { useFetcher } from "react-router";
 
@@ -10,7 +10,7 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
   const fetcher = useFetcher();
   const [modalPasta, setModalPasta] = useState<any | null>(null);
   const [novoValor, setNovoValor] = useState("");
-  const [tipoRegra, setTipoRegra] = useState<'agencia' | 'cliente'>('agencia');
+  const [tipoRegra, setTipoRegra] = useState<'agencia' | 'cliente' | 'produto'>('agencia');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,9 +114,9 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
                 </div>
                 
                 <form onSubmit={handleAdd} className="flex flex-col gap-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col gap-3">
                     {/* Segmented Control custom */}
-                    <div className="flex bg-surface p-1 rounded-xl border border-glass-border shrink-0 h-11 items-center">
+                    <div className="flex bg-surface p-1 rounded-xl border border-glass-border h-11 items-center self-start">
                       <button 
                         type="button"
                         onClick={() => setTipoRegra('agencia')}
@@ -131,28 +131,37 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
                       >
                         Cliente
                       </button>
+                      <button 
+                        type="button"
+                        onClick={() => setTipoRegra('produto')}
+                        className={`px-4 h-full flex items-center justify-center text-sm font-bold rounded-lg transition-all ${tipoRegra === 'produto' ? 'bg-card-bg text-text shadow-sm border border-glass-border' : 'text-text-muted hover:text-text border border-transparent'}`}
+                      >
+                        Produto
+                      </button>
                     </div>
 
-                    <div className="relative flex-1">
-                      <input 
-                        type="text" 
-                        placeholder={tipoRegra === 'agencia' ? "Ex: NOME DA AGÊNCIA" : "Ex: NOME DO CLIENTE"} 
-                        className="w-full h-11 bg-surface border border-glass-border rounded-xl px-4 text-sm font-bold focus:ring-1 focus:ring-primary focus:border-primary text-text uppercase placeholder:normal-case placeholder:font-medium placeholder:text-text-dim transition-all outline-none"
-                        value={novoValor}
-                        onChange={e => setNovoValor(e.target.value.toUpperCase())}
-                        disabled={fetcher.state !== "idle"}
-                        autoFocus
-                      />
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <input 
+                          type="text" 
+                          placeholder={tipoRegra === 'agencia' ? "Ex: NOME DA AGÊNCIA" : tipoRegra === 'cliente' ? "Ex: NOME DO CLIENTE" : "Ex: NOME DO PRODUTO"} 
+                          className="w-full h-11 bg-surface border border-glass-border rounded-xl px-4 text-sm font-bold focus:ring-1 focus:ring-primary focus:border-primary text-text uppercase placeholder:normal-case placeholder:font-medium placeholder:text-text-dim transition-all outline-none"
+                          value={novoValor}
+                          onChange={e => setNovoValor(e.target.value.toUpperCase())}
+                          disabled={fetcher.state !== "idle"}
+                          autoFocus
+                        />
+                      </div>
+                      
+                      <button 
+                        type="submit"
+                        disabled={!novoValor.trim() || fetcher.state !== "idle"}
+                        className="h-11 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-xl px-5 font-bold flex items-center justify-center gap-2 transition-all shrink-0 shadow-sm"
+                      >
+                        <Plus size={18} strokeWidth={2.5} />
+                        Adicionar
+                      </button>
                     </div>
-                    
-                    <button 
-                      type="submit"
-                      disabled={!novoValor.trim() || fetcher.state !== "idle"}
-                      className="h-11 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-xl px-5 font-bold flex items-center justify-center gap-2 transition-all shrink-0 shadow-sm"
-                    >
-                      <Plus size={18} strokeWidth={2.5} />
-                      Adicionar
-                    </button>
                   </div>
                 </form>
               </section>
@@ -161,6 +170,12 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
                 <div className="bg-error/10 text-error border border-error/20 rounded-xl p-4 text-sm font-medium flex items-center gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-error shrink-0" />
                   {fetcher.data.error}
+                </div>
+              )}
+              {currentModalData.regras.some((r: any) => r.hasConflict) && (
+                <div className="bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-xl p-4 text-sm font-medium flex items-center gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                  Atenção: Alguns itens desta pasta também estão em outras pastas e causam ambiguidade. O sistema não saberá para onde enviar e enviará para a caixa de entrada.
                 </div>
               )}
 
@@ -186,12 +201,15 @@ export function AutomacoesView({ pastas }: AutomacoesViewProps) {
                     {currentModalData.regras.map((regra: any) => (
                       <div key={regra.id} className="group flex items-center justify-between px-3 py-2 rounded-lg bg-surface hover:bg-surface-light border border-glass-border hover:border-glass-border transition-all">
                         <div className="flex items-center gap-4 overflow-hidden">
-                          <span className={`shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${regra.agencia ? 'bg-badge-primary-bg text-badge-primary-text' : 'bg-surface text-text-muted border border-glass-border'}`}>
-                            {regra.agencia ? 'Agência' : 'Cliente'}
+                          <span className={`shrink-0 text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${regra.agencia ? 'bg-badge-primary-bg text-badge-primary-text' : regra.produto ? 'bg-[#8b5cf6]/10 text-[#8b5cf6] border border-[#8b5cf6]/20' : 'bg-surface text-text-muted border border-glass-border'}`}>
+                            {regra.agencia ? 'Agência' : regra.produto ? 'Produto' : 'Cliente'}
                           </span>
-                          <span className="text-sm font-bold text-text truncate" title={regra.agencia || regra.cliente}>
-                            {regra.agencia || regra.cliente}
+                          <span className={`text-sm font-bold truncate flex items-center ${regra.hasConflict ? 'text-amber-500' : 'text-text'}`} title={regra.agencia || regra.cliente || regra.produto}>
+                            {regra.agencia || regra.cliente || regra.produto}
                           </span>
+                          {regra.hasConflict && (
+                            <span className="shrink-0 text-[9px] bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-widest">Conflito</span>
+                          )}
                         </div>
                         <button 
                           onClick={() => handleRemove(regra.id)}

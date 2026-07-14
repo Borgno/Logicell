@@ -4,6 +4,7 @@ import { AutomacaoService } from "./automacao.server";
 import { ExcelParser } from "./excel-parser.server";
 import { OperacaoService } from "./operacao.server";
 import { PastaService } from "./pasta.server";
+import { MotorRoteamentoService } from "./motor-roteamento.server";
 
 export class OperacaoImportService {
   static async processarPlanilha(buffer: Buffer, originalName: string, usuario: string = "Sistema", modo: string = "SUBSTITUIR") {
@@ -18,30 +19,7 @@ export class OperacaoImportService {
     const spreadsheetOps = parsedData.operacoes;
 
     // --- AUTOMAÇÃO (ROTEAMENTO) ---
-    const mapas = await AutomacaoService.obterMapasRoteamento();
-    if (mapas.mapaAgencia.size > 0 || mapas.mapaCliente.size > 0) {
-      for (const op of spreadsheetOps as any[]) {
-        let matchedPastaId = null;
-
-        if (op.nm_pessoa_pagador) {
-          const clienteClean = String(op.nm_pessoa_pagador).trim().toUpperCase();
-          if (mapas.mapaCliente.has(clienteClean)) {
-            matchedPastaId = mapas.mapaCliente.get(clienteClean);
-          }
-        }
-
-        if (!matchedPastaId && op.nm_agencia) {
-          const agenciaClean = String(op.nm_agencia).trim().toUpperCase();
-          if (mapas.mapaAgencia.has(agenciaClean)) {
-            matchedPastaId = mapas.mapaAgencia.get(agenciaClean);
-          }
-        }
-
-        if (matchedPastaId) {
-          op.pastaId = matchedPastaId;
-        }
-      }
-    }
+    await MotorRoteamentoService.aplicarRegrasRoteamento(spreadsheetOps);
 
     const spreadsheetSignatures = new Set(spreadsheetOps.map((op: any) => op.hash_assinatura));
 

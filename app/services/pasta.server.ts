@@ -42,6 +42,17 @@ export class PastaService {
     });
   }
 
+  static async buscarPorNome(nome: string) {
+    if (this.cache && (Date.now() - this.cacheTime < this.TTL)) {
+      const encontrada = this.cache.find(p => p.nome === nome);
+      if (encontrada) return encontrada;
+    }
+
+    return prisma.pasta.findUnique({
+      where: { nome }
+    });
+  }
+
   static async criar(nome: string, cor?: string) {
     this.invalidarCache();
     

@@ -59,7 +59,7 @@ export class ExcelParser {
     return { operacoes, totalLido: rawData.length };
   }
 
-  private static mapearLinha(row: any, importacaoId: number, index: number): Prisma.OperacaoCreateManyInput {
+  private static mapearLinha(row: any, importacaoId: number, _index: number): Prisma.OperacaoCreateManyInput {
     const rowNorm: Record<string, any> = {};
     for (const [k, v] of Object.entries(row)) {
       const cleanKey = String(k).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_]+/g, "");

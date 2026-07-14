@@ -13,7 +13,7 @@ export default function handleRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   routerContext: EntryContext,
-  loadContext: AppLoadContext
+  _loadContext: AppLoadContext
 ) {
   return isbot(request.headers.get("user-agent"))
     ? handleBotRequest(

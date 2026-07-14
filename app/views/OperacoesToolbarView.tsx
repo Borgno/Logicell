@@ -22,7 +22,7 @@ export interface OperacoesToolbarProps {
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
 export function OperacoesToolbarView({
-  dadosPromise, pastas, nomePasta, showImport, carregando,
+  pastas, showImport,
   selectionCount,
   moverParaPasta, excluirSelecionados, exportarExcel,
   selectionBannerNode
