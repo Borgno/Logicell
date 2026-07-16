@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, Inbox, LogOut, Moon, Plus, Sun, Truck, User as UserIcon, X, Zap, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Inbox, LogOut, Moon, Plus, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { NavLink, useFetcher, useNavigation } from "react-router";
 import { useAuth } from "~/context/AuthContext";
@@ -46,7 +46,7 @@ export const Sidebar = React.memo(({
 
   return (
     <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[240px]'} bg-card-bg dark:bg-bg border-r border-glass-border transition-all duration-300 flex flex-col relative z-20`}>
-      <div className="h-[64px] flex items-center px-4 mb-2 border-b border-glass-border shrink-0">
+      <div className="h-[64px] flex items-center px-4 border-b border-glass-border shrink-0">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <div className="p-1.5 bg-primary rounded-lg text-white shrink-0 shadow-primary-glow">
             {navigation.state !== 'idle' ? (
@@ -57,6 +57,13 @@ export const Sidebar = React.memo(({
           </div>
           {!isCollapsed && <h1 className="text-lg font-bold uppercase tracking-tighter text-text">Logicell</h1>}
         </div>
+      </div>
+
+      <div className="p-2 mb-2 border-b border-glass-border shrink-0">
+        <button onClick={() => setIsCollapsed(!isCollapsed)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-text-dim hover:text-primary hover:bg-primary/5 transition-all">
+          <Menu size={18} />
+          {!isCollapsed && <span>Recolher</span>}
+        </button>
       </div>
 
       <nav className="flex-1 px-2.5 overflow-y-auto custom-scrollbar space-y-4">
@@ -128,34 +135,21 @@ export const Sidebar = React.memo(({
         </button>
 
         {!isCollapsed && user && (
-          <div className="px-3 py-2 bg-surface rounded-xl mb-1 group/user relative border border-glass-border shadow-sm">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="p-1.5 bg-surface-light rounded-lg text-text-muted border border-glass-border">
-                <UserIcon size={14} />
+          <NavLink to="/perfil" prefetch="intent" className={({ isActive }) => `block px-3 py-2 rounded-xl mb-1 group/user relative border transition-all ${isActive ? 'bg-primary/10 border-primary/30' : 'bg-surface border-glass-border hover:border-primary/50 hover:bg-surface-light'} shadow-sm`}>
+            {({ isActive }) => (
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className={`p-1.5 rounded-lg border transition-colors ${isActive ? 'bg-primary text-white border-primary shadow-primary-glow' : 'bg-surface-light text-text-muted border-glass-border group-hover/user:text-primary group-hover/user:border-primary/30'}`}>
+                  <UserIcon size={14} />
+                </div>
+                <div className="overflow-hidden">
+                  <p className={`text-[9px] font-bold uppercase tracking-[0.1em] leading-none mb-1 transition-colors ${isActive ? 'text-primary' : 'text-text-muted'}`}>Usuário</p>
+                  <p className="text-[11px] font-bold truncate text-text">
+                    {buscarNomeUsuario(user.email || "", user.user_metadata?.nickname || user.user_metadata?.nome)}
+                  </p>
+                </div>
               </div>
-              <div className="overflow-hidden">
-                <p className="text-[9px] font-bold text-text-muted uppercase tracking-[0.1em] leading-none mb-1">Usuário</p>
-                <p className="text-[11px] font-bold truncate text-text">
-                  {buscarNomeUsuario(user.email || "", user.user_metadata?.nickname || user.user_metadata?.nome)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <button onClick={() => setIsCollapsed(!isCollapsed)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-text-dim hover:text-primary hover:bg-primary/5 transition-all">
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          {!isCollapsed && <span>Recolher Menu</span>}
-        </button>
-
-        {user && (
-          <button 
-            onClick={() => signOut()}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-error hover:bg-error/10 transition-all group"
-          >
-            <LogOut size={18} className="group-hover:translate-x-1 transition-transform shrink-0" />
-            {!isCollapsed && <span>Sair</span>}
-          </button>
+            )}
+          </NavLink>
         )}
       </div>
     </aside>
