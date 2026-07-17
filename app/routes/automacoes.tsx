@@ -24,7 +24,7 @@ export async function action({ request }: ActionFunctionArgs) {
       
       if (!pastaId || !tipo || !valor) return data({ error: "Preencha todos os campos." }, { status: 400 });
       
-      const result = await AutomacaoService.adicionarRegra(pastaId, tipo as 'agencia' | 'cliente' | 'produto', valor);
+      await AutomacaoService.adicionarRegra(pastaId, tipo as 'agencia' | 'cliente' | 'produto', valor);
       return data({ success: true });
     }
 

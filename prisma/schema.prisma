@@ -77,6 +77,18 @@ model Importacao {
   hashArquivo  String?
   createdAt    DateTime   @default(now())
   operacoes    Operacao[]
+  snapshot     SnapshotImportacao?
+}
+
+model SnapshotImportacao {
+  id           Int      @id @default(autoincrement())
+  importacaoId Int      @unique
+  pastas       Json     
+  operacoes    Json     
+  regras       Json     
+  createdAt    DateTime @default(now())
+
+  importacao   Importacao @relation(fields: [importacaoId], references: [id], onDelete: Cascade)
 }
 
 
