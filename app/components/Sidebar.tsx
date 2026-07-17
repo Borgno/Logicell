@@ -1,7 +1,6 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, Inbox, LogOut, Moon, Plus, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
+import { CheckCircle2, Inbox, Moon, Plus, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { NavLink, useFetcher, useNavigation } from "react-router";
-import { useAuth } from "~/context/AuthContext";
 import { buscarNomeUsuario } from "~/utils/formatters";
 import { PRESET_COLORS, SidebarFolderItem } from "./SidebarFolderItem";
 
@@ -24,7 +23,7 @@ export const Sidebar = React.memo(({
   isCollapsed,
   setIsCollapsed
 }: SidebarProps) => {
-  const { signOut } = useAuth();
+
   const fetcher = useFetcher({ key: "sidebar-create-folder" });
   const navigation = useNavigation();
 

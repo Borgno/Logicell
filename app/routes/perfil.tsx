@@ -46,6 +46,19 @@ export async function action({ request }: any) {
     return data({ success: true }, { headers: response?.headers });
   }
 
+  if (intent === "undoImport") {
+    const importacaoId = Number(formData.get("importacaoId"));
+    if (!importacaoId) return data({ error: "ID de importação inválido" }, { status: 400 });
+
+    try {
+      const { OperacaoImportService } = await import("~/services/operacao-import.server");
+      await OperacaoImportService.desfazerImportacao(importacaoId);
+      return data({ success: true, message: "Importação desfeita com sucesso!" });
+    } catch (err: any) {
+      return data({ error: err.message || "Erro ao desfazer importação" }, { status: 400 });
+    }
+  }
+
   return data({ error: "Intent inválido" }, { status: 400 });
 }
 

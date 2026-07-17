@@ -20,6 +20,7 @@ O **Logicell** é uma plataforma para gerenciamento de operações logísticas. 
 - **Autenticação e Sessão (Supabase):** Integração com Supabase para login e proteção de rotas via Server-Side Rendering (SSR).
 - **Importação de Planilhas:** Processamento server-side com suporte a dois modos distintos: **Substituir**, que removendo operações antigas, e o modo **Apenas Adicionar**, que agrega novos dados preservando as operações antigas.
 - **Sistema Anti-Duplicidade:** Prevenção contra linhas repetidas através da geração de uma `hash_assinatura` exclusiva para cada operação e restrições (`skipDuplicates`), ignorando as repetidas automaticamente.
+- **Máquina do Tempo (Snapshots):** Sistema de versionamento de banco de dados que salva automaticamente todo o estado (dados, pastas e regras criadas) de uma versão de planilha antes que a próxima seja importada, permitindo restauração do histórico caso haja erros.
 - **Exportação de Planilhas:** Botão para exportar as operações das pastas em planilhas XLSX.
 - **Organização em Pastas:** Criação de pastas personalizadas para categorizar as operações, organizando as operações fora da Caixa de Entrada.
 - **Regras de Triagem:** Sistema para criação de regras automáticas que direcionam operações recém-importadas para pastas específicas com base em atributos como Produto, Agência e Cliente.
