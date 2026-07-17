@@ -12,13 +12,29 @@ export function RecentImportsList({ imports, totalCount }: RecentImportsListProp
   const fetcher = useFetcher();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedImport, setSelectedImport] = useState<{ id: number, name: string } | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<{ isOpen: boolean, title: string, message: string, variant: 'success' | 'error' }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'success'
+  });
   
   useEffect(() => {
     if (fetcher.data) {
       if (fetcher.data.error) {
-        alert("Erro ao desfazer: " + fetcher.data.error);
+        setFeedbackModal({
+          isOpen: true,
+          title: "Erro na Restauração",
+          message: fetcher.data.error,
+          variant: "error"
+        });
       } else if (fetcher.data.success) {
-        alert(fetcher.data.message || "Importação desfeita com sucesso!");
+        setFeedbackModal({
+          isOpen: true,
+          title: "Versão Restaurada!",
+          message: fetcher.data.message || "Importação desfeita com sucesso!",
+          variant: "success"
+        });
       }
     }
   }, [fetcher.data]);
@@ -113,6 +129,15 @@ export function RecentImportsList({ imports, totalCount }: RecentImportsListProp
       variant="danger"
       onConfirm={handleConfirmUndo}
       onClose={() => setModalOpen(false)}
+    />
+
+    <GlobalModal
+      isOpen={feedbackModal.isOpen}
+      title={feedbackModal.title}
+      message={feedbackModal.message}
+      variant={feedbackModal.variant}
+      isAlert={true}
+      onClose={() => setFeedbackModal({ ...feedbackModal, isOpen: false })}
     />
     </>
   );
