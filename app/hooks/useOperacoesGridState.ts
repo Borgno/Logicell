@@ -10,6 +10,8 @@ export const COLUNAS_OPERACAO = [
   { key: 'nr_cpf_cnpj_pagador', label: 'CNPJ Pagador', width: '180px' },
   { key: 'nr_ctrc', label: 'CTe', width: '120px' },
   { key: 'status', label: 'Status', width: '50px' },
+  { key: 'data_status', label: 'Data Status', width: '150px' },
+  { key: 'id_solicitacao', label: 'ID Solicitação', width: '150px' },
   { key: 'comentarios', label: 'OBSERVAÇÃO', width: '300px' },
   { key: 'id_tipo_documento', label: 'Tipo Doc', width: '100px' },
   { key: 'nm_pessoa_remetente', label: 'Remetente', width: '250px' },

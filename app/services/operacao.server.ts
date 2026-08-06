@@ -60,7 +60,7 @@ export class OperacaoService {
           o.nm_pessoa_destinatario, o.nm_cidade_destino, o.ds_sigla_destino, o.nm_produto,
           o.vl_peso, o.vl_tarifa, o.vl_total, o.nr_nf, o.ds_placa, o.nm_pessoa_matriz,
           o.nr_contrato, o.nr_chave_acesso, o.nm_pessoa_usuario_lancamento, o.id_tipo_ctrc,
-          o.nm_proprietario_posse_cavalo, o.nm_motorista
+          o.nm_proprietario_posse_cavalo, o.nm_motorista, o.data_status, o.id_solicitacao
         FROM "Operacao" o
         ${whereClause.sql}
         ORDER BY o.id DESC
@@ -169,32 +169,54 @@ export class OperacaoService {
     this.invalidarCache();
 
     let valorLimpo: any = valorNovo;
-    if (campo === "dt_emissao_") {
+    if (campo === "dt_emissao_" || campo === "data_status") {
       const d = DateParser.parseDataBrasileiraSegura(valorNovo);
       if (d) valorLimpo = d;
+      else if (campo === "data_status") valorLimpo = null;
     } else if (campo.startsWith("vl_")) {
       valorLimpo = Number(valorNovo.replace(",", "."));
     }
     
+    const dataUpdate: any = { [campo]: valorLimpo };
+    if (campo === "status") {
+      const operacaoAtual = await prisma.operacao.findUnique({
+        where: { id },
+        select: { status: true }
+      });
+      if (operacaoAtual?.status !== valorLimpo) {
+        dataUpdate.data_status = new Date();
+      }
+    }
+    
     const operacaoAtualizada = await prisma.operacao.update({ 
       where: { id }, 
-      data: { [campo]: valorLimpo } 
+      data: dataUpdate 
     });
 
     return operacaoAtualizada;
   }
 
   static async bulkUpdate(ids: number[], campo: string, valor: string) {
-    if (!['status', 'comentarios'].includes(campo)) {
+    if (!['status', 'comentarios', 'id_solicitacao'].includes(campo)) {
       throw new Error("Campo não permitido para atualização em lote");
     }
 
     if (ids.length === 0) return { success: true };
 
-    await prisma.operacao.updateMany({
-      where: { id: { in: ids } },
-      data: { [campo]: valor }
-    });
+    const dataUpdate: any = { [campo]: valor };
+    
+    if (campo === "status") {
+      dataUpdate.data_status = new Date();
+      await prisma.operacao.updateMany({
+        where: { id: { in: ids }, status: { not: valor } },
+        data: dataUpdate
+      });
+    } else {
+      await prisma.operacao.updateMany({
+        where: { id: { in: ids } },
+        data: dataUpdate
+      });
+    }
     
     this.invalidarCache();
     return { success: true };

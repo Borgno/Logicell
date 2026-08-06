@@ -8,7 +8,10 @@ function processarDatas(dados: any[]) {
     ...o,
     dt_emissao_: o.dt_emissao_ && !(typeof o.dt_emissao_ === 'string' && o.dt_emissao_.includes('/')) 
       ? formatarData(o.dt_emissao_) 
-      : o.dt_emissao_
+      : o.dt_emissao_,
+    data_status: o.data_status && !(typeof o.data_status === 'string' && o.data_status.includes('/')) 
+      ? formatarData(o.data_status) 
+      : o.data_status
   }));
 }
 

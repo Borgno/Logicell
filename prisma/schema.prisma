@@ -45,6 +45,8 @@ model Operacao {
   pastaId                      Int?
   comentarios                  String?
   status                       String?
+  data_status                  DateTime?
+  id_solicitacao               String?
 
   importacao                   Importacao? @relation(fields: [importacaoId], references: [id])
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])

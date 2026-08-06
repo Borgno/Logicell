@@ -80,7 +80,7 @@ export function getOperacoesColumns({
           displayValue = value || "";
         } else if (value === null || value === undefined) {
           displayValue = "";
-        } else if (col.key === "dt_emissao_") {
+        } else if (col.key === "dt_emissao_" || col.key === "data_status") {
           displayValue = value || "";
         } else if (col.isCurrency) {
           displayValue = formatarMoeda(value);
@@ -107,7 +107,7 @@ export function getOperacoesColumns({
           colIdx >= Math.min(fillRange.start.colIdx, fillRange.end.colIdx) &&
           colIdx <= Math.max(fillRange.start.colIdx, fillRange.end.colIdx);
           
-        const isSupportedFillCol = col.key === "status" || col.key === "comentarios";
+        const isSupportedFillCol = col.key === "status" || col.key === "comentarios" || col.key === "id_solicitacao";
 
         return (
           <div 
