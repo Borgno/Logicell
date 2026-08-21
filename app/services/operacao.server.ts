@@ -20,7 +20,7 @@ export class OperacaoService {
   private static agenciasCacheTime = 0;
   private static inboxCountCache: number | null = null;
   private static inboxCountCacheTime = 0;
-  private static countCache = new Map<string, { count: number; timestamp: number }>();
+  private static countCache = new Map<string, { count: number; totalVl: number; timestamp: number }>();
   private static readonly CACHE_TTL = 1000 * 60 * 5; // 5 minutos
   private static readonly SHORT_TTL = 1000 * 30;    // 30 segundos
   private static readonly COUNT_CACHE_TTL = 1000 * 30; // 30 segundos
@@ -67,8 +67,8 @@ export class OperacaoService {
         LIMIT ${l} OFFSET ${offset}
       `, ...whereClause.params),
       isCountCached 
-        ? Promise.resolve([{ count: cachedEntry.count }])
-        : prisma.$queryRawUnsafe<any>(`SELECT COUNT(*) as count FROM "Operacao" o ${whereClause.sql}`, ...whereClause.params)
+        ? Promise.resolve([{ count: cachedEntry.count, totalVl: cachedEntry.totalVl }])
+        : prisma.$queryRawUnsafe<any>(`SELECT COUNT(*) as count, COALESCE(SUM("vl_total"), 0) AS "totalVl" FROM "Operacao" o ${whereClause.sql}`, ...whereClause.params)
     ]);
 
     const sanitizedData = data.map(item => ({
@@ -79,16 +79,19 @@ export class OperacaoService {
     }));
 
     let total: number;
+    let totalVl: number;
     if (isCountCached) {
       total = cachedEntry.count;
+      totalVl = cachedEntry.totalVl;
     } else {
       total = Number(totalRes[0].count);
-      this.countCache.set(cacheKey, { count: total, timestamp: Date.now() });
+      totalVl = Number(totalRes[0].totalVl) || 0;
+      this.countCache.set(cacheKey, { count: total, totalVl, timestamp: Date.now() });
     }
     
     return { 
       data: sanitizedData, 
-      meta: { total, page: p, limit: l, totalPages: Math.ceil(total / l) } 
+      meta: { total, totalVl, page: p, limit: l, totalPages: Math.ceil(total / l) } 
     };
   }
 

@@ -34,7 +34,7 @@ export function OperacoesToolbarView({
   return (
     <div className="flex items-center justify-between p-2 border-b border-glass-border bg-transparent shrink-0">
       {/* LEFT: Mover e Excluir */}
-      <div className="flex items-center gap-1 shrink-0">        
+      <div className="flex items-center gap-1 shrink-0">
         {/* Mover Para */}
         <div className="relative">
           <button 

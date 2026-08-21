@@ -36,7 +36,7 @@ export const COLUNAS_OPERACAO = [
 ];
 
 
-export type FilterType = "contains" | "equals" | "blank" | "notBlank";
+export type FilterType = "contains" | "equals" | "blank" | "notBlank" | "period";
 export type Range = { start: {rowIdx: number, colIdx: number}, end: {rowIdx: number, colIdx: number} };
 
 export function useOperacoesGridState(initialColumnOrder: string[] | null) {

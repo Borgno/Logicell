@@ -70,6 +70,17 @@ export class OperacaoQueryBuilder {
                       whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
                   }
                 }
+              } else if (type === "period" && (colName === "dt_emissao_" || colName === "data_status")) {
+                const [deStr, ateStr] = value.split(";");
+                const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+                if (deStr && dateRegex.test(deStr)) {
+                  params.push(deStr);
+                  whereAnd.push(`"${colName}" >= to_date($${params.length}, 'DD/MM/YYYY')`);
+                }
+                if (ateStr && dateRegex.test(ateStr)) {
+                  params.push(ateStr);
+                  whereAnd.push(`"${colName}" < to_date($${params.length}, 'DD/MM/YYYY') + interval '1 day'`);
+                }
               }
           }
         }

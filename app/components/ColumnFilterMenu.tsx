@@ -8,8 +8,34 @@ interface ColumnFilterMenuProps {
   setColumnFilters: React.Dispatch<React.SetStateAction<Record<string, { type: FilterType; value: string }>>>;
 }
 
+const DATA_COLUMNS = ["dt_emissao_", "data_status"];
+
+function brToInput(br: string): string {
+  if (!br) return "";
+  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+
+function inputToBr(input: string): string {
+  if (!input) return "";
+  const m = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
 export function ColumnFilterMenu({ openFilterCol, setOpenFilterCol, columnFilters, setColumnFilters }: ColumnFilterMenuProps) {
   if (!openFilterCol) return null;
+
+  const isDateColumn = DATA_COLUMNS.includes(openFilterCol.key);
+  const currentFilter = columnFilters[openFilterCol.key];
+  const isPeriod = currentFilter?.type === "period";
+  const periodParts = isPeriod ? (currentFilter?.value || ";").split(";") : ["", ""];
+  const deInput = brToInput(periodParts[0]);
+  const ateInput = brToInput(periodParts[1]);
+
+  const updatePeriod = (deBr: string, ateBr: string) => {
+    const value = `${deBr};${ateBr}`;
+    setColumnFilters(p => ({ ...p, [openFilterCol.key]: { type: "period", value } }));
+  };
 
   return (
     <>
@@ -44,9 +70,32 @@ export function ColumnFilterMenu({ openFilterCol, setOpenFilterCol, columnFilter
           <option value="equals" className="bg-card-bg text-text">É Igual a</option>
           <option value="blank" className="bg-card-bg text-text">Vazio (Em branco)</option>
           <option value="notBlank" className="bg-card-bg text-text">Não Vazio</option>
+          {isDateColumn && <option value="period" className="bg-card-bg text-text">Período</option>}
         </select>
 
-        {(columnFilters[openFilterCol.key]?.type !== "blank" && columnFilters[openFilterCol.key]?.type !== "notBlank") && (
+        {isPeriod ? (
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">De</span>
+              <input
+                type="date"
+                className="w-full bg-surface border border-glass-border rounded-xl px-3 py-2.5 text-xs font-bold outline-none text-text focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                value={deInput}
+                onChange={(e) => updatePeriod(inputToBr(e.target.value), periodParts[1])}
+              />
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Até</span>
+              <input
+                type="date"
+                className="w-full bg-surface border border-glass-border rounded-xl px-3 py-2.5 text-xs font-bold outline-none text-text focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                value={ateInput}
+                onChange={(e) => updatePeriod(periodParts[0], inputToBr(e.target.value))}
+              />
+            </label>
+          </div>
+        ) : (
+          (columnFilters[openFilterCol.key]?.type !== "blank" && columnFilters[openFilterCol.key]?.type !== "notBlank") && (
           <input 
             type="text" 
             placeholder="Digite o valor..."
@@ -61,6 +110,7 @@ export function ColumnFilterMenu({ openFilterCol, setOpenFilterCol, columnFilter
             }}
             autoFocus
           />
+          )
         )}
       </div>
     </>

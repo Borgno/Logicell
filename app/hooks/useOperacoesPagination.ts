@@ -15,6 +15,13 @@ function processarDatas(dados: any[]) {
   }));
 }
 
+function isFilterEmpty(filter: any) {
+  if (!filter) return true;
+  if (filter.type === "blank" || filter.type === "notBlank") return false;
+  if (filter.type === "period") return filter.value.split(";").every((d: string) => !d);
+  return filter.value === "";
+}
+
 export function useOperacoesPagination(initialDados: any[], initialMeta: any, pastaId: number | null, columnFilters: any) {
   const [dados, setDados] = useState(() => processarDatas(initialDados));
   const [meta, setMeta] = useState(initialMeta);
@@ -47,7 +54,7 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
       p.set("limit", searchParams.get("limit") || "200");
       
       for (const [key, filter] of Object.entries(columnFilters)) {
-        if (!filter || ((filter as any).value === "" && (filter as any).type !== "blank" && (filter as any).type !== "notBlank")) continue;
+        if (isFilterEmpty(filter)) continue;
         p.set(`colFilter_${key}`, `${(filter as any).type}:${(filter as any).value}`);
       }
       
@@ -93,7 +100,7 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
         if (pastaId) p.set("pastaId", String(pastaId));
         
         for (const [key, filter] of Object.entries(columnFilters)) {
-          if (!filter || ((filter as any).value === "" && (filter as any).type !== "blank" && (filter as any).type !== "notBlank")) continue;
+          if (isFilterEmpty(filter)) continue;
           p.set(`colFilter_${key}`, `${(filter as any).type}:${(filter as any).value}`);
         }
         

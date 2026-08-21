@@ -81,7 +81,10 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
   const getActiveFilters = () => {
     const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams), pastaId };
     for (const [key, filter] of Object.entries(columnFilters)) {
-      if (!filter || (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank")) continue;
+      if (!filter) continue;
+      const isEmptyPeriod = filter.type === "period" && filter.value.split(";").every((d: string) => !d);
+      if (filter.value === "" && filter.type !== "blank" && filter.type !== "notBlank") continue;
+      if (isEmptyPeriod) continue;
       activeFilters[`colFilter_${key}`] = `${filter.type}:${filter.value}`;
     }
     return activeFilters;
@@ -130,8 +133,9 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
               const colDefs = useMemo(() => getOperacoesColumns({
                 orderedColumns, columnWidths, columnFilters, selectedRanges, isDragging,
                 setOpenFilterCol, setSelectedRanges, setIsDragging,
-                isFillDragging, setIsFillDragging, fillRange, setFillRange, handleFillEnd
-              }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths, isFillDragging, fillRange, dados]);
+                isFillDragging, setIsFillDragging, fillRange, setFillRange, handleFillEnd,
+                totalVl: meta.totalVl
+              }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths, isFillDragging, fillRange, dados, meta.totalVl]);
 
               const handleLocalUpdate = (id: number, campo: string, valor: string) => {
                 setDados((prev: any[]) => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));

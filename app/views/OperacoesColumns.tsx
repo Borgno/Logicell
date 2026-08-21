@@ -20,6 +20,7 @@ export function getOperacoesColumns({
   fillRange,
   setFillRange,
   handleFillEnd,
+  totalVl,
 }: any) {
   const defs: any[] = [
     SelectColumn,
@@ -47,7 +48,12 @@ export function getOperacoesColumns({
         const hasFilter = !!columnFilters[col.key];
         return (
           <div className="flex items-center justify-between w-full group">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-400 truncate pr-2">{col.label}</span>
+            <span className="text-xs font-black uppercase tracking-wider text-slate-400 truncate pr-2">
+              {col.label}
+              {col.key === "vl_total" && (
+                <span className="text-primary normal-case ml-1">= {formatarMoeda(totalVl)}</span>
+              )}
+            </span>
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -94,7 +100,6 @@ export function getOperacoesColumns({
                   colIdx <= Math.max(r.start.colIdx, r.end.colIdx);
         });
 
-        // Lógica para desenhar o quadradinho azul na última célula do selectedRanges
         const lastRange = selectedRanges[selectedRanges.length - 1];
         const isBottomRight = lastRange && 
           props.rowIdx === Math.max(lastRange.start.rowIdx, lastRange.end.rowIdx) &&
