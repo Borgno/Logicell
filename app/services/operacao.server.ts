@@ -60,7 +60,7 @@ export class OperacaoService {
           o.nm_pessoa_destinatario, o.nm_cidade_destino, o.ds_sigla_destino, o.nm_produto,
           o.vl_peso, o.vl_tarifa, o.vl_total, o.nr_nf, o.ds_placa, o.nm_pessoa_matriz,
           o.nr_contrato, o.nr_chave_acesso, o.nm_pessoa_usuario_lancamento, o.id_tipo_ctrc,
-          o.nm_proprietario_posse_cavalo, o.nm_motorista, o.data_status, o.id_solicitacao
+          o.nm_proprietario_posse_cavalo, o.nm_motorista, o.data_status, o.id_solicitacao, o.dt_quitacao_saldo
         FROM "Operacao" o
         ${whereClause.sql}
         ORDER BY o.id DESC
@@ -172,7 +172,7 @@ export class OperacaoService {
     this.invalidarCache();
 
     let valorLimpo: any = valorNovo;
-    if (campo === "dt_emissao_" || campo === "data_status") {
+    if (campo === "dt_emissao_" || campo === "data_status" || campo === "dt_quitacao_saldo") {
       const d = DateParser.parseDataBrasileiraSegura(valorNovo);
       if (d) valorLimpo = d;
       else if (campo === "data_status") valorLimpo = null;

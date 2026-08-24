@@ -7,7 +7,7 @@ export class OperacaoQueryBuilder {
       "nm_cidade_destino", "ds_sigla_destino", "nm_produto", "nr_nf", "ds_placa",
       "nm_pessoa_matriz", "nr_contrato", "nr_chave_acesso", "nm_pessoa_usuario_lancamento",
       "id_tipo_ctrc", "nm_proprietario_posse_cavalo", "nm_motorista", "dt_emissao_",
-      "data_status", "id_solicitacao", "vl_peso", "vl_tarifa", "vl_total"
+      "data_status", "id_solicitacao", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"
     ];
 
     for (const [key, val] of Object.entries(filtros)) {
@@ -31,7 +31,7 @@ export class OperacaoQueryBuilder {
                     params.push(v);
                     return `$${params.length}`;
                   });
-                  if (colName === "dt_emissao_" || colName === "data_status") {
+                  if (colName === "dt_emissao_" || colName === "data_status" || colName === "dt_quitacao_saldo") {
                     whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') IN (${placeholders.join(', ')})`);
                   } else {
                     whereAnd.push(`"${colName}"::TEXT IN (${placeholders.join(', ')})`);
@@ -40,7 +40,7 @@ export class OperacaoQueryBuilder {
                   const singleValue = values[0];
                   params.push(singleValue);
                   const exatos = ["nr_nf", "nr_chave_acesso", "nr_contrato"];
-                  if (colName === "dt_emissao_" || colName === "data_status") {
+                  if (colName === "dt_emissao_" || colName === "data_status" || colName === "dt_quitacao_saldo") {
                       whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
                   } else if (exatos.includes(colName)) {
                       whereAnd.push(`"${colName}" = $${params.length}`);
@@ -55,7 +55,7 @@ export class OperacaoQueryBuilder {
                 if (values.length > 1) {
                   const orClauses = values.map(v => {
                     params.push(`%${v}%`);
-                    if (colName === "dt_emissao_" || colName === "data_status") {
+                    if (colName === "dt_emissao_" || colName === "data_status" || colName === "dt_quitacao_saldo") {
                       return `TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`;
                     } else {
                       return `"${colName}"::TEXT ILIKE $${params.length}`;
@@ -64,13 +64,13 @@ export class OperacaoQueryBuilder {
                   whereAnd.push(`(${orClauses.join(' OR ')})`);
                 } else if (values.length === 1) {
                   params.push(`%${values[0]}%`);
-                  if (colName === "dt_emissao_" || colName === "data_status") {
+                  if (colName === "dt_emissao_" || colName === "data_status" || colName === "dt_quitacao_saldo") {
                       whereAnd.push(`TO_CHAR("${colName}", 'DD/MM/YYYY') ILIKE $${params.length}`);
                   } else {
                       whereAnd.push(`"${colName}"::TEXT ILIKE $${params.length}`);
                   }
                 }
-              } else if (type === "period" && (colName === "dt_emissao_" || colName === "data_status")) {
+              } else if (type === "period" && (colName === "dt_emissao_" || colName === "data_status" || colName === "dt_quitacao_saldo")) {
                 const [deStr, ateStr] = value.split(";");
                 const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
                 if (deStr && dateRegex.test(deStr)) {

@@ -11,7 +11,10 @@ function processarDatas(dados: any[]) {
       : o.dt_emissao_,
     data_status: o.data_status && !(typeof o.data_status === 'string' && o.data_status.includes('/')) 
       ? formatarData(o.data_status) 
-      : o.data_status
+      : o.data_status,
+    dt_quitacao_saldo: o.dt_quitacao_saldo && !(typeof o.dt_quitacao_saldo === 'string' && o.dt_quitacao_saldo.includes('/')) 
+      ? formatarData(o.dt_quitacao_saldo) 
+      : o.dt_quitacao_saldo
   }));
 }
 

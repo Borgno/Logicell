@@ -47,6 +47,7 @@ model Operacao {
   status                       String?
   data_status                  DateTime?
   id_solicitacao               String?
+  dt_quitacao_saldo            DateTime?
 
   importacao                   Importacao? @relation(fields: [importacaoId], references: [id])
   pasta                        Pasta?      @relation(fields: [pastaId], references: [id])

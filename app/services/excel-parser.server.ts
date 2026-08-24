@@ -82,6 +82,13 @@ export class ExcelParser {
     if (dt_emissao_ && isNaN(dt_emissao_.getTime())) {
       dt_emissao_ = null;
     }
+
+    const dtQuitacaoCrua = get(["DT_QUITACAO_SALDO", "DATA QUITAÇÃO", "DATA QUITACAO", "QUITAÇÃO", "QUITACAO"]);
+    let dt_quitacao_saldo = DateParser.parseDataBrasileiraSegura(dtQuitacaoCrua);
+
+    if (dt_quitacao_saldo && isNaN(dt_quitacao_saldo.getTime())) {
+      dt_quitacao_saldo = null;
+    }
     
     const op = {
       importacaoId,
@@ -114,6 +121,7 @@ export class ExcelParser {
       nm_motorista: String(get(["nm_motorista", "MOTORISTA"]) || ""),
       status: get(["status", "Status"]) ? String(get(["status", "Status"])).trim().toUpperCase() : null,
       comentarios: get(["comentarios", "OBSERVAÇÃO", "OBSERVACAO"]) ? String(get(["comentarios", "OBSERVAÇÃO", "OBSERVACAO"])).trim() : null,
+      dt_quitacao_saldo: dt_quitacao_saldo || null,
     };
 
     const hashStr = `${op.nm_agencia}|${op.nr_ctrc}|${op.nr_nf || ""}|${op.vl_total ? op.vl_total.toFixed(2) : "0.00"}`;
