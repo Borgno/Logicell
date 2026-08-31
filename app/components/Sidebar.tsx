@@ -1,4 +1,4 @@
-import { CheckCircle2, Inbox, Moon, Plus, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
+import { CheckCircle2, Inbox, Moon, Plus, ShieldCheck, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { NavLink, useFetcher, useNavigation } from "react-router";
 import { buscarNomeUsuario } from "~/utils/formatters";
@@ -93,6 +93,17 @@ export const Sidebar = React.memo(({
                 </div>
               )}
             </NavLink>
+
+            {user?.app_metadata?.role === "admin" && (
+              <NavLink to="/admin/usuarios" prefetch="none" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
+                {() => (
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck size={18} className="shrink-0" />
+                    {!isCollapsed && <span>Gestão de Usuários</span>}
+                  </div>
+                )}
+              </NavLink>
+            )}
           </div>
         </div>
 

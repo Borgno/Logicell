@@ -7,6 +7,7 @@ export default [
     route("pastas/:nome", "routes/pastas.$nome.tsx"),
   ]),
   route("automacoes", "routes/automacoes.tsx"),
+  route("admin/usuarios", "routes/admin.usuarios.tsx"),
   route("perfil", "routes/perfil.tsx"),
   route("api/operacoes", "routes/api.operacoes.ts"),
 

@@ -61,6 +61,31 @@ export async function requireUser(request: Request) {
   return { user, supabase, response };
 }
 
+//Verifica se o usuário possui o cargo de administrador.
+export function isAdmin(user: any) {
+  return user?.app_metadata?.role === "admin";
+}
+
+//Garante que o usuário logado é administrador.
+//Usa validação REMOTA (getUser) em vez do JWT parseado localmente para que
+//rebaixamentos e bloqueios de cargo tenham efeito imediato no acesso.
+export async function requireAdmin(request: Request) {
+  const { supabase, response } = await createSupabaseServerClient(request);
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    const url = new URL(request.url);
+    const searchParams = new URLSearchParams([["redirectTo", url.pathname]]);
+    throw redirect(`/login?${searchParams}`);
+  }
+
+  if (!isAdmin(user)) {
+    throw redirect("/");
+  }
+
+  return { user, supabase, response };
+}
+
 //Apenas verifica se há um usuário sem disparar redirect.
 export async function getUser(request: Request) {
   const cookieHeader = request.headers.get("Cookie");
