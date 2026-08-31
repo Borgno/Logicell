@@ -7,7 +7,7 @@ export function exportarExcel(dados: any[], colunas: any[], nomePasta: string, s
       const obj: any = {};
       colunas.forEach(col => {
         let val = row[col.key];
-        if (col.key === "dt_emissao_" && val) val = formatarData(val);
+        if (col.key === "dt_emissao_" && val && !(typeof val === 'string' && val.includes('/'))) val = formatarData(val);
         obj[col.label] = val;
       });
       return obj;
