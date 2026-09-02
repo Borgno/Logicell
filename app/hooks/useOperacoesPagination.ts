@@ -25,7 +25,14 @@ function isFilterEmpty(filter: any) {
   return filter.value === "";
 }
 
-export function useOperacoesPagination(initialDados: any[], initialMeta: any, pastaId: number | null, columnFilters: any) {
+function getSortParams(sortColumns: any[]): string {
+  const sort = sortColumns?.[0];
+  if (!sort) return "";
+  const dir = sort.direction === "DESC" ? "desc" : "asc";
+  return `&sortCol=${encodeURIComponent(sort.columnKey)}&sortDir=${dir}`;
+}
+
+export function useOperacoesPagination(initialDados: any[], initialMeta: any, pastaId: number | null, columnFilters: any, sortColumns: any[] = []) {
   const [dados, setDados] = useState(() => processarDatas(initialDados));
   const [meta, setMeta] = useState(initialMeta);
   const [searchParams] = useSearchParams();
@@ -55,6 +62,11 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
       if (pastaId) p.set("pastaId", String(pastaId));
       p.set("page", "1");
       p.set("limit", searchParams.get("limit") || "200");
+      const sortParams = getSortParams(sortColumns);
+      if (sortParams) {
+        const sp = new URLSearchParams(sortParams.slice(1));
+        sp.forEach((v, k) => p.set(k, v));
+      }
       
       for (const [key, filter] of Object.entries(columnFilters)) {
         if (isFilterEmpty(filter)) continue;
@@ -66,7 +78,7 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
     }, 600);
     
     return () => clearTimeout(timer);
-  }, [columnFilters, pastaId]);
+  }, [columnFilters, pastaId, sortColumns]);
 
   // Sincroniza dados novos da paginação
   useEffect(() => {
@@ -101,6 +113,11 @@ export function useOperacoesPagination(initialDados: any[], initialMeta: any, pa
         p.set("page", String(meta.page + 1));
         p.set("limit", searchParams.get("limit") || "200");
         if (pastaId) p.set("pastaId", String(pastaId));
+        const sortParams = getSortParams(sortColumns);
+        if (sortParams) {
+          const sp = new URLSearchParams(sortParams.slice(1));
+          sp.forEach((v, k) => p.set(k, v));
+        }
         
         for (const [key, filter] of Object.entries(columnFilters)) {
           if (isFilterEmpty(filter)) continue;

@@ -1,8 +1,8 @@
-import { CheckCircle2, Inbox, Moon, Plus, ShieldCheck, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
-import React, { useCallback, useState } from "react";
+import { CheckCircle2, Inbox, Moon, Plus, Search, ShieldCheck, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
 import { NavLink, useFetcher, useNavigation } from "react-router";
 import { buscarNomeUsuario } from "~/utils/formatters";
-import { PRESET_COLORS, SidebarFolderItem } from "./SidebarFolderItem";
+import { COLOR_NAMES, PRESET_COLORS, SidebarFolderItem } from "./SidebarFolderItem";
 
 interface SidebarProps {
   pastas: any[];
@@ -30,6 +30,19 @@ export const Sidebar = React.memo(({
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState(PRESET_COLORS[0]);
   const [isAddingFolder, setIsAddingFolder] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterColor, setFilterColor] = useState("");
+
+  const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const filteredPastas = useMemo(() => {
+    const query = normalize(searchQuery.trim());
+    return pastas.filter((p) => {
+      if (filterColor && p.cor !== filterColor) return false;
+      if (!query) return true;
+      return normalize(p.nome).includes(query);
+    });
+  }, [pastas, searchQuery, filterColor]);
 
   const handleCreateFolder = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +126,59 @@ export const Sidebar = React.memo(({
             {!isCollapsed && <button onClick={() => setIsAddingFolder(true)} className="text-primary hover:text-primary/80 transition-colors"><Plus size={14} strokeWidth={3} /></button>}
           </div>
 
+          {!isCollapsed && (
+            <div className="px-2.5 mb-2">
+              <div className="bg-surface rounded-xl p-2 border border-glass-border space-y-2">
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+                  <input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Buscar pastas..."
+                    className="w-full bg-card-bg dark:bg-bg rounded-lg pl-7 pr-7 py-1.5 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text placeholder:text-text-dim transition-colors"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-text transition-colors" title="Limpar busca">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-center">
+                    <div className="flex gap-1.5">
+                      {PRESET_COLORS.map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setFilterColor(filterColor === c ? "" : c)}
+                          title={COLOR_NAMES[c]}
+                          className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${filterColor === c ? 'ring-2 ring-offset-2 ring-offset-surface scale-110' : 'hover:scale-110 hover:ring-2 hover:ring-text/10 hover:ring-offset-2 hover:ring-offset-surface'}`}
+                          style={{ backgroundColor: c, boxShadow: filterColor === c ? `0 0 10px ${c}55` : undefined }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-center text-[10px] font-bold text-text-muted leading-none">
+                    {filterColor ? COLOR_NAMES[filterColor] : "Filtrar por cor"}
+                  </p>
+                </div>
+
+                {(searchQuery || filterColor) && (
+                  <div className="flex items-center justify-between px-0.5 pt-0.5 border-t border-glass-border/60">
+                    <span className="text-[10px] font-bold text-text-muted">{filteredPastas.length} de {pastas.length}</span>
+                    <button
+                      onClick={() => { setSearchQuery(""); setFilterColor(""); }}
+                      className="text-[10px] font-bold text-text-muted hover:text-primary transition-colors"
+                    >
+                      Limpar filtros
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1">
             {isAddingFolder && !isCollapsed && (
               <form onSubmit={handleCreateFolder} className="px-3 mb-2 space-y-2 bg-surface rounded-xl p-2 border border-glass-border">
@@ -131,9 +197,21 @@ export const Sidebar = React.memo(({
               </form>
             )}
 
-            {pastas.map((p: any) => (
+            {filteredPastas.map((p: any) => (
               <SidebarFolderItem key={p.id} folder={p} isCollapsed={isCollapsed} />
             ))}
+
+            {!isCollapsed && pastas.length > 0 && filteredPastas.length === 0 && (
+              <div className="mx-1 border border-dashed border-glass-border rounded-xl px-3 py-3 text-center">
+                <p className="text-[11px] font-bold text-text-muted">Nenhuma pasta encontrada</p>
+                <button
+                  onClick={() => { setSearchQuery(""); setFilterColor(""); }}
+                  className="mt-1 text-[10px] font-bold text-primary hover:text-primary/80 transition-colors"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>

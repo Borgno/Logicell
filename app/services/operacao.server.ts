@@ -34,6 +34,29 @@ export class OperacaoService {
     PastaService.invalidarCache();
   }
 
+  // Whitelist de colunas ordenáveis (anti SQL injection) — datas e valores numéricos
+  private static readonly SORTABLE_COLUMNS: Record<string, string> = {
+    dt_emissao_: "o.dt_emissao_",
+    data_status: "o.data_status",
+    dt_quitacao_saldo: "o.dt_quitacao_saldo",
+    vl_peso: "o.vl_peso",
+    vl_tarifa: "o.vl_tarifa",
+    vl_total: "o.vl_total",
+  };
+
+  private static montarOrderBy(filtros: any): string {
+    const sortCol = filtros.sortCol;
+    const coluna = this.SORTABLE_COLUMNS[sortCol];
+    if (!coluna) return "ORDER BY o.id DESC";
+
+    const isDesc = filtros.sortDir === "desc";
+    const dir = isDesc ? "DESC" : "ASC";
+    const nulls = isDesc ? "NULLS FIRST" : "NULLS LAST";
+
+    // id DESC como desempate para paginação estável
+    return `ORDER BY ${coluna} ${dir} ${nulls}, o.id DESC`;
+  }
+
 
 
   static async listarOperacoesLocal(filtros: any) {
@@ -41,6 +64,8 @@ export class OperacaoService {
     const p = Math.max(1, Math.floor(Number(page) || 1));
     const l = Math.max(1, Math.min(1000, Math.floor(Number(limit) || 200)));
     const offset = (p - 1) * l;
+
+    const orderClause = this.montarOrderBy(filtros);
     
     const whereClause = OperacaoQueryBuilder.construirWhere(pastaId, filtros);
     const cacheKey = JSON.stringify({ sql: whereClause.sql, params: whereClause.params });
@@ -63,7 +88,7 @@ export class OperacaoService {
           o.nm_proprietario_posse_cavalo, o.nm_motorista, o.data_status, o.id_solicitacao, o.dt_quitacao_saldo
         FROM "Operacao" o
         ${whereClause.sql}
-        ORDER BY o.id DESC
+        ${orderClause}
         LIMIT ${l} OFFSET ${offset}
       `, ...whereClause.params),
       isCountCached 

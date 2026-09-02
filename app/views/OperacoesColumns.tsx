@@ -1,10 +1,12 @@
-import { Filter } from "lucide-react";
+import { ArrowDown, ArrowUp, Filter } from "lucide-react";
 import { SelectColumn } from 'react-data-grid';
 import { formatarMoeda } from "~/utils/formatters";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
+
+const SORTABLE_COLUMNS = ["dt_emissao_", "data_status", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"];
 
 export function getOperacoesColumns({
   orderedColumns,
@@ -37,19 +39,26 @@ export function getOperacoesColumns({
   ];
 
   orderedColumns.forEach((col: any) => {
+    const isSortable = SORTABLE_COLUMNS.includes(col.key);
     defs.push({
       key: col.key,
       name: col.label,
       draggable: true,
       resizable: true,
+      sortable: isSortable,
       minWidth: 30,
       width: columnWidths[col.key] || parseInt(col.width) || 150,
-      renderHeaderCell: () => {
+      renderHeaderCell: ({ sortDirection }: any) => {
         const hasFilter = !!columnFilters[col.key];
         return (
-          <div className="flex items-center justify-between w-full group">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-400 truncate pr-2">
-              {col.label}
+          <div className={cn("flex items-center justify-between w-full group", isSortable && "cursor-pointer")}>
+            <span className="flex items-center gap-1 text-xs font-black uppercase tracking-wider text-slate-400 truncate pr-2">
+              <span className="truncate">{col.label}</span>
+              {isSortable && sortDirection && (
+                <span className="shrink-0 text-slate-500 dark:text-slate-400">
+                  {sortDirection === "ASC" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                </span>
+              )}
               {col.key === "vl_total" && (
                 <span className="text-primary normal-case ml-1">= {formatarMoeda(totalVl)}</span>
               )}

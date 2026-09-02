@@ -56,6 +56,7 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
 
   const [currentMetaTotal, setCurrentMetaTotal] = useState<number>(0);
   const dadosRef = useRef<any[]>([]);
+  const [sortColumns, setSortColumns] = useState<any[]>([]);
 
 
   const carregando = fetcher.state !== "idle" || fetcher.formData !== undefined;
@@ -118,7 +119,8 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                 initialDados,
                 initialMeta,
                 pastaId,
-                columnFilters
+                columnFilters,
+                sortColumns
               );
               
               useEffect(() => {
@@ -195,6 +197,11 @@ export function OperacoesView({ dadosPromise, nomePasta, pastaId = null, showImp
                       rows={dados}
                       rowKeyGetter={(row: any) => row.id}
                       selectedRows={selecionados}
+                      sortColumns={sortColumns}
+                      onSortColumnsChange={(newSortColumns) => {
+                        setSortColumns([...newSortColumns]);
+                        resetSelection();
+                      }}
                       onScroll={handleScroll}
                       onSelectedRowsChange={(newSelected: Set<number>) => {
                         if (selectAllMode) {

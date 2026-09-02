@@ -5,6 +5,16 @@ import { useUI } from "~/hooks/use-ui";
 
 export const PRESET_COLORS = ["#64748b", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
+export const COLOR_NAMES: Record<string, string> = {
+  "#64748b": "Cinza",
+  "#3b82f6": "Azul",
+  "#10b981": "Verde",
+  "#f59e0b": "Âmbar",
+  "#ef4444": "Vermelho",
+  "#8b5cf6": "Roxo",
+  "#ec4899": "Rosa",
+};
+
 interface FolderType {
   id: number;
   nome: string;
