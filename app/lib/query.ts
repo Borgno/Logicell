@@ -80,6 +80,21 @@ export interface DashboardGrupo {
   quantidade: number;
 }
 
+export interface DashboardFaturistaGrupo extends DashboardGrupo {
+  faturistaId: string | null;
+}
+
+// Filtros globais. `faturistaId` aceita id real ou "sem" (sem responsável).
+export interface DashboardFiltros {
+  faturistaId?: string;
+  pastaId?: string;
+  pagador?: string;
+  status?: string;
+  tipoDocumento?: string;
+  tipoCte?: string;
+  agencia?: string;
+}
+
 export interface DashboardGeral {
   valorTotal: number;
   quantidade: number;
@@ -87,7 +102,7 @@ export interface DashboardGeral {
   totalFaturistas: number;
   emissaoAntigas: number;
   emissaoAntigasValor: number;
-  porFaturista: DashboardGrupo[];
+  porFaturista: DashboardFaturistaGrupo[];
   porStatus: DashboardGrupo[];
   porTipoDocumento: DashboardGrupo[];
   porAgencia: DashboardGrupo[];
@@ -123,12 +138,56 @@ export interface DashboardResumo {
   pastas: DashboardPastaResumo[];
 }
 
+// Detalhe agregado de um faturista (drill-down do acordeão "Por faturista").
+export interface DashboardFaturistaDetalhe {
+  faturistaId: string | null;
+  faturistaNome: string | null;
+  valor: number;
+  quantidade: number;
+  totalPastas: number;
+  emissaoAntigas: number;
+  emissaoAntigasValor: number;
+  primeiraEmissao: string | null;
+  ultimaEmissao: string | null;
+  porStatus: DashboardGrupo[];
+  porTipoDocumento: DashboardGrupo[];
+  porAgencia: DashboardGrupo[];
+  porTipoCte: DashboardGrupo[];
+  topPagadores: DashboardGrupo[];
+  pastas: DashboardPastaResumo[];
+}
+
+// Opções distintas para os selects de filtro.
+export interface DashboardOpcoes {
+  faturistas: { id: string; nome: string }[];
+  pastas: { id: number; nome: string }[];
+  clientes: string[];
+  status: string[];
+  tiposDocumento: string[];
+  tiposCte: string[];
+  agencias: string[];
+}
+
+export function filtrosParaQuery(filtros: DashboardFiltros): string {
+  const p = new URLSearchParams();
+  if (filtros.faturistaId) p.set("faturista", filtros.faturistaId);
+  if (filtros.pastaId) p.set("pasta", filtros.pastaId);
+  if (filtros.pagador) p.set("cliente", filtros.pagador);
+  if (filtros.status) p.set("status", filtros.status);
+  if (filtros.tipoDocumento) p.set("tipo", filtros.tipoDocumento);
+  if (filtros.tipoCte) p.set("tipoCte", filtros.tipoCte);
+  if (filtros.agencia) p.set("agencia", filtros.agencia);
+  const qs = p.toString();
+  return qs ? `?${qs}` : "";
+}
+
 //Visão geral + lista de pastas da tela inicial. Atualiza sozinha em segundo
 //plano (intervalo + foco na aba) para manter os valores frescos sem botão.
-export function useDashboard() {
+export function useDashboard(filtros: DashboardFiltros = {}) {
+  const qs = filtrosParaQuery(filtros);
   return useQuery({
-    queryKey: queryKeys.dashboard,
-    queryFn: () => api.get<DashboardResumo>("/dashboard"),
+    queryKey: [...queryKeys.dashboard, filtros] as const,
+    queryFn: () => api.get<DashboardResumo>(`/dashboard${qs}`),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchInterval: 30_000,
@@ -144,5 +203,31 @@ export function useDashboardPasta(pastaId: number | "inbox" | null, enabled: boo
     queryFn: () => api.get<DashboardPastaDetalhe>(`/dashboard/pastas/${chave}`),
     enabled,
     staleTime: 60_000,
+  });
+}
+
+//Detalhamento de um faturista sob demanda (ao expandir no acordeão).
+export function useDashboardFaturista(
+  faturistaId: string | null,
+  filtros: DashboardFiltros,
+  enabled: boolean
+) {
+  const chave = faturistaId === null ? "sem" : faturistaId;
+  const qs = filtrosParaQuery(filtros);
+  return useQuery({
+    queryKey: ["dashboard", "faturista", chave, filtros] as const,
+    queryFn: () =>
+      api.get<DashboardFaturistaDetalhe>(`/dashboard/faturistas/${encodeURIComponent(chave)}${qs}`),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+//Opções de filtro (faturistas, clientes, status, tipos, agências).
+export function useDashboardOpcoes() {
+  return useQuery({
+    queryKey: ["dashboard", "opcoes"] as const,
+    queryFn: () => api.get<DashboardOpcoes>("/dashboard/opcoes"),
+    staleTime: 5 * 60_000,
   });
 }

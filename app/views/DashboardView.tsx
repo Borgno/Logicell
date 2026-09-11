@@ -1,28 +1,20 @@
-import {
-  AlertTriangle,
-  Building2,
-  ChevronDown,
-  ExternalLink,
-  FileStack,
-  FileText,
-  FolderOpen,
-  Search,
-  Tag,
-  Users,
-  Wallet,
-} from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { ChevronDown, Filter, Users, X } from "lucide-react";
+import { Fragment, useState } from "react";
 import {
   useDashboard,
-  useDashboardPasta,
+  useDashboardFaturista,
+  useDashboardOpcoes,
+  type DashboardFaturistaGrupo,
+  type DashboardFiltros,
   type DashboardGeral,
   type DashboardGrupo,
-  type DashboardPastaResumo,
+  type DashboardOpcoes,
 } from "~/lib/query";
 import { formatarData, formatarMoeda } from "~/utils/formatters";
 
 type ItemBarra = { label: string; valor: number; quantidade: number; cor?: string | null };
+type FiltroCampo = keyof DashboardFiltros;
+type OnChangeFiltro = (campo: FiltroCampo, valor: string) => void;
 
 // ---------------------------------------------------------------------------
 // Blocos reutilizáveis
@@ -80,43 +72,6 @@ function BarList({
   );
 }
 
-function Kpi({
-  icon: Icon,
-  label,
-  valor,
-  sub,
-  destaque,
-  alerta,
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
-  label: string;
-  valor: string;
-  sub?: string;
-  destaque?: boolean;
-  alerta?: boolean;
-}) {
-  return (
-    <div className="bg-card-bg border border-glass-border rounded-2xl p-5 shadow-card flex items-center gap-4">
-      <div
-        className={`p-2.5 rounded-xl shrink-0 ${
-          destaque
-            ? "bg-primary text-white shadow-primary-glow"
-            : alerta
-              ? "bg-badge-warning-bg text-badge-warning-text border border-glass-border"
-              : "bg-surface text-text-muted border border-glass-border"
-        }`}
-      >
-        <Icon size={18} strokeWidth={2.5} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{label}</p>
-        <p className="text-lg font-mono font-bold text-text truncate">{valor}</p>
-        {sub && <p className="text-[10px] font-bold text-text-dim mt-0.5 truncate">{sub}</p>}
-      </div>
-    </div>
-  );
-}
-
 function MiniStat({ label, valor, sub }: { label: string; valor: string; sub?: string }) {
   return (
     <div className="bg-card-bg border border-glass-border rounded-xl px-4 py-3">
@@ -149,24 +104,174 @@ function DistribuicaoCard({
 }) {
   return (
     <div className="bg-card-bg border border-glass-border rounded-xl p-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-4">{titulo}</p>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted truncate">
+          {titulo}
+        </p>
+      </div>
       <BarList items={grupoParaItens(grupos, fallback)} total={total} vazio="Sem dados." />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Detalhe de uma pasta (carregado ao expandir)
+// Barra de filtros globais
 // ---------------------------------------------------------------------------
 
-function PastaDetalheLinha({ pastaId }: { pastaId: number | "inbox" }) {
-  const { data, isLoading, isError } = useDashboardPasta(pastaId, true);
+const SELECT_CLS =
+  "h-9 flex-1 min-w-[140px] max-w-[220px] bg-surface border border-glass-border rounded-lg px-3 text-xs font-bold text-text outline-none focus:border-primary cursor-pointer";
+
+function FiltrosBar({
+  filtros,
+  onChange,
+  onLimpar,
+  opcoes,
+}: {
+  filtros: DashboardFiltros;
+  onChange: OnChangeFiltro;
+  onLimpar: () => void;
+  opcoes?: DashboardOpcoes;
+}) {
+  const temFiltro = Object.values(filtros).some(Boolean);
+
+  return (
+    <div className="bg-card-bg border border-glass-border rounded-2xl p-4 shadow-card flex flex-wrap xl:flex-nowrap items-center gap-3">
+      <div className="flex items-center gap-2 text-text-muted shrink-0">
+        <Filter size={14} strokeWidth={2.5} />
+        <span className="text-[10px] font-bold uppercase tracking-widest">Filtros</span>
+      </div>
+
+      <select
+        value={filtros.faturistaId ?? ""}
+        onChange={(e) => onChange("faturistaId", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todos os faturistas</option>
+        {opcoes?.faturistas.map((f) => (
+          <option key={f.id} value={f.id}>
+            {f.nome}
+          </option>
+        ))}
+        <option value="sem">Sem faturista</option>
+      </select>
+
+      <select
+        value={filtros.pastaId ?? ""}
+        onChange={(e) => onChange("pastaId", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todas as pastas</option>
+        {opcoes?.pastas.map((p) => (
+          <option key={p.id} value={String(p.id)}>
+            {p.nome}
+          </option>
+        ))}
+        <option value="inbox">Caixa de Entrada</option>
+      </select>
+
+      <select
+        value={filtros.pagador ?? ""}
+        onChange={(e) => onChange("pagador", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todos os clientes</option>
+        {opcoes?.clientes.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+
+      <select
+        value={filtros.status ?? ""}
+        onChange={(e) => onChange("status", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todos os status</option>
+        {opcoes?.status.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+        <option value="__vazio__">Sem status</option>
+      </select>
+
+      <select
+        value={filtros.tipoDocumento ?? ""}
+        onChange={(e) => onChange("tipoDocumento", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todos os tipos</option>
+        {opcoes?.tiposDocumento.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+        <option value="__vazio__">Não informado</option>
+      </select>
+
+      <select
+        value={filtros.tipoCte ?? ""}
+        onChange={(e) => onChange("tipoCte", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todos os tipos de CTe</option>
+        {opcoes?.tiposCte.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+        <option value="__vazio__">Não informado</option>
+      </select>
+
+      <select
+        value={filtros.agencia ?? ""}
+        onChange={(e) => onChange("agencia", e.target.value)}
+        className={SELECT_CLS}
+      >
+        <option value="">Todas as agências</option>
+        {opcoes?.agencias.map((a) => (
+          <option key={a} value={a}>
+            {a}
+          </option>
+        ))}
+        <option value="__vazio__">Sem agência</option>
+      </select>
+
+      {temFiltro && (
+        <button
+          type="button"
+          onClick={onLimpar}
+          className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-surface border border-glass-border text-[11px] font-bold text-text-muted hover:text-badge-error-text hover:border-badge-error-text/40 transition-all shrink-0"
+        >
+          <X size={13} />
+          Limpar filtros
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Acordeão "Por faturista"
+// ---------------------------------------------------------------------------
+
+const PALETA = ["#0066ff", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16", "#e03048", "#64748b"];
+
+function FaturistaDetalhe({
+  faturistaId,
+  filtros,
+}: {
+  faturistaId: string | null;
+  filtros: DashboardFiltros;
+}) {
+  const { data, isLoading, isError } = useDashboardFaturista(faturistaId, filtros, true);
 
   if (isLoading) {
     return (
       <div className="px-5 py-8 text-center">
         <p className="text-xs font-bold text-text-muted uppercase tracking-widest animate-pulse">
-          Carregando detalhes...
+          Carregando faturista...
         </p>
       </div>
     );
@@ -175,333 +280,204 @@ function PastaDetalheLinha({ pastaId }: { pastaId: number | "inbox" }) {
   if (isError || !data) {
     return (
       <div className="px-5 py-8 text-center">
-        <p className="text-xs font-bold text-badge-error-text">Não foi possível carregar os detalhes.</p>
+        <p className="text-xs font-bold text-badge-error-text">Não foi possível carregar o faturista.</p>
       </div>
     );
   }
 
-  const { pasta } = data;
-  const linkPasta = pasta.pastaId === null ? "/caixa-de-entrada" : `/pastas/${encodeURIComponent(pasta.nome)}`;
-
   return (
     <div className="px-5 py-5 bg-surface/40">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div>
-          <p className="text-xs font-bold text-text">
-            Faturista: <span className="text-text-muted">{pasta.faturistaNome || "—"}</span>
-          </p>
-          <p className="text-[10px] font-bold text-text-dim uppercase tracking-widest mt-1">
-            Período: {formatarData(pasta.primeiraEmissao)} → {formatarData(pasta.ultimaEmissao)}
-          </p>
-        </div>
-        <Link
-          to={linkPasta}
-          className="flex items-center gap-2 h-9 px-3 rounded-lg bg-surface border border-glass-border text-[11px] font-bold text-text-muted hover:text-primary hover:border-primary/40 transition-all"
-        >
-          Abrir pasta
-          <ExternalLink size={13} />
-        </Link>
-      </div>
+      <p className="text-[10px] font-bold text-text-dim uppercase tracking-widest mb-4">
+        Período: {formatarData(data.primeiraEmissao)} → {formatarData(data.ultimaEmissao)}
+      </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <MiniStat label="Valor total" valor={formatarMoeda(pasta.valor)} />
-        <MiniStat label="Documentos" valor={pasta.quantidade.toLocaleString("pt-BR")} />
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5">
+        <MiniStat label="Valor total" valor={formatarMoeda(data.valor)} />
+        <MiniStat label="Documentos" valor={data.quantidade.toLocaleString("pt-BR")} />
         <MiniStat
           label="Emissões antigas"
-          valor={pasta.emissaoAntigas.toLocaleString("pt-BR")}
+          valor={data.emissaoAntigas.toLocaleString("pt-BR")}
+          sub={formatarMoeda(data.emissaoAntigasValor)}
         />
+        <MiniStat label="Pastas" valor={data.totalPastas.toLocaleString("pt-BR")} />
         <MiniStat
           label="Status vazio"
-          valor={String(data.porStatus.find((s) => !String(s.chave ?? "").trim())?.quantidade ?? 0)}
+          valor={String(
+            data.porStatus.find((s) => !String(s.chave ?? "").trim())?.quantidade ?? 0
+          )}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <DistribuicaoCard titulo="Status" grupos={data.porStatus} fallback="Sem status" total={pasta.valor} />
+        <DistribuicaoCard
+          titulo="Status"
+          grupos={data.porStatus}
+          fallback="Sem status"
+          total={data.valor}
+        />
         <DistribuicaoCard
           titulo="Tipo de documento"
           grupos={data.porTipoDocumento}
           fallback="Não informado"
-          total={pasta.valor}
+          total={data.valor}
         />
-        <DistribuicaoCard titulo="Agência" grupos={data.porAgencia} fallback="Sem agência" total={pasta.valor} />
-        <DistribuicaoCard titulo="Tipo de CTe" grupos={data.porTipoCte} fallback="Não informado" total={pasta.valor} />
+        <DistribuicaoCard
+          titulo="Agência"
+          grupos={data.porAgencia}
+          fallback="Sem agência"
+          total={data.valor}
+        />
+        <DistribuicaoCard
+          titulo="Tipo de CTe"
+          grupos={data.porTipoCte}
+          fallback="Não informado"
+          total={data.valor}
+        />
         <DistribuicaoCard
           titulo="Top clientes (pagador)"
           grupos={data.topPagadores}
           fallback="Não informado"
-          total={pasta.valor}
+          total={data.valor}
         />
       </div>
+
+      {data.pastas.length > 0 && (
+        <div className="mt-5 bg-card-bg border border-glass-border rounded-xl overflow-hidden">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted px-4 py-3 border-b border-glass-border">
+            Pastas ({data.pastas.length})
+          </p>
+          <div className="flex flex-col max-h-[320px] overflow-y-auto custom-scrollbar">
+            {data.pastas.map((p) => (
+              <div
+                key={p.pastaId === null ? "inbox" : p.pastaId}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-glass-border last:border-b-0"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: p.cor || "var(--text-dim)" }}
+                  />
+                  <span className="text-xs font-bold text-text truncate" title={p.nome}>
+                    {p.nome}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 shrink-0 text-right">
+                  <span className="text-[10px] font-bold text-text-dim uppercase tracking-widest">
+                    {p.quantidade.toLocaleString("pt-BR")} docs
+                  </span>
+                  <span className="text-xs font-mono font-bold text-text">
+                    {formatarMoeda(p.valor)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Lista de pastas com busca, ordenação e drill-down
-// ---------------------------------------------------------------------------
-
-type CampoOrdenacao = "nome" | "valor" | "quantidade" | "emissaoAntigas";
-
-const COLUNAS: { campo: CampoOrdenacao | null; label: string; alinhamento?: "right" }[] = [
-  { campo: "nome", label: "Pasta" },
-  { campo: null, label: "Faturista" },
-  { campo: "quantidade", label: "Documentos", alinhamento: "right" },
-  { campo: "valor", label: "Valor", alinhamento: "right" },
-  { campo: "emissaoAntigas", label: "Antigas", alinhamento: "right" },
-  { campo: null, label: "" },
-];
-
-function PastasLista({ pastas }: { pastas: DashboardPastaResumo[] }) {
-  const [busca, setBusca] = useState("");
-  const [mostrarVazias, setMostrarVazias] = useState(true);
-  const [ordem, setOrdem] = useState<{ campo: CampoOrdenacao; dir: "asc" | "desc" }>({
-    campo: "valor",
-    dir: "desc",
-  });
-  const [expandida, setExpandida] = useState<string | null>(null);
-
-  const filtradas = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    let lista = pastas.filter((p) => mostrarVazias || p.quantidade > 0);
-    if (q) {
-      lista = lista.filter(
-        (p) =>
-          p.nome.toLowerCase().includes(q) || (p.faturistaNome || "").toLowerCase().includes(q)
-      );
-    }
-    const dir = ordem.dir === "asc" ? 1 : -1;
-    return [...lista].sort((a, b) => {
-      if (ordem.campo === "nome") return a.nome.localeCompare(b.nome, "pt-BR") * dir;
-      return ((a[ordem.campo] as number) - (b[ordem.campo] as number)) * dir;
-    });
-  }, [pastas, busca, mostrarVazias, ordem]);
-
-  const alternarOrdem = (campo: CampoOrdenacao) => {
-    setOrdem((o) =>
-      o.campo === campo ? { campo, dir: o.dir === "asc" ? "desc" : "asc" } : { campo, dir: "desc" }
-    );
-  };
-
-  const totalValor = filtradas.reduce((s, p) => s + p.valor, 0);
+function FaturistasAcordeao({
+  faturistas,
+  filtros,
+}: {
+  faturistas: DashboardFaturistaGrupo[];
+  filtros: DashboardFiltros;
+}) {
+  const [aberto, setAberto] = useState<string | null>(null);
+  const total = faturistas.reduce((s, f) => s + f.valor, 0);
 
   return (
     <div className="bg-card-bg border border-glass-border rounded-2xl shadow-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-glass-border">
+      <div className="flex items-center justify-between gap-3 p-5 border-b border-glass-border">
         <div className="flex items-center gap-2.5">
-          <FolderOpen size={16} className="text-primary" strokeWidth={2.5} />
-          <h2 className="text-sm font-bold text-text">Pastas</h2>
+          <Users size={16} className="text-primary" strokeWidth={2.5} />
+          <h2 className="text-sm font-bold text-text">Por faturista</h2>
           <span className="text-[10px] font-bold text-text-dim uppercase tracking-widest">
-            {filtradas.length} de {pastas.length}
+            {faturistas.length} {faturistas.length === 1 ? "faturista" : "faturistas"}
           </span>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text-muted cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={mostrarVazias}
-              onChange={(e) => setMostrarVazias(e.target.checked)}
-              className="accent-primary"
-            />
-            Mostrar sem documentos
-          </label>
-
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar pasta ou faturista..."
-              className="w-64 h-9 bg-surface border border-glass-border rounded-lg pl-8 pr-3 text-xs font-bold text-text outline-none focus:border-primary placeholder:text-text-dim transition-colors"
-            />
-          </div>
-        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse">
-          <thead>
-            <tr className="bg-surface">
-              {COLUNAS.map((col, idx) => (
-                <th
-                  key={idx}
-                  className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-text-muted ${
-                    col.alinhamento === "right" ? "text-right" : "text-left"
+      {faturistas.length === 0 ? (
+        <p className="text-xs font-medium text-text-muted py-8 text-center">
+          Nenhum faturista com documentos.
+        </p>
+      ) : (
+        <div>
+          {faturistas.map((f, idx) => {
+            const chave = f.faturistaId ?? "sem";
+            const estaAberto = aberto === chave;
+            const pct = total > 0 ? (f.valor / total) * 100 : 0;
+            const cor = PALETA[idx % PALETA.length];
+            return (
+              <Fragment key={chave}>
+                <button
+                  type="button"
+                  onClick={() => setAberto(estaAberto ? null : chave)}
+                  className={`w-full flex items-center gap-4 px-5 py-4 border-t border-glass-border text-left transition-colors ${
+                    estaAberto ? "bg-surface-light" : "hover:bg-surface"
                   }`}
                 >
-                  {col.campo ? (
-                    <button
-                      onClick={() => alternarOrdem(col.campo as CampoOrdenacao)}
-                      className={`inline-flex items-center gap-1 hover:text-text transition-colors ${
-                        ordem.campo === col.campo ? "text-primary" : ""
-                      }`}
-                    >
-                      {col.label}
-                      {ordem.campo === col.campo && <span>{ordem.dir === "asc" ? "↑" : "↓"}</span>}
-                    </button>
-                  ) : (
-                    col.label
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtradas.map((p) => {
-              const chave = p.pastaId === null ? "inbox" : String(p.pastaId);
-              const aberta = expandida === chave;
-              return (
-                <Fragment key={chave}>
-                  <tr
-                    onClick={() => setExpandida(aberta ? null : chave)}
-                    className={`border-t border-glass-border cursor-pointer transition-colors ${
-                      aberta ? "bg-surface-light" : "hover:bg-surface"
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: cor }}
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs font-bold text-text truncate">
+                      {String(f.chave ?? "").trim() || "Sem faturista"}
+                    </span>
+                    <span className="block text-[10px] font-bold text-text-dim uppercase tracking-widest mt-0.5">
+                      {f.quantidade.toLocaleString("pt-BR")} documentos
+                    </span>
+                  </span>
+                  <span className="text-right shrink-0">
+                    <span className="block text-xs font-mono font-bold text-text">
+                      {formatarMoeda(f.valor)}
+                    </span>
+                    <span className="block text-[10px] font-bold text-text-dim">
+                      {pct.toFixed(1)}%
+                    </span>
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-text-muted shrink-0 transition-transform ${
+                      estaAberto ? "rotate-180" : ""
                     }`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: p.cor || "var(--text-dim)" }}
-                        />
-                        <span className="text-xs font-bold text-text truncate max-w-[260px]" title={p.nome}>
-                          {p.nome}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium text-text-muted truncate max-w-[180px]">
-                      {p.faturistaNome || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-mono font-bold text-text">
-                      {p.quantidade.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs font-mono font-bold text-text">
-                      {formatarMoeda(p.valor)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {p.emissaoAntigas > 0 ? (
-                        <div className="flex flex-col items-end">
-                          <span className="inline-flex items-center gap-1 text-xs font-bold text-badge-warning-text">
-                            <AlertTriangle size={12} />
-                            {p.emissaoAntigas.toLocaleString("pt-BR")}
-                          </span>
-                          <span className="text-[10px] font-bold text-text-dim">
-                            {formatarMoeda(p.emissaoAntigasValor)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-text-dim">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <ChevronDown
-                        size={16}
-                        className={`text-text-muted transition-transform ${aberta ? "rotate-180" : ""}`}
-                      />
-                    </td>
-                  </tr>
-                  {aberta && (
-                    <tr className="border-t border-glass-border">
-                      <td colSpan={COLUNAS.length} className="p-0">
-                        <PastaDetalheLinha pastaId={p.pastaId === null ? "inbox" : p.pastaId} />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-
-            {filtradas.length === 0 && (
-              <tr>
-                <td colSpan={COLUNAS.length} className="px-4 py-10 text-center">
-                  <p className="text-xs font-bold text-text-muted">Nenhuma pasta encontrada.</p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {filtradas.length > 0 && (
-            <tfoot>
-              <tr className="border-t border-glass-border bg-surface">
-                <td className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-text-muted" colSpan={3}>
-                  Total ({filtradas.length} pastas)
-                </td>
-                <td className="px-4 py-3 text-right text-xs font-mono font-bold text-text">
-                  {formatarMoeda(totalValor)}
-                </td>
-                <td colSpan={2} />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
+                  />
+                </button>
+                {estaAberto && (
+                  <div className="border-t border-glass-border">
+                    <FaturistaDetalhe
+                      faturistaId={f.faturistaId}
+                      filtros={filtros}
+                    />
+                  </div>
+                )}
+              </Fragment>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Aba Geral — visões globais (mesmas dimensões do detalhe de pasta)
+// Conteúdo principal — acordeão por faturista (drill-down detalhado)
 // ---------------------------------------------------------------------------
 
-const PALETA = ["#0066ff", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16", "#e03048", "#64748b"];
-
-function GeralConteudo({ geral, pastasComDocs }: { geral: DashboardGeral; pastasComDocs: number }) {
-  const faturistaItens: ItemBarra[] = geral.porFaturista.map((g, idx) => ({
-    label: String(g.chave ?? "").trim() || "Sem faturista",
-    valor: g.valor,
-    quantidade: g.quantidade,
-    cor: PALETA[idx % PALETA.length],
-  }));
-
+function GeralConteudo({
+  geral,
+  filtros,
+}: {
+  geral: DashboardGeral;
+  filtros: DashboardFiltros;
+}) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Wallet} label="Valor total" valor={formatarMoeda(geral.valorTotal)} destaque />
-        <Kpi icon={FileText} label="Documentos" valor={geral.quantidade.toLocaleString("pt-BR")} />
-        <Kpi
-          icon={FolderOpen}
-          label="Pastas"
-          valor={geral.totalPastas.toLocaleString("pt-BR")}
-          sub={`${pastasComDocs} com documentos`}
-        />
-        <Kpi
-          icon={AlertTriangle}
-          label="Emissões antigas"
-          valor={geral.emissaoAntigas.toLocaleString("pt-BR")}
-          alerta
-        />
-      </div>
-
-      <div className="bg-card-bg border border-glass-border rounded-2xl p-6 shadow-card">
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Users size={16} className="text-primary shrink-0" strokeWidth={2.5} />
-            <h2 className="text-sm font-bold text-text truncate">Valor por faturista</h2>
-          </div>
-          <span className="text-[10px] font-bold text-text-dim uppercase tracking-widest shrink-0">
-            {geral.porFaturista.length} {geral.porFaturista.length === 1 ? "item" : "itens"}
-          </span>
-        </div>
-        <BarList items={faturistaItens} total={geral.valorTotal} vazio="Nenhum faturista com documentos." />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <DistribuicaoCard titulo="Status" grupos={geral.porStatus} fallback="Sem status" total={geral.valorTotal} />
-        <DistribuicaoCard
-          titulo="Tipo de documento"
-          grupos={geral.porTipoDocumento}
-          fallback="Não informado"
-          total={geral.valorTotal}
-        />
-        <DistribuicaoCard titulo="Agência" grupos={geral.porAgencia} fallback="Sem agência" total={geral.valorTotal} />
-        <DistribuicaoCard titulo="Tipo de CTe" grupos={geral.porTipoCte} fallback="Não informado" total={geral.valorTotal} />
-        <DistribuicaoCard
-          titulo="Top clientes (pagador)"
-          grupos={geral.topPagadores}
-          fallback="Não informado"
-          total={geral.valorTotal}
-        />
-      </div>
+      <FaturistasAcordeao faturistas={geral.porFaturista} filtros={filtros} />
     </div>
   );
 }
@@ -511,11 +487,23 @@ function GeralConteudo({ geral, pastasComDocs }: { geral: DashboardGeral; pastas
 // ---------------------------------------------------------------------------
 
 export function DashboardView() {
-  const { data, isLoading, isError } = useDashboard();
-  const [aba, setAba] = useState<"geral" | "pastas">("geral");
+  const [filtros, setFiltros] = useState<DashboardFiltros>({});
+
+  const { data, isLoading, isError } = useDashboard(filtros);
+  const { data: opcoes } = useDashboardOpcoes();
 
   const geral = data?.geral;
-  const pastas = data?.pastas ?? [];
+
+  const setFiltro = (campo: FiltroCampo, valor: string) => {
+    setFiltros((f) => {
+      const novo = { ...f };
+      if (valor) novo[campo] = valor;
+      else delete novo[campo];
+      return novo;
+    });
+  };
+
+  const limparFiltros = () => setFiltros({});
 
   return (
     <div className="flex-1 flex flex-col h-full bg-bg text-text overflow-y-auto custom-scrollbar p-6 md:p-8">
@@ -527,34 +515,14 @@ export function DashboardView() {
               Visão geral das pastas e documentos
             </p>
           </div>
-
-          <div className="flex bg-surface p-1 rounded-xl border border-glass-border h-11 items-center gap-1 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setAba("geral")}
-              className={`px-4 h-full flex items-center justify-center text-xs font-bold rounded-lg transition-all ${
-                aba === "geral"
-                  ? "bg-card-bg text-text shadow-sm border border-glass-border"
-                  : "text-text-muted hover:text-text border border-transparent"
-              }`}
-            >
-              <Wallet size={14} className="mr-1.5" />
-              Geral
-            </button>
-            <button
-              type="button"
-              onClick={() => setAba("pastas")}
-              className={`px-4 h-full flex items-center justify-center text-xs font-bold rounded-lg transition-all ${
-                aba === "pastas"
-                  ? "bg-card-bg text-text shadow-sm border border-glass-border"
-                  : "text-text-muted hover:text-text border border-transparent"
-              }`}
-            >
-              <FolderOpen size={14} className="mr-1.5" />
-              Pastas
-            </button>
-          </div>
         </div>
+
+        <FiltrosBar
+          filtros={filtros}
+          onChange={setFiltro}
+          onLimpar={limparFiltros}
+          opcoes={opcoes}
+        />
 
         {isError ? (
           <div className="bg-card-bg border border-glass-border rounded-2xl p-6 shadow-card">
@@ -568,13 +536,8 @@ export function DashboardView() {
               Carregando...
             </p>
           </div>
-        ) : aba === "geral" ? (
-          <GeralConteudo
-            geral={geral}
-            pastasComDocs={pastas.filter((p) => p.quantidade > 0).length}
-          />
         ) : (
-          <PastasLista pastas={pastas} />
+          <GeralConteudo geral={geral} filtros={filtros} />
         )}
       </div>
     </div>
