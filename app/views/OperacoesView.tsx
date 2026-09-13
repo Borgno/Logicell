@@ -20,11 +20,12 @@ import DataGrid from "react-data-grid";
 
 interface OperacoesViewProps {
   pastaId?: number | null;
+  pastaNome?: string;
   nomePasta: string;
   showImport?: boolean;
 }
 
-export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: OperacoesViewProps) {
+export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport = true }: OperacoesViewProps) {
   const { data: init } = useInit();
   const pastas = init?.pastas || [];
   const columnOrder = init?.columnOrder ?? null;
@@ -55,7 +56,7 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
   const [sortColumns, setSortColumns] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
 
-  const grid = useOperacoesGridData({ pastaId, columnFilters, sortColumns });
+  const grid = useOperacoesGridData({ pastaId, pastaNome, columnFilters, sortColumns });
   const { dados, setDados, meta, status, error: gridError, handleScroll, refresh } = grid;
 
   const [currentMetaTotal, setCurrentMetaTotal] = useState(0);
@@ -73,10 +74,14 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
     if (!location.state) {
       setColumnFilters({});
     }
-  }, [pastaId, location.pathname, location.state, setColumnFilters, resetSelection]);
+  }, [pastaId, pastaNome, location.pathname, location.state, setColumnFilters, resetSelection]);
 
+  // Envia pastaNome quando a pasta é identificada por nome (rota /pastas/:nome),
+  // para que mover/excluir "selecionar todas" fiquem restritos a ela.
   const getActiveFilters = () => {
-    const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams), pastaId };
+    const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams) };
+    if (pastaNome) activeFilters.pastaNome = pastaNome;
+    else activeFilters.pastaId = pastaId;
     for (const [key, filter] of Object.entries(columnFilters)) {
       if (isFilterEmpty(filter)) continue;
       activeFilters[`colFilter_${key}`] = `${filter.type}:${filter.value}`;

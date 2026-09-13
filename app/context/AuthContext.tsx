@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "~/lib/api";
-import { queryClient, queryKeys } from "~/lib/query";
+import { queryClient, queryKeys, fetchInit } from "~/lib/query";
 
 type AuthContextType = {
   user: any | null;
@@ -19,8 +19,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    api
-      .get<{ user: any }>("/auth/me")
+    // Boot com uma única request: /init já traz o usuário (sem /auth/me à parte).
+    // retry: false — deslogado, /init dá 401 e não adianta tentar de novo.
+    queryClient
+      .fetchQuery({ queryKey: queryKeys.init, queryFn: fetchInit, staleTime: 60_000, retry: false })
       .then((d) => {
         if (alive) setUser(d.user);
       })
@@ -45,9 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string, redirectTo = "/caixa-de-entrada") => {
       await api.post("/auth/login", { email, password });
-      const d = await api.get<{ user: any }>("/auth/me");
+      const d = await queryClient.fetchQuery({ queryKey: queryKeys.init, queryFn: fetchInit, staleTime: 60_000, retry: false });
       setUser(d.user);
-      queryClient.invalidateQueries({ queryKey: queryKeys.init });
       navigate(redirectTo, { replace: true });
     },
     [navigate]

@@ -5,7 +5,7 @@ import { useIsFetching } from "@tanstack/react-query";
 import { buscarNomeUsuario } from "~/utils/formatters";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
-import { prefetchOperacoes } from "~/hooks/useOperacoesGridData";
+import { prefetchOperacoes, cancelPrefetch } from "~/hooks/useOperacoesGridData";
 import { useUI } from "~/hooks/use-ui";
 import { COLOR_NAMES, PRESET_COLORS, SidebarFolderItem } from "./SidebarFolderItem";
 
@@ -108,7 +108,7 @@ export const Sidebar = React.memo(({
               )}
             </NavLink>
 
-            <NavLink to="/caixa-de-entrada" onMouseEnter={() => prefetchOperacoes(null)} title={emissaoAntigasPorPasta.inbox ? `${emissaoAntigasPorPasta.inbox} emissão(ões) antiga(s) na Caixa de Entrada` : undefined} className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
+            <NavLink to="/caixa-de-entrada" onMouseEnter={() => prefetchOperacoes({ pastaId: null })} onMouseLeave={cancelPrefetch} title={emissaoAntigasPorPasta.inbox ? `${emissaoAntigasPorPasta.inbox} emissão(ões) antiga(s) na Caixa de Entrada` : undefined} className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
               {({ isActive }) => (
                 <>
                   <div className="flex items-center gap-2.5">

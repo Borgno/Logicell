@@ -43,46 +43,100 @@ export interface GridMeta {
 
 const EMPTY_META: GridMeta = { total: 0, totalVl: 0, page: 0, limit: 200, totalPages: 0 };
 
+// Chave de filtros/ordenação: mesma função usada pelo hook (com o estado
+// atual) e pelo prefetch (sem filtros), para as duas baterem no mesmo cache —
+// era aqui que o bug antigo estava (prefetch usava "{}" na mão).
+function computeFiltersKey(columnFilters: Record<string, any>, sortColumns: any[]): string {
+  return JSON.stringify({ columnFilters, sortColumns });
+}
+
+export const EMPTY_FILTERS_KEY = computeFiltersKey({}, []);
+
+// Identifica a pasta pedida: pastaNome (rota de pasta, único no banco) tem
+// prioridade sobre pastaId; inbox = null/sem nome.
+export interface PastaIdentificador {
+  pastaId: number | null;
+  pastaNome?: string;
+}
+
+function pastaChave(pasta: PastaIdentificador): string {
+  return pasta.pastaNome ?? String(pasta.pastaId ?? "inbox");
+}
+
+function aplicarPastaNosParams(p: URLSearchParams, pasta: PastaIdentificador) {
+  if (pasta.pastaNome) p.set("pastaNome", pasta.pastaNome);
+  else if (pasta.pastaId != null) p.set("pastaId", String(pasta.pastaId));
+}
+
 // Cache cliente da primeira página por pasta+filtros. O gargalo é a latência de
 // rede (VPS/DB na Europa), então voltar a uma pasta já visitada deve ser
 // instantâneo — os dados antigos aparecem na hora e revalidam em background.
 const GRID_CACHE_TTL = 60_000;
 const gridCache = new Map<string, { dados: any[]; meta: GridMeta; ts: number }>();
 
-function cacheKeyOf(pastaId: number | null, filtersKey: string) {
-  return `${pastaId ?? "inbox"}|${filtersKey}`;
+function cacheKeyOf(pasta: PastaIdentificador, filtersKey: string) {
+  return `${pastaChave(pasta)}|${filtersKey}`;
 }
 
-function buildPage1Params(pastaId: number | null, limit = "200") {
+function buildPage1Params(pasta: PastaIdentificador, limit = "200") {
   const p = new URLSearchParams();
-  if (pastaId != null) p.set("pastaId", String(pastaId));
+  aplicarPastaNosParams(p, pasta);
   p.set("page", "1");
   p.set("limit", limit);
   return p.toString();
 }
 
-//Prefetch leve usado no hover da sidebar para pré-carregar a primeira página
-//da pasta antes mesmo do usuário clicar.
-export async function prefetchOperacoes(pastaId: number | null) {
-  const key = cacheKeyOf(pastaId, "{}");
+// Agendamento do prefetch (hover na sidebar): só dispara 150ms depois do
+// mouse parar numa pasta; cancelPrefetch() (onMouseLeave) aborta o timer e a
+// request em voo, evitando rajada de queries ao passar rápido pela lista.
+let prefetchTimeout: ReturnType<typeof setTimeout> | null = null;
+let prefetchController: AbortController | null = null;
+
+export function prefetchOperacoes(pasta: PastaIdentificador) {
+  cancelPrefetch();
+  prefetchTimeout = setTimeout(() => {
+    prefetchTimeout = null;
+    executarPrefetch(pasta);
+  }, 150);
+}
+
+export function cancelPrefetch() {
+  if (prefetchTimeout) {
+    clearTimeout(prefetchTimeout);
+    prefetchTimeout = null;
+  }
+  if (prefetchController) {
+    prefetchController.abort();
+    prefetchController = null;
+  }
+}
+
+async function executarPrefetch(pasta: PastaIdentificador) {
+  const key = cacheKeyOf(pasta, EMPTY_FILTERS_KEY);
   const cached = gridCache.get(key);
   if (cached && Date.now() - cached.ts < GRID_CACHE_TTL) return;
 
+  const controller = new AbortController();
+  prefetchController = controller;
   try {
-    const res = await api.get<{ data: any[]; meta: GridMeta }>(`/operacoes?${buildPage1Params(pastaId)}`);
+    const res = await api.get<{ data: any[]; meta: GridMeta }>(`/operacoes?${buildPage1Params(pasta)}`, controller.signal);
     gridCache.set(key, { dados: res.data, meta: res.meta, ts: Date.now() });
   } catch {
-    // prefetch falhou — a navegação normal resolve
+    // prefetch falhou ou foi cancelado — a navegação normal resolve
+  } finally {
+    if (prefetchController === controller) prefetchController = null;
   }
 }
 
 export function useOperacoesGridData({
   pastaId,
+  pastaNome,
   columnFilters,
   sortColumns,
   enabled = true,
 }: {
   pastaId: number | null;
+  pastaNome?: string;
   columnFilters: Record<string, any>;
   sortColumns: any[];
   enabled?: boolean;
@@ -95,16 +149,19 @@ export function useOperacoesGridData({
   const [searchParams] = useSearchParams();
   const seqRef = useRef(0);
   const loadingMoreRef = useRef(false);
+  // Última combinação pasta+filtros processada — usada para só aplicar o
+  // debounce de digitação quando é a MESMA pasta e só os filtros mudaram.
+  const lastRunRef = useRef<{ pasta: string; filters: string } | null>(null);
 
   const filtersKey = useMemo(
-    () => JSON.stringify({ columnFilters, sortColumns }),
+    () => computeFiltersKey(columnFilters, sortColumns),
     [columnFilters, sortColumns]
   );
 
   const buildParams = useCallback(
     (page: number) => {
       const p = new URLSearchParams();
-      if (pastaId != null) p.set("pastaId", String(pastaId));
+      aplicarPastaNosParams(p, { pastaId, pastaNome });
       p.set("page", String(page));
       p.set("limit", searchParams.get("limit") || "200");
       const sort = sortColumns?.[0];
@@ -118,17 +175,30 @@ export function useOperacoesGridData({
       }
       return p.toString();
     },
-    [pastaId, sortColumns, columnFilters, searchParams]
+    [pastaId, pastaNome, sortColumns, columnFilters, searchParams]
   );
 
   // Carrega a primeira página. Se já existe cache fresco, mostra na hora e
-  // revalida em background; senão busca com um debounce curto (200ms).
+  // revalida em background; senão busca — com debounce curto (200ms) só
+  // quando é digitação de filtro na mesma pasta; troca de pasta/montagem
+  // dispara na hora.
   useEffect(() => {
     if (!enabled) return;
     const seq = ++seqRef.current;
-    const key = cacheKeyOf(pastaId, filtersKey);
+    const pasta = { pastaId, pastaNome };
+    const chave = pastaChave(pasta);
+    // Só é "digitação" quando a pasta é a mesma, os filtros mudaram e ainda há
+    // filtro ativo — limpar filtros (ex.: ao trocar de pasta) dispara na hora.
+    const isFilterChange =
+      lastRunRef.current?.pasta === chave &&
+      lastRunRef.current?.filters !== filtersKey &&
+      filtersKey !== EMPTY_FILTERS_KEY;
+    lastRunRef.current = { pasta: chave, filters: filtersKey };
+
+    const key = cacheKeyOf(pasta, filtersKey);
     const cached = gridCache.get(key);
     const url = `/operacoes?${buildParams(1)}`;
+    const controller = new AbortController();
 
     const storeResult = (raw: { data: any[]; meta: GridMeta }) => {
       gridCache.set(key, { dados: raw.data, meta: raw.meta, ts: Date.now() });
@@ -136,14 +206,14 @@ export function useOperacoesGridData({
 
     const fetchSilently = async () => {
       try {
-        const res = await api.get<{ data: any[]; meta: GridMeta }>(url);
+        const res = await api.get<{ data: any[]; meta: GridMeta }>(url, controller.signal);
         if (seq !== seqRef.current) return;
         storeResult(res);
         setDados(processarDatas(res.data));
         setMeta(res.meta);
         setStatus("idle");
       } catch {
-        // mantém os dados em cache mesmo se o refresh falhar
+        // mantém os dados em cache mesmo se o refresh falhar (inclui abort)
       }
     };
 
@@ -151,13 +221,14 @@ export function useOperacoesGridData({
       setStatus("loading");
       setError(null);
       try {
-        const res = await api.get<{ data: any[]; meta: GridMeta }>(url);
+        const res = await api.get<{ data: any[]; meta: GridMeta }>(url, controller.signal);
         if (seq !== seqRef.current) return;
         storeResult(res);
         setDados(processarDatas(res.data));
         setMeta(res.meta);
         setStatus("idle");
       } catch (err: any) {
+        if (err?.name === "AbortError") return; // cancelado pelo cleanup do efeito — não é erro
         if (seq !== seqRef.current) return;
         setStatus("error");
         setError(err?.message || "Erro ao carregar operações.");
@@ -170,13 +241,17 @@ export function useOperacoesGridData({
       setStatus("idle");
       setError(null);
       const t = setTimeout(() => fetchSilently(), 250);
-      return () => clearTimeout(t);
+      return () => { clearTimeout(t); controller.abort(); };
     }
 
     setStatus("loading");
-    const t = setTimeout(() => fetchFresh(), 200);
-    return () => clearTimeout(t);
-  }, [pastaId, filtersKey, enabled, buildParams]);
+    if (isFilterChange) {
+      const t = setTimeout(() => fetchFresh(), 200);
+      return () => { clearTimeout(t); controller.abort(); };
+    }
+    fetchFresh();
+    return () => controller.abort();
+  }, [pastaId, pastaNome, filtersKey, enabled, buildParams]);
 
   // Recarrega a primeira página (após mutações), ignorando o cache.
   const refresh = useCallback(async () => {
@@ -185,7 +260,7 @@ export function useOperacoesGridData({
     try {
       const res = await api.get<{ data: any[]; meta: GridMeta }>(`/operacoes?${buildParams(1)}`);
       if (seq !== seqRef.current) return;
-      gridCache.set(cacheKeyOf(pastaId, filtersKey), { dados: res.data, meta: res.meta, ts: Date.now() });
+      gridCache.set(cacheKeyOf({ pastaId, pastaNome }, filtersKey), { dados: res.data, meta: res.meta, ts: Date.now() });
       setDados(processarDatas(res.data));
       setMeta(res.meta);
       setStatus("idle");
@@ -194,7 +269,7 @@ export function useOperacoesGridData({
       setStatus("error");
       setError(err?.message || "Erro ao recarregar operações.");
     }
-  }, [buildParams, pastaId, filtersKey]);
+  }, [buildParams, pastaId, pastaNome, filtersKey]);
 
   // Scroll infinito: carrega a próxima página e faz append sem duplicar
   const handleScroll = useCallback(

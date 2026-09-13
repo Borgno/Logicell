@@ -73,6 +73,9 @@ export class OperacaoService {
     const offset = (p - 1) * l;
 
     const orderClause = this.montarOrderBy(filtros);
+    // Resolve pastaNome -> pastaId uma vez (cache) para usar tanto no WHERE
+    // quanto nas placas duplicadas, que hoje recebem o pastaId cru.
+    const pid = await OperacaoQueryBuilder.resolverPastaId(pastaId, filtros);
     const whereClause = await OperacaoQueryBuilder.construirWhere(pastaId, filtros);
     const cacheKey = JSON.stringify({ sql: whereClause.sql, params: whereClause.params });
     const cachedEntry = this.countCache.get(cacheKey);
@@ -99,7 +102,7 @@ export class OperacaoService {
       `, ...whereClause.params);
 
     const [placasDuplicadas, regras] = await Promise.all([
-      this.placasDuplicadasDaPasta(pastaId),
+      this.placasDuplicadasDaPasta(pid),
       PrazoService.regras(),
     ]);
     const agora = Date.now();

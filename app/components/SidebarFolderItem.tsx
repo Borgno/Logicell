@@ -4,7 +4,7 @@ import { NavLink } from "react-router";
 import { useUI } from "~/hooks/use-ui";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
-import { prefetchOperacoes } from "~/hooks/useOperacoesGridData";
+import { prefetchOperacoes, cancelPrefetch } from "~/hooks/useOperacoesGridData";
 
 export const PRESET_COLORS = ["#64748b", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
@@ -149,7 +149,8 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
     <div className={`relative group/item ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
       <NavLink
         to={`/pastas/${encodeURIComponent(folder.nome)}`}
-        onMouseEnter={() => prefetchOperacoes(folder.id)}
+        onMouseEnter={() => prefetchOperacoes({ pastaId: null, pastaNome: folder.nome })}
+        onMouseLeave={cancelPrefetch}
         className={({ isActive }) =>
           `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
             isActive

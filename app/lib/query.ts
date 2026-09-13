@@ -30,13 +30,17 @@ export interface InitData {
   emissaoAntigasPorPasta: Record<string, number>;
 }
 
+// Extraída para ser reaproveitada pelo AuthContext (boot com uma única
+// request: sem /auth/me separado, ver AuthContext.tsx).
+export const fetchInit = () => api.get<InitData>("/init");
+
 // Dados de boot (sidebar + ordem de colunas). Mantidos frescos com polling
 // leve apenas com a aba em foco — é o que dá o "tempo real" dos contadores
 // da sidebar sem custo quando o usuário não está olhando.
 export function useInit() {
   return useQuery({
     queryKey: queryKeys.init,
-    queryFn: () => api.get<InitData>("/init"),
+    queryFn: fetchInit,
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     refetchInterval: 120_000,
