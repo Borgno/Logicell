@@ -1,3 +1,5 @@
+import { iniciar, terminar } from "~/lib/loading";
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -19,30 +21,35 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const headers: Record<string, string> = {};
   if (body !== undefined && !formData) headers["Content-Type"] = "application/json";
 
-  const res = await fetch(`/api${path}`, {
-    method,
-    credentials: "include",
-    signal,
-    headers,
-    body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
-  });
-
-  let data: any = null;
+  iniciar();
   try {
-    data = await res.json();
-  } catch {
-    data = null;
-  }
+    const res = await fetch(`/api${path}`, {
+      method,
+      credentials: "include",
+      signal,
+      headers,
+      body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
+    });
 
-  if (!res.ok) {
-    if (res.status === 401) {
-      window.dispatchEvent(new Event("auth:unauthorized"));
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
     }
-    const message = data?.error || data?.message || `Erro ${res.status}`;
-    throw new ApiError(message, res.status);
-  }
 
-  return data as T;
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.dispatchEvent(new Event("auth:unauthorized"));
+      }
+      const message = data?.error || data?.message || `Erro ${res.status}`;
+      throw new ApiError(message, res.status);
+    }
+
+    return data as T;
+  } finally {
+    terminar();
+  }
 }
 
 export const api = {

@@ -1,7 +1,6 @@
-import { CheckCircle2, Inbox, LayoutDashboard, Moon, Plus, Search, ShieldCheck, Sun, Truck, User as UserIcon, X, Zap, Loader2, Menu } from "lucide-react";
+import { CheckCircle2, Inbox, LayoutDashboard, Moon, Plus, Search, ShieldCheck, Sun, Truck, User as UserIcon, X, Zap, Menu } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { NavLink } from "react-router";
-import { useIsFetching } from "@tanstack/react-query";
 import { buscarNomeUsuario } from "~/utils/formatters";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
@@ -31,7 +30,6 @@ export const Sidebar = React.memo(({
   setIsCollapsed
 }: SidebarProps) => {
 
-  const isFetching = useIsFetching() > 0;
   const { alert: showAlert } = useUI();
 
   const [newFolderName, setNewFolderName] = useState("");
@@ -80,11 +78,7 @@ export const Sidebar = React.memo(({
       <div className="h-[64px] flex items-center px-4 border-b border-glass-border shrink-0">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <div className="p-1.5 bg-primary rounded-lg text-white shrink-0 shadow-primary-glow">
-            {isFetching ? (
-              <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
-            ) : (
-              <Truck size={18} strokeWidth={2.5} />
-            )}
+            <Truck size={18} strokeWidth={2.5} />
           </div>
           {!isCollapsed && <h1 className="text-lg font-bold uppercase tracking-tighter text-text">Logicell</h1>}
         </div>

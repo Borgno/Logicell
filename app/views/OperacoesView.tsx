@@ -11,6 +11,7 @@ import { useUI } from "~/hooks/use-ui";
 import { exportarExcel } from "~/utils/export";
 import { ColumnFilterMenu } from "~/components/ColumnFilterMenu";
 import { ImportModal } from "~/components/ImportModal";
+import { Skeleton } from "~/components/Skeleton";
 import { OperacoesToolbarView } from "./OperacoesToolbarView";
 import { getOperacoesColumns } from "./OperacoesColumns";
 import { api, errorMessage } from "~/lib/api";
@@ -23,6 +24,26 @@ interface OperacoesViewProps {
   pastaNome?: string;
   nomePasta: string;
   showImport?: boolean;
+}
+
+// Skeleton da grid: overlay sobre o container (que já é `relative`), visível
+// só na primeira carga da pasta (ainda sem dados) — trocar filtro com dados
+// já em tela não mostra isto, só a faixa do topo.
+const LARGURAS_SKELETON = ["w-10", "w-16", "w-24", "w-14", "w-20", "w-28", "w-12", "w-32"];
+
+function GridSkeleton() {
+  return (
+    <div className="absolute inset-0 pointer-events-none bg-bg/80 overflow-hidden">
+      <div className="h-[42px] border-b border-glass-border" />
+      {Array.from({ length: 15 }).map((_, i) => (
+        <div key={i} className="h-9 flex items-center gap-3 px-3 border-b border-glass-border/60">
+          {Array.from({ length: 6 + (i % 3) }).map((_, j) => (
+            <Skeleton key={j} className={`h-4 ${LARGURAS_SKELETON[(i + j) % LARGURAS_SKELETON.length]}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport = true }: OperacoesViewProps) {
@@ -194,7 +215,7 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
         />
 
         <div
-          className="flex-1 w-full min-h-0 min-w-0 text-xs"
+          className="flex-1 w-full min-h-0 min-w-0 text-xs relative"
           style={{ "--rdg-font-family": "inherit", "--rdg-font-size": "12px" } as any}
           onScrollCapture={handleScroll}
         >
@@ -271,6 +292,8 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
             rowHeight={36}
             headerRowHeight={42}
           />
+
+          {status === "loading" && dados.length === 0 && <GridSkeleton />}
 
           <ColumnFilterMenu
             openFilterCol={openFilterCol}

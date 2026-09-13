@@ -3,8 +3,21 @@ import { Outlet } from "react-router";
 import { useAuth } from "~/context/AuthContext";
 import { UIContext } from "~/hooks/use-ui";
 import { useInit } from "~/lib/query";
+import { iniciar, terminar } from "~/lib/loading";
 import { Sidebar } from "~/components/Sidebar";
 import { GlobalModal } from "~/components/GlobalModal";
+import { TopProgress } from "~/components/TopProgress";
+
+// Fallback do Suspense interno: enquanto o chunk de uma página lazy baixa,
+// acende a faixa do topo (mesmo contador de lib/loading.ts) sem desmontar a
+// sidebar nem trocar o layout por uma tela de carregamento.
+function RotaCarregando() {
+  useEffect(() => {
+    iniciar();
+    return () => terminar();
+  }, []);
+  return null;
+}
 
 export function AppLayout() {
   const { user } = useAuth();
@@ -59,6 +72,7 @@ export function AppLayout() {
 
   return (
     <UIContext.Provider value={uiContextValue}>
+      <TopProgress />
       <div className="flex h-screen w-screen overflow-hidden transition-colors duration-500">
         <Sidebar
           pastas={pastas}
@@ -73,7 +87,7 @@ export function AppLayout() {
         <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden h-full">
           {/* Boundary interno: enquanto o chunk de uma página lazy baixa, a
               sidebar continua no lugar (o Suspense de AppRoutes só cobre o login) */}
-          <Suspense fallback={null}>
+          <Suspense fallback={<RotaCarregando />}>
             <Outlet />
           </Suspense>
         </main>

@@ -11,6 +11,7 @@ import {
   type DashboardOpcoes,
 } from "~/lib/query";
 import { formatarData, formatarMoeda } from "~/utils/formatters";
+import { Skeleton } from "~/components/Skeleton";
 
 type ItemBarra = { label: string; valor: number; quantidade: number; cor?: string | null };
 type FiltroCampo = keyof DashboardFiltros;
@@ -68,6 +69,41 @@ function BarList({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Skeleton do acordeão da dashboard, mostrado só no primeiro carregamento
+// (com keepPreviousData, os polls seguintes mantêm o conteúdo anterior em tela).
+function DashboardSkeleton() {
+  return (
+    <div className="bg-card-bg border border-glass-border rounded-2xl shadow-card overflow-hidden">
+      <div className="p-5 border-b border-glass-border">
+        <Skeleton className="h-10 w-48" />
+      </div>
+      <div className="p-5 flex flex-col gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-14" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Skeleton do detalhe do faturista: 5 MiniStat + 3 cards de distribuição.
+function FaturistaDetalheSkeleton() {
+  return (
+    <div className="px-5 py-5 bg-surface/40">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-16" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-64" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -268,13 +304,7 @@ function FaturistaDetalhe({
   const { data, isLoading, isError, isPlaceholderData } = useDashboardFaturista(faturistaId, filtros, true);
 
   if (isLoading) {
-    return (
-      <div className="px-5 py-8 text-center">
-        <p className="text-xs font-bold text-text-muted uppercase tracking-widest animate-pulse">
-          Carregando faturista...
-        </p>
-      </div>
-    );
+    return <FaturistaDetalheSkeleton />;
   }
 
   if (isError || !data) {
@@ -534,11 +564,7 @@ export function DashboardView() {
             </p>
           </div>
         ) : isLoading || !geral ? (
-          <div className="bg-card-bg border border-glass-border rounded-2xl p-6 shadow-card">
-            <p className="text-xs font-bold text-text-muted uppercase tracking-widest text-center py-10 animate-pulse">
-              Carregando...
-            </p>
-          </div>
+          <DashboardSkeleton />
         ) : (
           // keepPreviousData mantém os números do filtro anterior em tela; a
           // opacidade cai um pouco só enquanto eles são placeholder (troca de

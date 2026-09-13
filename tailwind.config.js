@@ -66,10 +66,16 @@ export default {
           '0%': { opacity: 0 },
           '100%': { opacity: 1 },
         },
+        loading: {
+          '0%': { width: '0%', marginLeft: '0%' },
+          '50%': { width: '100%', marginLeft: '0%' },
+          '100%': { width: '0%', marginLeft: '100%' },
+        },
       },
       animation: {
         modalIn: 'modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
         fadeIn: 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        loading: 'loading 1.4s ease-in-out infinite',
       },
     },
   },

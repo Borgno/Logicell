@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUI } from "~/hooks/use-ui";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, usePrazos } from "~/lib/query";
+import { Skeleton } from "~/components/Skeleton";
 
 export function PrazosView() {
   const { data, isFetching } = usePrazos();
@@ -282,8 +283,10 @@ export function PrazosView() {
           )}
 
           {isFetching && clientes.length === 0 ? (
-            <div className="flex items-center justify-center py-10 text-text-muted">
-              <Loader2 size={20} className="animate-spin" />
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
             </div>
           ) : clientesFiltrados.length === 0 ? (
             <div className="py-10 flex flex-col items-center justify-center text-center border border-dashed border-glass-border rounded-xl">

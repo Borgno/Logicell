@@ -23,7 +23,9 @@ function SplashScreen() {
             <circle cx="17" cy="18" r="2" />
           </svg>
         </div>
-        <p className="text-xs font-bold text-text-muted uppercase tracking-widest animate-pulse">Carregando...</p>
+        <div className="w-24 h-1 rounded-full bg-surface-light overflow-hidden">
+          <div className="h-full bg-primary rounded-full animate-loading" />
+        </div>
       </div>
     </div>
   );
