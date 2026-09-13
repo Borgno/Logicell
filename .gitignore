@@ -41,3 +41,6 @@ yarn-error.log*
 *.swp
 *.swo
 localhost.har
+
+# Specs e rascunhos locais
+.tmp/

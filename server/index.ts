@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import compression from "compression";
 import path from "node:path";
 import fs from "node:fs";
 import { requireUser, requireAdmin, type AuthedResponse } from "./middlewares/auth";
@@ -19,6 +20,23 @@ const clientDist = path.resolve(process.cwd(), "dist/client");
 
 const app = express();
 app.disable("x-powered-by");
+
+//LOG_HTTP=1 registra método, caminho, status e duração de cada request — sem
+//a env, nenhum middleware extra é adicionado.
+if (process.env.LOG_HTTP === "1") {
+  app.use((req, res, next) => {
+    const inicio = Date.now();
+    res.on("finish", () => {
+      console.log(`${req.method} ${req.path} ${res.statusCode} ${Date.now() - inicio}ms`);
+    });
+    next();
+  });
+}
+
+//Gzip/brotli nas respostas — a VPS fica na Europa, então cada KB a menos
+//conta na viagem até o navegador (BR).
+app.use(compression());
+
 app.use(express.json({ limit: "2mb" }));
 
 const api = express.Router();
@@ -49,7 +67,12 @@ if (process.env.NODE_ENV === "production" && fs.existsSync(clientDist)) {
   );
   app.use((req, res, next) => {
     if (req.method === "GET" && !req.path.startsWith("/api")) {
-      res.sendFile(path.join(clientDist, "index.html"));
+      // index.html não tem hash no nome: precisa revalidar a cada load para
+      // pegar o novo deploy (os assets com hash é que ficam "immutable").
+      // { root } em vez de path.join: sendFile aplica o check de dotfile no
+      // path absoluto inteiro, e falha se algum diretório pai começar com "."
+      res.setHeader("Cache-Control", "no-cache");
+      res.sendFile("index.html", { root: clientDist });
       return;
     }
     next();
