@@ -1,7 +1,11 @@
 //Utilitários de formatação de dados para a UI brasileira.
+//Instância única: criar um Intl.NumberFormat por chamada é caro e a grid/dashboard
+//formatam muitos valores por render.
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export const formatarMoeda = (val: any) => {
   if (val === null || val === undefined) return "-";
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val));
+  return BRL.format(Number(val));
 };
 
 export const formatarData = (val: any) => {

@@ -256,11 +256,11 @@ function parseDataUTC(valor: any): Date | null {
 //faturista. Otimizado para a latência do banco: poucas idas ao banco + cache em
 //memória (o cache só é usado quando não há filtros ativos).
 export class DashboardService {
-  // O resumo inteiro é cacheado no servidor: o client já faz polling de 30s,
-  // então o custo alto (rede + Supabase) acontece no máximo 1x por 30s.
+  // O resumo inteiro é cacheado no servidor: o client faz polling de 30s, e o
+  // TTL maior que o intervalo garante que o 2º poll seja cache hit.
   private static resumoCache: DashboardResumo | null = null;
   private static resumoCacheTime = 0;
-  private static readonly RESUMO_TTL = 1000 * 30;
+  private static readonly RESUMO_TTL = 1000 * 60;
 
   private static opcoesCache: DashboardOpcoes | null = null;
   private static opcoesCacheTime = 0;

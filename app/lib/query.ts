@@ -1,4 +1,4 @@
-import { QueryClient, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 
 export const queryClient = new QueryClient({
@@ -199,6 +199,8 @@ export function useDashboard(filtros: DashboardFiltros = {}) {
     refetchOnWindowFocus: true,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
+    // Mantém os números anteriores na tela ao trocar de filtro, até a resposta chegar.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -227,6 +229,8 @@ export function useDashboardFaturista(
       api.get<DashboardFaturistaDetalhe>(`/dashboard/faturistas/${encodeURIComponent(chave)}${qs}`),
     enabled,
     staleTime: 60_000,
+    // Mantém os números anteriores na tela ao trocar de filtro, até a resposta chegar.
+    placeholderData: keepPreviousData,
   });
 }
 

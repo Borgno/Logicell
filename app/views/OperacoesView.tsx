@@ -260,14 +260,12 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
                 .catch((err) => showAlert({ title: "Erro ao salvar", message: errorMessage(err), variant: "error" }));
             }}
             onRowsChange={(newRows: any[], { indexes, column }: any) => {
+              // handleLocalUpdate já aplica o valor em `dados`; o setDados que
+              // varria todas as linhas com .map + .find era redundante (e quadrático).
               if (indexes.length > 0 && column) {
                 const row = newRows[indexes[0]];
                 handleLocalUpdate(row.id, column.key, row[column.key]);
               }
-              setDados((prev: any[]) => prev.map((d: any) => {
-                const updatedRow = newRows.find(nr => nr.id === d.id);
-                return updatedRow ? updatedRow : d;
-              }));
             }}
             className="h-full w-full rdg-light dark:rdg-dark rounded-none border-0"
             rowHeight={36}

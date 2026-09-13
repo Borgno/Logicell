@@ -265,7 +265,7 @@ function FaturistaDetalhe({
   faturistaId: string | null;
   filtros: DashboardFiltros;
 }) {
-  const { data, isLoading, isError } = useDashboardFaturista(faturistaId, filtros, true);
+  const { data, isLoading, isError, isPlaceholderData } = useDashboardFaturista(faturistaId, filtros, true);
 
   if (isLoading) {
     return (
@@ -286,7 +286,10 @@ function FaturistaDetalhe({
   }
 
   return (
-    <div className="px-5 py-5 bg-surface/40">
+    // Ao trocar de filtro, os números anteriores ficam em tela (keepPreviousData)
+    // com opacidade menor até a resposta chegar. isPlaceholderData (e não
+    // isFetching) para o polling em segundo plano não escurecer a tela.
+    <div className={`px-5 py-5 bg-surface/40 transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}>
       <p className="text-[10px] font-bold text-text-dim uppercase tracking-widest mb-4">
         Período: {formatarData(data.primeiraEmissao)} → {formatarData(data.ultimaEmissao)}
       </p>
@@ -489,7 +492,7 @@ function GeralConteudo({
 export function DashboardView() {
   const [filtros, setFiltros] = useState<DashboardFiltros>({});
 
-  const { data, isLoading, isError } = useDashboard(filtros);
+  const { data, isLoading, isError, isPlaceholderData } = useDashboard(filtros);
   const { data: opcoes } = useDashboardOpcoes();
 
   const geral = data?.geral;
@@ -537,7 +540,12 @@ export function DashboardView() {
             </p>
           </div>
         ) : (
-          <GeralConteudo geral={geral} filtros={filtros} />
+          // keepPreviousData mantém os números do filtro anterior em tela; a
+          // opacidade cai um pouco só enquanto eles são placeholder (troca de
+          // filtro), não no polling em segundo plano.
+          <div className={`transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}>
+            <GeralConteudo geral={geral} filtros={filtros} />
+          </div>
         )}
       </div>
     </div>
