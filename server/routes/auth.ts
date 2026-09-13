@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { createSupabaseServerClient } from "../services/supabase.server";
+import { createSupabaseAuthClient } from "../services/supabase.server";
 import { sessionStorage } from "../services/session.server";
 import { resolveAuth } from "../services/auth.server";
 import { getCookieHeader } from "../middlewares/auth";
-import { applySupabaseHeaders } from "../lib/http";
 
 export const authRouter = Router();
+
+const SESSAO_DURACAO_SEGUNDOS = 60 * 60 * 24 * 30; // 30 dias
 
 authRouter.post("/login", async (req, res, next) => {
   try {
@@ -17,49 +18,38 @@ authRouter.post("/login", async (req, res, next) => {
       return;
     }
 
-    const cookieHeader = getCookieHeader(req);
-    const { supabase, response } = await createSupabaseServerClient(cookieHeader);
-
+    const supabase = createSupabaseAuthClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      res.status(401).json({ error: error.message });
+    if (error || !data.user) {
+      res.status(401).json({ error: error?.message || "Não autenticado" });
       return;
     }
 
-    const session = sessionStorage.getSession(cookieHeader);
-    session.access_token = data.session?.access_token;
-    session.refresh_token = data.session?.refresh_token;
-
-    applySupabaseHeaders(res, response.headers);
-    res.append("Set-Cookie", sessionStorage.commitSession(session));
+    // Sessão própria de 30 dias: só o que cabe no cookie, sem tokens do
+    // Supabase e sem renovação remota depois disso (ver session.server.ts).
+    res.append("Set-Cookie", sessionStorage.commitSession({
+      sub: data.user.id,
+      email: data.user.email || "",
+      role: data.user.app_metadata?.role === "admin" ? "admin" : "usuario",
+      nome: data.user.user_metadata?.nome || "",
+      exp: Math.floor(Date.now() / 1000) + SESSAO_DURACAO_SEGUNDOS,
+    }));
     res.json({ success: true });
   } catch (err) {
     next(err);
   }
 });
 
-authRouter.post("/logout", async (req, res, next) => {
-  try {
-    const cookieHeader = getCookieHeader(req);
-    const { supabase, response } = await createSupabaseServerClient(cookieHeader, {
-      skipSessionSync: true,
-    });
-    await supabase.auth.signOut().catch(() => null);
-
-    applySupabaseHeaders(res, response.headers);
-    res.append("Set-Cookie", sessionStorage.destroySession());
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
+authRouter.post("/logout", (_req, res) => {
+  res.append("Set-Cookie", sessionStorage.destroySession());
+  res.json({ success: true });
 });
 
 //Retorna o usuário autenticado ou null (200) — o cliente decide o redirect.
-authRouter.get("/me", async (req, res, next) => {
+authRouter.get("/me", (req, res, next) => {
   try {
-    const { user, headers } = await resolveAuth(getCookieHeader(req));
-    applySupabaseHeaders(res, headers);
+    const user = resolveAuth(getCookieHeader(req));
     res.json({ user });
   } catch (err) {
     next(err);

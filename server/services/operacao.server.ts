@@ -84,8 +84,11 @@ export class OperacaoService {
     // Uma única ida ao banco: COUNT e SUM vêm como colunas de janela (OVER()),
     // eliminando a segunda query (COUNT+SUM) que antes dobrava o round-trip
     // de rede — o gargalo real aqui é latência (VPS/DB na Europa), não o SQL.
-    const data = await prisma.$queryRawUnsafe<any[]>(`
-        SELECT 
+    // As duas outras queries (placas duplicadas e regras de prazo) não dependem
+    // do resultado da principal: disparam todas juntas no mesmo Promise.all.
+    const [data, placasDuplicadas, regras] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
           o.id, o.nm_agencia, o.dt_emissao_, o.cd_pessoa_pagador, o.nm_pessoa_pagador,
           o.nr_cpf_cnpj_raiz, o.nr_cpf_cnpj_pagador, o.nr_ctrc, o.status, o.comentarios,
           o.id_tipo_documento, o.nm_pessoa_remetente, o.nm_cidade_origem, o.ds_sigla_origem,
@@ -99,9 +102,7 @@ export class OperacaoService {
         ${whereClause.sql}
         ${orderClause}
         LIMIT ${l} OFFSET ${offset}
-      `, ...whereClause.params);
-
-    const [placasDuplicadas, regras] = await Promise.all([
+      `, ...whereClause.params),
       this.placasDuplicadasDaPasta(pid),
       PrazoService.regras(),
     ]);
@@ -302,24 +303,23 @@ export class OperacaoService {
     } else if (campo.startsWith("vl_")) {
       valorLimpo = Number(valorNovo.replace(",", "."));
     }
-    
-    const dataUpdate: any = { [campo]: valorLimpo };
-    if (campo === "status") {
-      const operacaoAtual = await prisma.operacao.findUnique({
-        where: { id },
-        select: { status: true }
-      });
-      if (operacaoAtual?.status !== valorLimpo) {
-        dataUpdate.data_status = new Date();
-      }
-    }
-    
-    const operacaoAtualizada = await prisma.operacao.update({ 
-      where: { id }, 
-      data: dataUpdate 
-    });
 
-    return operacaoAtualizada;
+    if (campo === "status") {
+      // Uma única ida ao banco: o CASE só grava data_status quando o status
+      // muda de fato (IS DISTINCT FROM cobre o caso de status atual nulo) —
+      // antes eram 2 idas (findUnique para comparar + update).
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Operacao"
+         SET status = $1,
+             data_status = CASE WHEN status IS DISTINCT FROM $1 THEN now() ELSE data_status END
+         WHERE id = $2`,
+        valorLimpo,
+        id
+      );
+      return;
+    }
+
+    await prisma.operacao.update({ where: { id }, data: { [campo]: valorLimpo } });
   }
 
   static async bulkUpdate(ids: number[], campo: string, valor: string) {

@@ -39,7 +39,8 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
   const [editingFaturista, setEditingFaturista] = useState(folder.faturistaId || "");
   const [isPending, setIsPending] = useState(false);
   const { confirm: confirmAction, alert: showAlert } = useUI();
-  const { data: faturistasData } = useFaturistas();
+  // Só busca a lista de faturistas com o formulário de edição aberto.
+  const { data: faturistasData } = useFaturistas(isEditing);
   const faturistas = faturistasData?.faturistas || [];
 
   const refreshFolders = () => {

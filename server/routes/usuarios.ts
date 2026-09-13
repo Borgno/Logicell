@@ -2,6 +2,7 @@ import { Router } from "express";
 import { SupabaseAdminService } from "../services/supabase-admin.server";
 import { PastaService } from "../services/pasta.server";
 import { getUser, type AuthedResponse } from "../middlewares/auth";
+import { invalidate } from "../lib/cache";
 
 export const usuariosRouter = Router();
 
@@ -76,6 +77,7 @@ usuariosRouter.post("/", async (req, res: AuthedResponse, next) => {
     }
 
     const usuario = await SupabaseAdminService.criarUsuario({ email, senha, nome, role });
+    invalidate("usuarios");
     res.json({ success: true, mensagem: `Usuário "${usuario.email}" criado com sucesso.` });
   } catch (err) {
     next(traduzirErroSupabase(err));
@@ -116,6 +118,7 @@ usuariosRouter.patch("/:id", async (req, res: AuthedResponse, next) => {
     await SupabaseAdminService.renomear(usuarioId, nome);
     await SupabaseAdminService.atualizarCargo(usuarioId, role);
     if (novaSenha) await SupabaseAdminService.redefinirSenha(usuarioId, novaSenha);
+    invalidate("usuarios");
 
     res.json({
       success: true,
@@ -136,6 +139,7 @@ usuariosRouter.post("/:id/bloquear", async (req, res: AuthedResponse, next) => {
     }
     await PastaService.removerFaturista(usuarioId);
     await SupabaseAdminService.bloquear(usuarioId);
+    invalidate("usuarios");
     res.json({ success: true, mensagem: "Usuário bloqueado com sucesso. As pastas em que ele era faturista ficaram sem responsável." });
   } catch (err) {
     next(traduzirErroSupabase(err));
@@ -146,6 +150,7 @@ usuariosRouter.post("/:id/ativar", async (req, res: AuthedResponse, next) => {
   try {
     const usuarioId = parseId(req.params.id);
     await SupabaseAdminService.ativar(usuarioId);
+    invalidate("usuarios");
     res.json({ success: true, mensagem: "Usuário ativado com sucesso." });
   } catch (err) {
     next(traduzirErroSupabase(err));
@@ -167,6 +172,7 @@ usuariosRouter.delete("/:id", async (req, res: AuthedResponse, next) => {
     }
     await PastaService.removerFaturista(usuarioId);
     await SupabaseAdminService.excluir(usuarioId);
+    invalidate("usuarios");
     res.json({ success: true, mensagem: "Usuário excluído com sucesso. As pastas em que ele era faturista ficaram sem responsável." });
   } catch (err) {
     next(traduzirErroSupabase(err));

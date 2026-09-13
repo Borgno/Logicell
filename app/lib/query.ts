@@ -54,12 +54,15 @@ export interface Faturista {
   email: string;
 }
 
-// Lista de usuários ativos que podem ser atribuídos como faturista de uma pasta.
-export function useFaturistas() {
+// Lista de usuários ativos que podem ser atribuídos como faturista de uma
+// pasta. Só busca quando o formulário de criar/editar pasta está aberto —
+// o select não aparece em mais lugar nenhum.
+export function useFaturistas(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.faturistas,
     queryFn: () => api.get<{ faturistas: Faturista[] }>("/pastas/faturistas"),
     staleTime: 60_000,
+    enabled,
   });
 }
 

@@ -33,8 +33,6 @@ export const Sidebar = React.memo(({
 
   const isFetching = useIsFetching() > 0;
   const { alert: showAlert } = useUI();
-  const { data: faturistasData } = useFaturistas();
-  const faturistas = faturistasData?.faturistas || [];
 
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderColor, setNewFolderColor] = useState(PRESET_COLORS[0]);
@@ -43,6 +41,10 @@ export const Sidebar = React.memo(({
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterColor, setFilterColor] = useState("");
+
+  // Só busca a lista de faturistas com o formulário de nova pasta aberto.
+  const { data: faturistasData } = useFaturistas(isAddingFolder);
+  const faturistas = faturistasData?.faturistas || [];
 
   const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 

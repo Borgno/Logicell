@@ -8,9 +8,15 @@ if (!sessionSecret) {
 export const SESSION_COOKIE_NAME = "__logicell_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 dias
 
+// Sessão própria (sem Supabase por request): os dados do usuário ficam no
+// próprio cookie, assinado por HMAC. `exp` em segundos Unix, 30 dias a partir
+// do login — sem refresh remoto, ver auth.server.ts.
 export interface SessionData {
-  access_token?: string;
-  refresh_token?: string;
+  sub?: string;
+  email?: string;
+  role?: string;
+  nome?: string;
+  exp?: number;
 }
 
 function sign(value: string): string {

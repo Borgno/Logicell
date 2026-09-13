@@ -1,8 +1,8 @@
 import { Router } from "express";
 import prisma from "../lib/prisma.server";
-import { createSupabaseServerClient } from "../services/supabase.server";
+import { SupabaseAdminService } from "../services/supabase-admin.server";
+import { sessionStorage, getSession } from "../services/session.server";
 import { getUser, getCookieHeader, type AuthedResponse } from "../middlewares/auth";
-import { applySupabaseHeaders } from "../lib/http";
 
 export const perfilRouter = Router();
 
@@ -19,11 +19,10 @@ function parseId(value: any): number {
 perfilRouter.get("/", async (_req, res: AuthedResponse, next) => {
   try {
     const user = getUser(res);
-    const totalPlanilhas = await prisma.importacao.count();
-    const ultimasImportacoes = await prisma.importacao.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    });
+    const [totalPlanilhas, ultimasImportacoes] = await Promise.all([
+      prisma.importacao.count(),
+      prisma.importacao.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+    ]);
 
     res.json({ user, ultimasImportacoes, stats: { totalPlanilhas } });
   } catch (err) {
@@ -34,23 +33,18 @@ perfilRouter.get("/", async (_req, res: AuthedResponse, next) => {
 perfilRouter.patch("/", async (req, res: AuthedResponse, next) => {
   try {
     const user = getUser(res);
-    const cookieHeader = getCookieHeader(req);
     const nome = String(req.body?.nome || "").trim();
     if (!nome) {
       res.status(400).json({ error: "Nome não pode estar vazio" });
       return;
     }
 
-    const { supabase, response } = await createSupabaseServerClient(cookieHeader);
-    const { error } = await supabase.auth.updateUser({
-      data: { nome, nickname: nome },
-    });
+    await SupabaseAdminService.renomear(user.id, nome);
 
-    applySupabaseHeaders(res, response.headers);
-    if (error) {
-      res.status(400).json({ error: error.message });
-      return;
-    }
+    // Atualiza o cookie de sessão com o novo nome — sem isso, o nome só
+    // mudaria no próximo login (a sessão é local, ver session.server.ts).
+    const session = getSession(getCookieHeader(req));
+    res.append("Set-Cookie", sessionStorage.commitSession({ ...session, nome }));
 
     res.json({ success: true, user: { ...user, user_metadata: { ...user.user_metadata, nome } } });
   } catch (err) {

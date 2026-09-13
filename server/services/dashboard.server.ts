@@ -256,11 +256,6 @@ function parseDataUTC(valor: any): Date | null {
 //faturista. Otimizado para a latência do banco: poucas idas ao banco + cache em
 //memória (o cache só é usado quando não há filtros ativos).
 export class DashboardService {
-  // Nomes dos faturistas vêm do Supabase (rede) — cache longo.
-  private static nomesCache: Map<string, string> | null = null;
-  private static nomesCacheTime = 0;
-  private static readonly NOMES_TTL = 1000 * 60 * 10; // 10 minutos
-
   // O resumo inteiro é cacheado no servidor: o client já faz polling de 30s,
   // então o custo alto (rede + Supabase) acontece no máximo 1x por 30s.
   private static resumoCache: DashboardResumo | null = null;
@@ -271,10 +266,9 @@ export class DashboardService {
   private static opcoesCacheTime = 0;
   private static readonly OPCOES_TTL = 1000 * 60 * 5;
 
+  // Lista de usuários já vem cacheada de SupabaseAdminService (A6a) — sem
+  // cache próprio aqui para não duplicar a mesma informação em dois lugares.
   private static async nomesFaturista(): Promise<Map<string, string>> {
-    if (this.nomesCache && Date.now() - this.nomesCacheTime < this.NOMES_TTL) {
-      return this.nomesCache;
-    }
     const nomes = new Map<string, string>();
     try {
       const { usuarios } = await SupabaseAdminService.listarUsuarios(1, 1000);
@@ -282,8 +276,6 @@ export class DashboardService {
     } catch {
       // mantém fallback (id) se o Supabase falhar
     }
-    this.nomesCache = nomes;
-    this.nomesCacheTime = Date.now();
     return nomes;
   }
 

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getOrSet } from "../lib/cache";
 
 export interface UsuarioAdmin {
   id: string;
@@ -12,6 +13,10 @@ export interface UsuarioAdmin {
 const ROLE_ADMIN = "admin";
 const ROLE_USUARIO = "usuario";
 const BAN_PERMANENTE = "876000h"; // 100 anos = banimento efetivamente permanente
+//Lista completa de usuários do Supabase muda pouco: cacheada 10 min e paginada
+//em memória (listarUsuarios, contarAdmins e quem mais precisar da lista toda).
+const USUARIOS_CACHE_KEY = "usuarios";
+const USUARIOS_TTL = 1000 * 60 * 10; // 10 minutos
 
 //Client administrativo do Supabase (service_role).
 //IMPORTANTE: Este arquivo é exclusivo do servidor. A service role key
@@ -45,36 +50,54 @@ function mapearUsuario(u: any): UsuarioAdmin {
   };
 }
 
+//Busca todas as páginas do Supabase, já mapeadas e ordenadas por nome —
+//chamada só pelo getOrSet abaixo, no máximo 1x a cada TTL.
+async function carregarUsuarios(): Promise<UsuarioAdmin[]> {
+  const supabase = createSupabaseAdminClient();
+  const totalUsuarios: any[] = [];
+
+  for (let pagina = 1; ; pagina++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page: pagina, perPage: 1000 });
+    if (error) throw error;
+
+    const users = data?.users || [];
+    totalUsuarios.push(...users);
+
+    if (!users.length || (data?.total ?? 0) <= pagina * 1000) break;
+  }
+
+  const chave = (u: any) => {
+    const nome = (u.user_metadata?.nome || u.user_metadata?.nickname || u.email || "")
+      .trim()
+      .toLowerCase();
+    return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  };
+
+  totalUsuarios.sort((a, b) => chave(a).localeCompare(chave(b)));
+  return totalUsuarios.map(mapearUsuario);
+}
+
 export const SupabaseAdminService = {
-  //Lista todos os usuários (consultando todas as páginas do Supabase), ordena
-  //alfabeticamente por nome e devolve apenas a fatia da página pedida — assim a
-  //ordenação continua correta mesmo quando a base passa de uma página (200).
+  //Lista completa vem do cache (getOrSet); a paginação pedida é só uma fatia
+  //em memória — a ordenação continua correta mesmo com a base > 1 página.
   async listarUsuarios(page = 1, perPage = 200) {
-    const supabase = createSupabaseAdminClient();
-    const totalUsuarios: any[] = [];
-
-    for (let pagina = 1; ; pagina++) {
-      const { data, error } = await supabase.auth.admin.listUsers({ page: pagina, perPage: 1000 });
-      if (error) throw error;
-
-      const users = data?.users || [];
-      totalUsuarios.push(...users);
-
-      if (!users.length || (data?.total ?? 0) <= pagina * 1000) break;
-    }
-
-    const chave = (u: any) => {
-      const nome = (u.user_metadata?.nome || u.user_metadata?.nickname || u.email || "")
-        .trim()
-        .toLowerCase();
-      return nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    };
-
-    totalUsuarios.sort((a, b) => chave(a).localeCompare(chave(b)));
-
+    const totalUsuarios = await getOrSet(USUARIOS_CACHE_KEY, USUARIOS_TTL, carregarUsuarios);
     const inicio = (page - 1) * perPage;
-    const usuarios = totalUsuarios.slice(inicio, inicio + perPage).map(mapearUsuario);
+    const usuarios = totalUsuarios.slice(inicio, inicio + perPage);
     return { usuarios, total: totalUsuarios.length };
+  },
+
+  //Procura um usuário na lista cacheada (sem rede na maioria das vezes).
+  //null = não existe mais; undefined = não deu para consultar (Supabase fora),
+  //e quem chama decide se segue só com o cookie.
+  async buscarPorId(id: string): Promise<UsuarioAdmin | null | undefined> {
+    try {
+      const totalUsuarios = await getOrSet(USUARIOS_CACHE_KEY, USUARIOS_TTL, carregarUsuarios);
+      return totalUsuarios.find((u) => u.id === id) ?? null;
+    } catch (err) {
+      console.error("[Auth] não foi possível consultar a lista de usuários:", err);
+      return undefined;
+    }
   },
 
   async criarUsuario(dados: { email: string; senha: string; nome: string; role: string }) {
@@ -148,23 +171,9 @@ export const SupabaseAdminService = {
     if (error) throw error;
   },
 
-  //Conta quantos usuários são admin consultando todas as páginas (máx. 1000 por página).
+  //Conta quantos usuários são admin sobre a lista cacheada (sem ida ao Supabase).
   async contarAdmins() {
-    const supabase = createSupabaseAdminClient();
-    let pagina = 1;
-    let totalAdmins = 0;
-
-    for (;;) {
-      const { data, error } = await supabase.auth.admin.listUsers({ page: pagina, perPage: 1000 });
-      if (error) throw error;
-
-      const users = data?.users || [];
-      totalAdmins += users.filter((u: any) => u.app_metadata?.role === ROLE_ADMIN).length;
-
-      if (!users.length || (data?.total ?? 0) <= pagina * 1000) break;
-      pagina += 1;
-    }
-
-    return totalAdmins;
+    const totalUsuarios = await getOrSet(USUARIOS_CACHE_KEY, USUARIOS_TTL, carregarUsuarios);
+    return totalUsuarios.filter((u) => u.role === ROLE_ADMIN).length;
   },
 };

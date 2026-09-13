@@ -14,6 +14,11 @@ import { automacoesRouter } from "./routes/automacoes";
 import { prazosRouter } from "./routes/prazos";
 import { usuariosRouter } from "./routes/usuarios";
 import { perfilRouter } from "./routes/perfil";
+import { SupabaseAdminService } from "./services/supabase-admin.server";
+import { PrazoService } from "./services/prazo.server";
+import { PastaService } from "./services/pasta.server";
+import { OrdemColunasService } from "./services/config.server";
+import { DashboardService } from "./services/dashboard.server";
 
 //Em produção, serve o build estático do SPA com fallback para index.html
 const clientDist = path.resolve(process.cwd(), "dist/client");
@@ -89,6 +94,21 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
   console.log(`[Logicell API] rodando em http://localhost:${port}`);
+
+  // Aquecimento: popula os caches em memória logo no boot para que o
+  // primeiro request de cada usuário não pague a ida ao Supabase/banco.
+  // Erros aqui não derrubam o servidor — só ficam registrados no log.
+  Promise.allSettled([
+    SupabaseAdminService.listarUsuarios(),
+    PrazoService.regras(),
+    PastaService.listar(),
+    OrdemColunasService.get(),
+    DashboardService.opcoes(),
+  ]).then((resultados) => {
+    resultados.forEach((r) => {
+      if (r.status === "rejected") console.error("[Aquecimento] falhou:", r.reason);
+    });
+  });
 });
 
 export type { AuthedResponse };
