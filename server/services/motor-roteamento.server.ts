@@ -1,14 +1,17 @@
-import { AutomacaoService } from "./automacao.server";
+export interface MapasRoteamento {
+  mapaAgencia: Map<string, number[]>;
+  mapaCliente: Map<string, number[]>;
+  mapaProdutosPorPasta: Map<number, Set<string>>;
+}
 
 export class MotorRoteamentoService {
   /**
    * Processa uma lista de operações recém-importadas da planilha e define
-   * o `pastaId` de cada uma delas com base nas regras cadastradas no sistema.
-   * Modifica a array de operações in-place.
+   * o `pastaId` de cada uma delas com base nos mapas de roteamento (já
+   * buscados pelo chamador, em paralelo com o resto da importação — ver
+   * operacao-import.server.ts). Modifica a array de operações in-place.
    */
-  static async aplicarRegrasRoteamento(operacoes: any[]) {
-    const mapas = await AutomacaoService.obterMapasRoteamento();
-    
+  static aplicarRegrasRoteamento(operacoes: any[], mapas: MapasRoteamento) {
     if (mapas.mapaAgencia.size === 0 && mapas.mapaCliente.size === 0) {
       return; // Nenhuma regra de automação cadastrada
     }

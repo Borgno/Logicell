@@ -2,26 +2,40 @@ import prisma from "../lib/prisma.server";
 import { PastaService } from "./pasta.server";
 import { OperacaoService } from "./operacao.server";
 
-export class BackupService {
-  static async criarBackup(importacaoId: number) {
-    const todasPastas = await prisma.pasta.findMany();
-    const todasRegras = await prisma.regraAutomacao.findMany();
-    const todasOperacoes = await prisma.operacao.findMany();
+//json_agg devolve timestamps sem timezone ("2026-09-13T12:00:00.000", sem
+//"Z"); sem isso o JS interpretaria a string como hora local do processo e
+//deslocaria o valor. Trata a ausência de timezone como UTC (mesma leitura
+//que o Prisma faz da coluna "timestamp without time zone").
+function paraDataUTC(valor: any): Date | undefined {
+  if (!valor) return undefined;
+  if (typeof valor === "string" && !/[Zz]|[+-]\d\d:?\d\d$/.test(valor)) {
+    return new Date(`${valor}Z`);
+  }
+  return new Date(valor);
+}
 
-    await (prisma as any).snapshotImportacao.upsert({
-      where: { importacaoId },
-      update: {
-        pastas: todasPastas,
-        regras: todasRegras,
-        operacoes: todasOperacoes
-      },
-      create: {
-        importacaoId,
-        pastas: todasPastas,
-        regras: todasRegras,
-        operacoes: todasOperacoes
-      }
-    });
+export class BackupService {
+  //Tira a "foto" inteira dentro do Postgres (json_agg): nenhuma linha da
+  //Operacao passa pelo Node, então 7 mil registros não cruzam a rede duas
+  //vezes. json_agg serializa datas sem timezone ("...T12:00:00.000", sem "Z");
+  //ver paraDataUTC nos métodos de restauração abaixo. A própria query acha a
+  //última importação (subquery), então o chamador não precisa de um SELECT
+  //separado antes — se ainda não existe nenhuma importação, a subquery não
+  //retorna linha e o INSERT vira um no-op.
+  static async criarBackup() {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "SnapshotImportacao" ("importacaoId", pastas, regras, operacoes, "createdAt")
+       SELECT ultima.id,
+         COALESCE((SELECT json_agg(p) FROM "Pasta" p), '[]'::json),
+         COALESCE((SELECT json_agg(r) FROM "RegraAutomacao" r), '[]'::json),
+         COALESCE((SELECT json_agg(o) FROM "Operacao" o), '[]'::json),
+         now()
+       FROM (SELECT id FROM "Importacao" ORDER BY "createdAt" DESC LIMIT 1) AS ultima
+       ON CONFLICT ("importacaoId") DO UPDATE SET
+         pastas = EXCLUDED.pastas,
+         regras = EXCLUDED.regras,
+         operacoes = EXCLUDED.operacoes`
+    );
   }
 
   static async restaurarBackup(importacaoId: number) {
@@ -33,12 +47,14 @@ export class BackupService {
       throw new Error("Nenhum backup encontrado para esta importação.");
     }
 
+    // Snapshot com ~7 mil operações pode passar do timeout padrão de 5 s do
+    // Prisma; 60 s de folga (maxWait = tempo esperando um slot do pool).
     await prisma.$transaction(async (tx) => {
       await BackupService.limparDadosAtuais(tx);
       await BackupService.restaurarPastas(tx, snapshot.pastas);
       await BackupService.restaurarRegras(tx, snapshot.regras);
       await BackupService.restaurarOperacoes(tx, snapshot.operacoes);
-    });
+    }, { timeout: 60_000, maxWait: 10_000 });
 
     await BackupService.resetarSequencias();
 
@@ -60,8 +76,8 @@ export class BackupService {
     if (!Array.isArray(pastasRaw) || pastasRaw.length === 0) return;
     const pastas = pastasRaw.map((p: any) => ({
       ...p,
-      createdAt: p.createdAt ? new Date(p.createdAt) : undefined,
-      updatedAt: p.updatedAt ? new Date(p.updatedAt) : undefined,
+      createdAt: paraDataUTC(p.createdAt),
+      updatedAt: paraDataUTC(p.updatedAt),
     }));
     await tx.pasta.createMany({ data: pastas });
   }
@@ -70,7 +86,7 @@ export class BackupService {
     if (!Array.isArray(regrasRaw) || regrasRaw.length === 0) return;
     const regras = regrasRaw.map((r: any) => ({
       ...r,
-      createdAt: r.createdAt ? new Date(r.createdAt) : undefined,
+      createdAt: paraDataUTC(r.createdAt),
     }));
     await tx.regraAutomacao.createMany({ data: regras });
   }
@@ -84,9 +100,11 @@ export class BackupService {
     const ops = operacoesRaw.map((op: any) => ({
       ...op,
       importacaoId: op.importacaoId && validImportIds.has(op.importacaoId) ? op.importacaoId : null,
-      createdAt: op.createdAt ? new Date(op.createdAt) : undefined,
-      updatedAt: op.updatedAt ? new Date(op.updatedAt) : undefined,
-      dt_emissao_: op.dt_emissao_ ? new Date(op.dt_emissao_) : undefined,
+      createdAt: paraDataUTC(op.createdAt),
+      updatedAt: paraDataUTC(op.updatedAt),
+      dt_emissao_: paraDataUTC(op.dt_emissao_) ?? null,
+      dt_quitacao_saldo: paraDataUTC(op.dt_quitacao_saldo) ?? null,
+      data_status: paraDataUTC(op.data_status) ?? null,
     }));
     await tx.operacao.createMany({ data: ops });
   }
