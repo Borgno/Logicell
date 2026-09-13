@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router";
 
-import { useOperacoesGridState } from "~/hooks/useOperacoesGridState";
+import { useOperacoesGridState, COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
 import { useOperacoesGridData, isFilterEmpty } from "~/hooks/useOperacoesGridData";
 import { useOperacoesStore } from "~/store/useOperacoesStore";
 import "react-data-grid/lib/styles.css";
@@ -126,9 +126,7 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
   const onFillEnd = useMemo(() => (colKey: string) => handleFillEndRef.current(colKey), []);
 
   const lidarExportarExcel = () => {
-    import("~/hooks/useOperacoesGridState").then(({ COLUNAS_OPERACAO }) => {
-      exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showAlert);
-    });
+    exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showAlert);
   };
 
   const colDefs = useMemo(() => getOperacoesColumns({

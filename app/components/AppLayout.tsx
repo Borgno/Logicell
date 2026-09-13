@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet } from "react-router";
 import { useAuth } from "~/context/AuthContext";
 import { UIContext } from "~/hooks/use-ui";
@@ -71,7 +71,11 @@ export function AppLayout() {
           setIsCollapsed={setIsCollapsed}
         />
         <main className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden h-full">
-          <Outlet />
+          {/* Boundary interno: enquanto o chunk de uma página lazy baixa, a
+              sidebar continua no lugar (o Suspense de AppRoutes só cobre o login) */}
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

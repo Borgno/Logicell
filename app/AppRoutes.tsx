@@ -1,12 +1,15 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "~/context/AuthContext";
 import { AppLayout } from "~/components/AppLayout";
-import { LoginPage } from "~/pages/LoginPage";
-import { DashboardPage } from "~/pages/DashboardPage";
 import { OperacoesPage } from "~/pages/OperacoesPage";
-import { AutomacoesPage } from "~/pages/AutomacoesPage";
-import { UsuariosPage } from "~/pages/UsuariosPage";
-import { PerfilPage } from "~/pages/PerfilPage";
+
+//Páginas menos acessadas ficam em chunks separados, baixados só quando visitadas
+const LoginPage = lazy(() => import("~/pages/LoginPage").then((m) => ({ default: m.LoginPage })));
+const DashboardPage = lazy(() => import("~/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const AutomacoesPage = lazy(() => import("~/pages/AutomacoesPage").then((m) => ({ default: m.AutomacoesPage })));
+const UsuariosPage = lazy(() => import("~/pages/UsuariosPage").then((m) => ({ default: m.UsuariosPage })));
+const PerfilPage = lazy(() => import("~/pages/PerfilPage").then((m) => ({ default: m.PerfilPage })));
 
 function SplashScreen() {
   return (
@@ -43,24 +46,26 @@ function RequireAdmin() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <Suspense fallback={<SplashScreen />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      <Route element={<RequireAuth />}>
-        <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/caixa-de-entrada" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="caixa-de-entrada" element={<OperacoesPage />} />
-          <Route path="pastas/:nome" element={<OperacoesPage />} />
-          <Route path="automacoes" element={<AutomacoesPage />} />
-          <Route path="perfil" element={<PerfilPage />} />
-          <Route element={<RequireAdmin />}>
-            <Route path="admin/usuarios" element={<UsuariosPage />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<Navigate to="/caixa-de-entrada" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="caixa-de-entrada" element={<OperacoesPage />} />
+            <Route path="pastas/:nome" element={<OperacoesPage />} />
+            <Route path="automacoes" element={<AutomacoesPage />} />
+            <Route path="perfil" element={<PerfilPage />} />
+            <Route element={<RequireAdmin />}>
+              <Route path="admin/usuarios" element={<UsuariosPage />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
