@@ -24,6 +24,7 @@ export default {
         'border-focus': 'var(--border-focus)',
         surface: 'var(--surface)',
         'surface-light': 'var(--surface-light)',
+        skeleton: 'var(--skeleton)',
         'badge-primary-text': 'var(--badge-primary-text)',
         'badge-primary-bg': 'var(--badge-primary-bg)',
         'badge-error-text': 'var(--badge-error-text)',

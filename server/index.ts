@@ -14,17 +14,24 @@ import { automacoesRouter } from "./routes/automacoes";
 import { prazosRouter } from "./routes/prazos";
 import { usuariosRouter } from "./routes/usuarios";
 import { perfilRouter } from "./routes/perfil";
-import { SupabaseAdminService } from "./services/supabase-admin.server";
+import { SupabaseAdminService, renovarUsuarios } from "./services/supabase-admin.server";
 import { PrazoService } from "./services/prazo.server";
 import { PastaService } from "./services/pasta.server";
 import { OrdemColunasService } from "./services/config.server";
 import { DashboardService } from "./services/dashboard.server";
+import { iniciarTiming } from "./lib/timing";
+import prisma from "./lib/prisma.server";
 
 //Em produção, serve o build estático do SPA com fallback para index.html
 const clientDist = path.resolve(process.cwd(), "dist/client");
 
 const app = express();
 app.disable("x-powered-by");
+//Sem ETag/304 nas respostas da API (res.send/json): o condicional não
+//economizava nada (o servidor calculava tudo de qualquer forma) e fazia o
+//Chrome serializar requests iguais em voo. express.static mantém seu próprio
+//ETag para os assets.
+app.set("etag", false);
 
 //LOG_HTTP=1 registra método, caminho, status e duração de cada request — sem
 //a env, nenhum middleware extra é adicionado.
@@ -45,6 +52,13 @@ app.use(compression());
 app.use(express.json({ limit: "2mb" }));
 
 const api = express.Router();
+//Toda resposta da API é dinâmica: sem cache HTTP condicional. Também começa a
+//cronometrar a request aqui (Server-Timing só é aplicado no fim de cada rota).
+api.use((_req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  iniciarTiming(res);
+  next();
+});
 api.use("/auth", authRouter);
 api.use(requireUser);
 api.use("/init", initRouter);
@@ -71,7 +85,7 @@ if (process.env.NODE_ENV === "production" && fs.existsSync(clientDist)) {
     })
   );
   app.use((req, res, next) => {
-    if (req.method === "GET" && !req.path.startsWith("/api")) {
+    if ((req.method === "GET" || req.method === "HEAD") && !req.path.startsWith("/api")) {
       // index.html não tem hash no nome: precisa revalidar a cada load para
       // pegar o novo deploy (os assets com hash é que ficam "immutable").
       // { root } em vez de path.join: sendFile aplica o check de dotfile no
@@ -109,6 +123,28 @@ app.listen(port, () => {
       if (r.status === "rejected") console.error("[Aquecimento] falhou:", r.reason);
     });
   });
+
+  if (process.env.NODE_ENV === "production") {
+    // O balanceador da AWS na frente do pooler do Supabase (modo sessão,
+    // aws-1-sa-east-1) derruba conexões ociosas sem avisar; um SELECT 1 por
+    // minuto em até 3 conexões do pool evita que a próxima request pague
+    // reconexão + handshake TLS EU→BR. unref() para não travar o shutdown.
+    const keepAlive = setInterval(() => {
+      Promise.all([
+        prisma.$queryRaw`SELECT 1`,
+        prisma.$queryRaw`SELECT 1`,
+        prisma.$queryRaw`SELECT 1`,
+      ]).catch((err) => console.error("[Keep-alive] falhou:", err));
+    }, 60_000);
+    keepAlive.unref();
+
+    // Cache de usuários sempre quente: renova antes do TTL vencer, sem janela
+    // sem dados (renovar só troca o valor depois que o loader termina).
+    const renovarCache = setInterval(() => {
+      renovarUsuarios().catch((err) => console.error("[Cache] renovarUsuarios falhou:", err));
+    }, 5 * 60_000);
+    renovarCache.unref();
+  }
 });
 
 export type { AuthedResponse };

@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 declare global {
-  var __prisma: PrismaClient | undefined;
+  var __prisma: ReturnType<typeof criarClient> | undefined;
 }
 
 function buildDatasourceUrl(): string | undefined {
@@ -30,10 +30,51 @@ function buildDatasourceUrl(): string | undefined {
 const logLevels: ("query" | "warn" | "error")[] =
   process.env.LOG_QUERIES === "1" ? ["query", "warn", "error"] : ["warn", "error"];
 
-const prisma = global.__prisma ?? new PrismaClient({
-  log: logLevels,
-  datasourceUrl: buildDatasourceUrl(),
-});
+//Operações de leitura: seguras para refazer sem duplicar efeito colateral
+//(escritas ficam de fora do retry por isso). Cobre modelos e as chamadas raw.
+const OPERACOES_LEITURA = new Set([
+  "findMany", "findFirst", "findUnique", "findFirstOrThrow", "findUniqueOrThrow",
+  "count", "aggregate", "groupBy", "$queryRaw", "$queryRawUnsafe",
+]);
+
+//O pooler do Supabase (modo sessão, aws-1-sa-east-1) derruba conexões ociosas
+//sem avisar; a 1ª query após um tempo parado falha com P1001/P1002/P1017 (ou
+//PrismaClientInitializationError/"Can't reach database server") em vez de só
+//reconectar. Isolado para o retry abaixo reusar.
+function isErroDeConexao(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    return err.code === "P1001" || err.code === "P1002" || err.code === "P1017";
+  }
+  if (err instanceof Prisma.PrismaClientInitializationError) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Can't reach database server");
+}
+
+function criarClient() {
+  return new PrismaClient({
+    log: logLevels,
+    datasourceUrl: buildDatasourceUrl(),
+  }).$extends({
+    query: {
+      //$allOperations sob `query` (Prisma 5) cobre modelos e raw no mesmo
+      //lugar. Refaz uma vez, só leitura, dando ~250ms para o engine
+      //reconectar (a 2ª tentativa já paga o handshake, não a request do
+      //usuário original).
+      async $allOperations({ model, operation, args, query }) {
+        try {
+          return await query(args);
+        } catch (err) {
+          if (!OPERACOES_LEITURA.has(operation) || !isErroDeConexao(err)) throw err;
+          console.warn(`[Prisma] refazendo ${model ?? ""}.${operation} após erro de conexão`);
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          return query(args);
+        }
+      },
+    },
+  });
+}
+
+const prisma = global.__prisma ?? criarClient();
 
 if (process.env.NODE_ENV !== "production") {
   global.__prisma = prisma;

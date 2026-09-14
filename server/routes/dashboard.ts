@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { DashboardService, type DashboardFiltros } from "../services/dashboard.server";
+import { aplicarServerTiming } from "../lib/timing";
 
 export const dashboardRouter = Router();
 
@@ -25,6 +26,7 @@ function parseFiltros(query: Record<string, any>): DashboardFiltros {
 dashboardRouter.get("/", async (req, res, next) => {
   try {
     const resumo = await DashboardService.resumo(parseFiltros(req.query as Record<string, any>));
+    aplicarServerTiming(res);
     res.json(resumo);
   } catch (err) {
     next(err);

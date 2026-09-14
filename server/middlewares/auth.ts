@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { resolveAuth, type AuthedUser } from "../services/auth.server";
 import { SupabaseAdminService } from "../services/supabase-admin.server";
+import { marcar } from "../lib/timing";
 
 export interface AuthedResponse extends Response {
   locals: { user?: AuthedUser; [key: string]: any };
@@ -33,7 +34,9 @@ export async function requireUser(req: Request, res: AuthedResponse, next: NextF
       throw err;
     }
 
+    const inicio = Date.now();
     const conta = await SupabaseAdminService.buscarPorId(user.id);
+    marcar(res, "auth", inicio);
     if (conta === null || conta?.bloqueado) {
       const err: any = new Error("Sessão encerrada. Entre novamente.");
       err.status = 401;

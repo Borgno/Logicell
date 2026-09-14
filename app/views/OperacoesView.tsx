@@ -34,9 +34,9 @@ const LARGURAS_SKELETON = ["w-10", "w-16", "w-24", "w-14", "w-20", "w-28", "w-12
 function GridSkeleton() {
   return (
     <div className="absolute inset-0 pointer-events-none bg-bg/80 overflow-hidden">
-      <div className="h-[42px] border-b border-glass-border" />
+      <div className="h-[42px] border-b border-glass-border/30" />
       {Array.from({ length: 15 }).map((_, i) => (
-        <div key={i} className="h-9 flex items-center gap-3 px-3 border-b border-glass-border/60">
+        <div key={i} className="h-9 flex items-center gap-3 px-3 border-b border-glass-border/20">
           {Array.from({ length: 6 + (i % 3) }).map((_, j) => (
             <Skeleton key={j} className={`h-4 ${LARGURAS_SKELETON[(i + j) % LARGURAS_SKELETON.length]}`} />
           ))}
@@ -93,7 +93,10 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
   useEffect(() => {
     resetSelection();
     if (!location.state) {
-      setColumnFilters({});
+      // Só cria objeto novo quando há filtro pra limpar — {} de novo (mesma
+      // pasta ou montagem) mudaria a referência de columnFilters à toa e
+      // recriaria buildParams, reexecutando o efeito de dados do grid.
+      setColumnFilters((prev) => (Object.keys(prev).length ? {} : prev));
     }
   }, [pastaId, pastaNome, location.pathname, location.state, setColumnFilters, resetSelection]);
 

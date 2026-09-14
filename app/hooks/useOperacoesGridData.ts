@@ -111,6 +111,11 @@ export function cancelPrefetch() {
   }
 }
 
+// Prefetch em voo por chave de cache: se o clique acontecer antes do hover
+// terminar, o hook espera esta mesma Promise em vez de disparar outra request
+// igual (era a causa das 3 requests iguais por clique no HAR).
+const prefetchEmVoo = new Map<string, Promise<{ data: any[]; meta: GridMeta }>>();
+
 async function executarPrefetch(pasta: PastaIdentificador) {
   const key = cacheKeyOf(pasta, EMPTY_FILTERS_KEY);
   const cached = gridCache.get(key);
@@ -118,13 +123,16 @@ async function executarPrefetch(pasta: PastaIdentificador) {
 
   const controller = new AbortController();
   prefetchController = controller;
+  const promise = api.get<{ data: any[]; meta: GridMeta }>(`/operacoes?${buildPage1Params(pasta)}`, controller.signal);
+  prefetchEmVoo.set(key, promise);
   try {
-    const res = await api.get<{ data: any[]; meta: GridMeta }>(`/operacoes?${buildPage1Params(pasta)}`, controller.signal);
+    const res = await promise;
     gridCache.set(key, { dados: res.data, meta: res.meta, ts: Date.now() });
   } catch {
     // prefetch falhou ou foi cancelado — a navegação normal resolve
   } finally {
     if (prefetchController === controller) prefetchController = null;
+    if (prefetchEmVoo.get(key) === promise) prefetchEmVoo.delete(key);
   }
 }
 
@@ -158,6 +166,13 @@ export function useOperacoesGridData({
     [columnFilters, sortColumns]
   );
 
+  // columnFilters muda de referência a cada `setColumnFilters({})` (mesmo com
+  // o mesmo conteúdo) — ler pelo ref evita que isso recrie buildParams (e, com
+  // ele, o efeito de dados abaixo, que reexecutaria e abortaria a request em
+  // voo). filtersKey (string) nas deps já cobre mudança real de filtro/ordenação.
+  const columnFiltersRef = useRef(columnFilters);
+  columnFiltersRef.current = columnFilters;
+
   const buildParams = useCallback(
     (page: number) => {
       const p = new URLSearchParams();
@@ -169,13 +184,13 @@ export function useOperacoesGridData({
         p.set("sortCol", String(sort.columnKey));
         p.set("sortDir", sort.direction === "DESC" ? "desc" : "asc");
       }
-      for (const [key, filter] of Object.entries(columnFilters)) {
+      for (const [key, filter] of Object.entries(columnFiltersRef.current)) {
         if (isFilterEmpty(filter)) continue;
         p.set(`colFilter_${key}`, `${(filter as any).type}:${(filter as any).value}`);
       }
       return p.toString();
     },
-    [pastaId, pastaNome, sortColumns, columnFilters, searchParams]
+    [pastaId, pastaNome, sortColumns, filtersKey, searchParams]
   );
 
   // Carrega a primeira página. Se já existe cache fresco, mostra na hora e
@@ -193,12 +208,20 @@ export function useOperacoesGridData({
       lastRunRef.current?.pasta === chave &&
       lastRunRef.current?.filters !== filtersKey &&
       filtersKey !== EMPTY_FILTERS_KEY;
+    // Troca de pasta: o componente fica montado entre rotas, então `dados`
+    // guarda as linhas da pasta anterior. Precisamos saber disso para limpar o
+    // estado e deixar o skeleton aparecer (senão dados.length !== 0 o esconde).
+    const isPastaChange = lastRunRef.current !== null && lastRunRef.current.pasta !== chave;
     lastRunRef.current = { pasta: chave, filters: filtersKey };
 
     const key = cacheKeyOf(pasta, filtersKey);
     const cached = gridCache.get(key);
     const url = `/operacoes?${buildParams(1)}`;
     const controller = new AbortController();
+    // Só usado pelo caminho do prefetch em voo abaixo: sua Promise não está
+    // amarrada a este controller, então precisamos saber se o efeito já foi
+    // desmontado/reexecutado para não atualizar estado depois disso.
+    let cleaned = false;
 
     const storeResult = (raw: { data: any[]; meta: GridMeta }) => {
       gridCache.set(key, { dados: raw.data, meta: raw.meta, ts: Date.now() });
@@ -244,6 +267,39 @@ export function useOperacoesGridData({
       return () => { clearTimeout(t); controller.abort(); };
     }
 
+    // Hover + clique na mesma pasta: o prefetch do hover já está em voo para
+    // esta chave — espera o resultado dele em vez de disparar outra request
+    // (a página fica com o skeleton, sem debounce, igual ao caminho normal).
+    const emVoo = prefetchEmVoo.get(key);
+    if (emVoo) {
+      if (isPastaChange) {
+        setDados([]);
+        setMeta(EMPTY_META);
+      }
+      setStatus("loading");
+      emVoo
+        .then((res) => {
+          if (cleaned || seq !== seqRef.current) return;
+          storeResult(res);
+          setDados(processarDatas(res.data));
+          setMeta(res.meta);
+          setStatus("idle");
+        })
+        .catch(() => {
+          // prefetch abortado (ex.: mouse saiu para outra pasta) — busca do zero
+          if (cleaned || seq !== seqRef.current) return;
+          fetchFresh();
+        });
+      return () => { cleaned = true; controller.abort(); };
+    }
+
+    // Sem cache fresco: ao trocar de pasta, zera os dados da pasta anterior
+    // para o skeleton aparecer (e não piscar as linhas erradas). Digitação de
+    // filtro na mesma pasta mantém os dados em tela — só a faixa do topo.
+    if (isPastaChange) {
+      setDados([]);
+      setMeta(EMPTY_META);
+    }
     setStatus("loading");
     if (isFilterChange) {
       const t = setTimeout(() => fetchFresh(), 200);

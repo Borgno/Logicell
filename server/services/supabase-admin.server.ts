@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { getOrSet } from "../lib/cache";
+import { getOrSet, renovar } from "../lib/cache";
 
 export interface UsuarioAdmin {
   id: string;
@@ -75,6 +75,13 @@ async function carregarUsuarios(): Promise<UsuarioAdmin[]> {
 
   totalUsuarios.sort((a, b) => chave(a).localeCompare(chave(b)));
   return totalUsuarios.map(mapearUsuario);
+}
+
+//Recarrega a lista antes do TTL vencer (chamado por um setInterval de 5 min em
+//produção) — assim o cache nunca fica frio e ninguém paga a ida ao Supabase
+//Auth só por má sorte de horário.
+export async function renovarUsuarios(): Promise<UsuarioAdmin[]> {
+  return renovar(USUARIOS_CACHE_KEY, USUARIOS_TTL, carregarUsuarios);
 }
 
 export const SupabaseAdminService = {

@@ -15,3 +15,13 @@ export function invalidate(prefix?: string): void {
   if (!prefix) { store.clear(); return; }
   for (const k of store.keys()) if (k.startsWith(prefix)) store.delete(k);
 }
+
+//Renova um valor sem janela vazia: só troca o que está guardado depois que o
+//loader termina (diferente de invalidate+getOrSet, que deixaria uma request
+//no meio pagando o loader de novo). Erro do loader propaga: quem chama decide
+//se tenta de novo depois; o valor antigo continua servindo até então.
+export async function renovar<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+  const value = await loader();
+  store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  return value;
+}

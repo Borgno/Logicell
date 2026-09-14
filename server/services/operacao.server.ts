@@ -86,6 +86,7 @@ export class OperacaoService {
     // de rede — o gargalo real aqui é latência (VPS/DB na Europa), não o SQL.
     // As duas outras queries (placas duplicadas e regras de prazo) não dependem
     // do resultado da principal: disparam todas juntas no mesmo Promise.all.
+    const dbInicio = Date.now();
     const [data, placasDuplicadas, regras] = await Promise.all([
       prisma.$queryRawUnsafe<any[]>(`
         SELECT
@@ -106,6 +107,7 @@ export class OperacaoService {
       this.placasDuplicadasDaPasta(pid),
       PrazoService.regras(),
     ]);
+    const dbMs = Date.now() - dbInicio;
     const agora = Date.now();
     const MILIS_DIA = 24 * 60 * 60 * 1000;
 
@@ -152,6 +154,7 @@ export class OperacaoService {
     return {
       data: sanitizedData,
       meta: { total, totalVl, page: p, limit: l, totalPages: Math.ceil(total / l) },
+      dbMs,
     };
   }
 
