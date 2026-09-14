@@ -57,7 +57,7 @@ export const Sidebar = React.memo(({
 
   const handleCreateFolder = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFolderName.trim() || !newFolderFaturista || isCreating) return;
+    if (!newFolderName.trim() || isCreating) return;
     setIsCreating(true);
     try {
       await api.post("/pastas", { nome: newFolderName, cor: newFolderColor, faturistaId: newFolderFaturista });
@@ -219,7 +219,7 @@ export const Sidebar = React.memo(({
                   onChange={e => setNewFolderFaturista(e.target.value)}
                   className="w-full bg-card-bg dark:bg-bg rounded-lg px-2 py-1 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text"
                 >
-                  <option value="" disabled>Faturista responsável...</option>
+                  <option value="">Sem faturista</option>
                   {faturistas.map(f => (
                     <option key={f.id} value={f.id}>{f.nome || f.email}</option>
                   ))}
@@ -232,7 +232,7 @@ export const Sidebar = React.memo(({
                   </div>
                   <div className="flex gap-1">
                     <button type="button" onClick={() => setIsAddingFolder(false)} className="p-1 hover:text-rose-500"><X size={14}/></button>
-                    <button type="submit" disabled={isCreating || !newFolderFaturista} className="p-1 hover:text-emerald-500 disabled:opacity-40"><CheckCircle2 size={14}/></button>
+                    <button type="submit" disabled={isCreating} className="p-1 hover:text-emerald-500 disabled:opacity-40"><CheckCircle2 size={14}/></button>
                   </div>
                 </div>
               </form>

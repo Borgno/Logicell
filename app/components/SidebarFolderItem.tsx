@@ -56,7 +56,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
   }, [folder]);
 
   const submitRename = useCallback(async () => {
-    if (!editingValue.trim() || !editingFaturista || isPending) return;
+    if (!editingValue.trim() || isPending) return;
     setIsPending(true);
     try {
       await api.patch(`/pastas/${folder.id}`, { nome: editingValue, cor: editingColor, faturistaId: editingFaturista });
@@ -109,7 +109,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
           onChange={(e) => setEditingFaturista(e.target.value)}
           className="w-full bg-card-bg dark:bg-bg border border-[rgba(0,0,0,0.12)] dark:border-glass-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-primary text-text"
         >
-          <option value="" disabled>Faturista responsável...</option>
+          <option value="">Sem faturista</option>
           {faturistas.map((f) => (
             <option key={f.id} value={f.id}>{f.nome || f.email}</option>
           ))}
@@ -137,7 +137,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
             <button onClick={cancelEdit} className="p-1 hover:text-rose-500">
               <X size={14} />
             </button>
-            <button onClick={submitRename} disabled={isPending || !editingFaturista} className="p-1 hover:text-emerald-500 disabled:opacity-40">
+            <button onClick={submitRename} disabled={isPending} className="p-1 hover:text-emerald-500 disabled:opacity-40">
               <CheckCircle2 size={14} />
             </button>
           </div>

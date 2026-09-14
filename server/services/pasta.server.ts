@@ -71,13 +71,12 @@ export class PastaService {
     });
   }
 
-  static async criar(nome: string, cor?: string, faturistaId?: string) {
+  static async criar(nome: string, cor?: string, faturistaId?: string | null) {
     this.invalidarCache();
 
-    if (!faturistaId) {
-      throw new Error("Informe o faturista responsável pela pasta.");
+    if (faturistaId) {
+      await this.validarFaturista(faturistaId);
     }
-    await this.validarFaturista(faturistaId);
 
     // Validar se já existe
     const existe = await prisma.pasta.findUnique({ where: { nome } });
@@ -86,7 +85,7 @@ export class PastaService {
     }
 
     const pasta = await prisma.pasta.create({
-      data: { nome, cor, faturistaId }
+      data: { nome, cor, faturistaId: faturistaId || null }
     });
 
 
@@ -94,7 +93,7 @@ export class PastaService {
     return pasta;
   }
 
-  static async atualizar(id: number, nome: string, cor?: string, faturistaId?: string) {
+  static async atualizar(id: number, nome: string, cor?: string, faturistaId?: string | null) {
     this.invalidarCache();
     
     // Validar se o novo nome já existe para outra pasta
@@ -108,15 +107,14 @@ export class PastaService {
       throw new Error("Já existe uma pasta com este nome.");
     }
 
-    if (!faturistaId) {
-      throw new Error("Informe o faturista responsável pela pasta.");
+    if (faturistaId) {
+      await this.validarFaturista(faturistaId);
     }
-    await this.validarFaturista(faturistaId);
 
 
     const pasta = await prisma.pasta.update({
       where: { id },
-      data: { nome, cor, faturistaId }
+      data: { nome, cor, faturistaId: faturistaId || null }
     });
 
 

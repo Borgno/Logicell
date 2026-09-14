@@ -38,11 +38,7 @@ pastasRouter.post("/", async (req, res, next) => {
       res.status(400).json({ error: "Informe o nome da pasta." });
       return;
     }
-    if (!faturistaId) {
-      res.status(400).json({ error: "Informe o faturista responsável pela pasta." });
-      return;
-    }
-    const pasta = await PastaService.criar(nome, cor, faturistaId);
+    const pasta = await PastaService.criar(nome, cor, faturistaId || null);
     res.json({ success: true, pasta });
   } catch (err: any) {
     if (!err?.status) err.status = 400;
@@ -60,11 +56,7 @@ pastasRouter.patch("/:id", async (req, res, next) => {
       res.status(400).json({ error: "Informe o nome da pasta." });
       return;
     }
-    if (!faturistaId) {
-      res.status(400).json({ error: "Informe o faturista responsável pela pasta." });
-      return;
-    }
-    const pasta = await PastaService.atualizar(id, nome, cor, faturistaId);
+    const pasta = await PastaService.atualizar(id, nome, cor, faturistaId || null);
     res.json({ success: true, pasta });
   } catch (err: any) {
     if (!err?.status) err.status = 400;
