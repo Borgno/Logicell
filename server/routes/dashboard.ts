@@ -19,6 +19,7 @@ function parseFiltros(query: Record<string, any>): DashboardFiltros {
     tipoDocumento: texto(query.tipo),
     tipoCte: texto(query.tipoCte),
     agencia: texto(query.agencia),
+    antigas: query.antigas === "1" ? "1" : undefined,
   };
 }
 

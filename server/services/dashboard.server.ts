@@ -32,6 +32,8 @@ export interface DashboardFiltros {
   tipoDocumento?: string | null;
   tipoCte?: string | null;
   agencia?: string | null;
+  // "1" = só emissões antigas (mesma regra de prazo do filtro "Antigos" da grid).
+  antigas?: string | null;
 }
 
 export interface DashboardGeral {
@@ -369,6 +371,12 @@ export class DashboardService {
 
     const params: any[] = [];
     const conds = this.construirWhereFiltros(filtros, params);
+    // A CTE lê "Operacao" sem alias, então o próprio nome da tabela serve de prefixo.
+    if (filtros.antigas) {
+      conds.push(
+        `("Operacao".dt_emissao_ IS NOT NULL AND ${OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, `"Operacao"`)})`
+      );
+    }
     const whereSql = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
     const condicaoAntigas = OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, "f");
 

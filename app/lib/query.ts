@@ -100,6 +100,8 @@ export interface DashboardFiltros {
   tipoDocumento?: string;
   tipoCte?: string;
   agencia?: string;
+  // "1" = só emissões antigas (fora do prazo padrão/do cliente).
+  antigas?: string;
 }
 
 export interface DashboardGeral {
@@ -184,6 +186,7 @@ export function filtrosParaQuery(filtros: DashboardFiltros): string {
   if (filtros.tipoDocumento) p.set("tipo", filtros.tipoDocumento);
   if (filtros.tipoCte) p.set("tipoCte", filtros.tipoCte);
   if (filtros.agencia) p.set("agencia", filtros.agencia);
+  if (filtros.antigas) p.set("antigas", filtros.antigas);
   const qs = p.toString();
   return qs ? `?${qs}` : "";
 }
