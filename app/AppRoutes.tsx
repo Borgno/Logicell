@@ -58,9 +58,9 @@ export function AppRoutes() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="caixa-de-entrada" element={<OperacoesPage />} />
             <Route path="pastas/:nome" element={<OperacoesPage />} />
-            <Route path="automacoes" element={<AutomacoesPage />} />
             <Route path="perfil" element={<PerfilPage />} />
             <Route element={<RequireAdmin />}>
+              <Route path="automacoes" element={<AutomacoesPage />} />
               <Route path="admin/usuarios" element={<UsuariosPage />} />
             </Route>
           </Route>

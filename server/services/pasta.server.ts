@@ -114,7 +114,8 @@ export class PastaService {
 
     const pasta = await prisma.pasta.update({
       where: { id },
-      data: { nome, cor, faturistaId: faturistaId || null }
+      //undefined mantém o faturista atual (Prisma ignora o campo)
+      data: { nome, cor, faturistaId: faturistaId === undefined ? undefined : faturistaId || null }
     });
 
 

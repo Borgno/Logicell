@@ -66,7 +66,7 @@ api.use("/pastas", pastasRouter);
 api.use("/colunas", colunasRouter);
 api.use("/operacoes", operacoesRouter);
 api.use("/dashboard", dashboardRouter);
-api.use("/automacoes", automacoesRouter);
+api.use("/automacoes", requireAdmin, automacoesRouter);
 api.use("/prazos", prazosRouter);
 api.use("/perfil", perfilRouter);
 api.use("/usuarios", requireAdmin, usuariosRouter);

@@ -40,8 +40,10 @@ export const Sidebar = React.memo(({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterColor, setFilterColor] = useState("");
 
-  // Só busca a lista de faturistas com o formulário de nova pasta aberto.
-  const { data: faturistasData } = useFaturistas(isAddingFolder);
+  const isAdmin = user?.app_metadata?.role === "admin";
+
+  // Só busca a lista de faturistas (admin) com o formulário de nova pasta aberto.
+  const { data: faturistasData } = useFaturistas(isAddingFolder && isAdmin);
   const faturistas = faturistasData?.faturistas || [];
 
   const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -60,7 +62,11 @@ export const Sidebar = React.memo(({
     if (!newFolderName.trim() || isCreating) return;
     setIsCreating(true);
     try {
-      await api.post("/pastas", { nome: newFolderName, cor: newFolderColor, faturistaId: newFolderFaturista });
+      await api.post("/pastas", {
+        nome: newFolderName,
+        cor: newFolderColor,
+        ...(isAdmin && { faturistaId: newFolderFaturista }),
+      });
       setNewFolderName("");
       setNewFolderColor(PRESET_COLORS[0]);
       setNewFolderFaturista("");
@@ -71,7 +77,7 @@ export const Sidebar = React.memo(({
     } finally {
       setIsCreating(false);
     }
-  }, [newFolderName, newFolderColor, newFolderFaturista, isCreating, showAlert]);
+  }, [newFolderName, newFolderColor, newFolderFaturista, isAdmin, isCreating, showAlert]);
 
   return (
     <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[240px]'} bg-card-bg dark:bg-bg border-r border-glass-border transition-all duration-300 flex flex-col relative z-20`}>
@@ -129,16 +135,18 @@ export const Sidebar = React.memo(({
               )}
             </NavLink>
 
-            <NavLink to="/automacoes" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
-              {() => (
-                <div className="flex items-center gap-2.5">
-                  <Zap size={18} className="shrink-0" />
-                  {!isCollapsed && <span>Automações</span>}
-                </div>
-              )}
-            </NavLink>
+            {isAdmin && (
+              <NavLink to="/automacoes" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
+                {() => (
+                  <div className="flex items-center gap-2.5">
+                    <Zap size={18} className="shrink-0" />
+                    {!isCollapsed && <span>Automações</span>}
+                  </div>
+                )}
+              </NavLink>
+            )}
 
-            {user?.app_metadata?.role === "admin" && (
+            {isAdmin && (
               <NavLink to="/admin/usuarios" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
                 {() => (
                   <div className="flex items-center gap-2.5">
@@ -214,16 +222,18 @@ export const Sidebar = React.memo(({
             {isAddingFolder && !isCollapsed && (
               <form onSubmit={handleCreateFolder} className="px-3 mb-2 space-y-2 bg-surface rounded-xl p-2 border border-glass-border">
                 <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nome..." className="w-full bg-card-bg dark:bg-bg rounded-lg px-2 py-1 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text placeholder:text-text-dim" />
-                <select
-                  value={newFolderFaturista}
-                  onChange={e => setNewFolderFaturista(e.target.value)}
-                  className="w-full bg-card-bg dark:bg-bg rounded-lg px-2 py-1 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text"
-                >
-                  <option value="">Sem faturista</option>
-                  {faturistas.map(f => (
-                    <option key={f.id} value={f.id}>{f.nome || f.email}</option>
-                  ))}
-                </select>
+                {isAdmin && (
+                  <select
+                    value={newFolderFaturista}
+                    onChange={e => setNewFolderFaturista(e.target.value)}
+                    className="w-full bg-card-bg dark:bg-bg rounded-lg px-2 py-1 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text"
+                  >
+                    <option value="">Sem faturista</option>
+                    {faturistas.map(f => (
+                      <option key={f.id} value={f.id}>{f.nome || f.email}</option>
+                    ))}
+                  </select>
+                )}
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1.5">
                     {PRESET_COLORS.map(c => (
@@ -239,7 +249,7 @@ export const Sidebar = React.memo(({
             )}
 
             {filteredPastas.map((p: any) => (
-              <SidebarFolderItem key={p.id} folder={p} isCollapsed={isCollapsed} antigas={emissaoAntigasPorPasta[String(p.id)] ?? 0} />
+              <SidebarFolderItem key={p.id} folder={p} isCollapsed={isCollapsed} antigas={emissaoAntigasPorPasta[String(p.id)] ?? 0} isAdmin={isAdmin} />
             ))}
 
             {!isCollapsed && pastas.length > 0 && filteredPastas.length === 0 && (

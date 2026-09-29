@@ -53,17 +53,16 @@ export async function requireUser(req: Request, res: AuthedResponse, next: NextF
 //Além do cookie dizer "admin", confere na lista cacheada que o usuário continua
 //admin — rebaixamento pelo app vale na hora (invalidação), pelo painel do
 //Supabase em até 10 min (TTL do cache), sem chamada remota por request.
+export async function ehAdmin(user: AuthedUser | null | undefined): Promise<boolean> {
+  if (!user || user.app_metadata.role !== "admin") return false;
+  const admin = await SupabaseAdminService.buscarPorId(user.id);
+  return !!admin && !admin.bloqueado && admin.role === "admin";
+}
+
 export async function requireAdmin(req: Request, res: AuthedResponse, next: NextFunction) {
   try {
     const user = resolveAuth(getCookieHeader(req));
-    if (!user || user.app_metadata.role !== "admin") {
-      const err: any = new Error("Acesso restrito a administradores");
-      err.status = 403;
-      throw err;
-    }
-
-    const admin = await SupabaseAdminService.buscarPorId(user.id);
-    if (!admin || admin.bloqueado || admin.role !== "admin") {
+    if (!user || !(await ehAdmin(user))) {
       const err: any = new Error("Acesso restrito a administradores");
       err.status = 403;
       throw err;

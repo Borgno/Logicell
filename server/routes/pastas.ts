@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { PastaService } from "../services/pasta.server";
 import { SupabaseAdminService } from "../services/supabase-admin.server";
+import { ehAdmin, getUser, requireAdmin, type AuthedResponse } from "../middlewares/auth";
 
 export const pastasRouter = Router();
 
@@ -14,10 +15,21 @@ function parseId(value: any): number {
   return id;
 }
 
-// Lista usuários ativos disponíveis para serem faturistas de uma pasta.
-// Acessível a qualquer usuário autenticado (mesmo não-admin), pois a criação
-// e edição de pastas não é restrita a administradores.
-pastasRouter.get("/faturistas", async (_req, res, next) => {
+//Criar e editar pasta é liberado a qualquer usuário, mas vincular faturista é
+//só de admin. Sem o campo no body, a pasta mantém o faturista atual (edição)
+//ou fica sem (criação); um não-admin mandando o campo recebe 403.
+async function lerFaturista(req: any, res: AuthedResponse): Promise<string | null | undefined> {
+  if (req.body?.faturistaId === undefined) return undefined;
+  if (!(await ehAdmin(getUser(res)))) {
+    const err: any = new Error("Apenas administradores podem vincular faturistas.");
+    err.status = 403;
+    throw err;
+  }
+  return String(req.body.faturistaId || "").trim() || null;
+}
+
+// Lista usuários ativos disponíveis para serem faturistas de uma pasta (só admin).
+pastasRouter.get("/faturistas", requireAdmin, async (_req, res, next) => {
   try {
     const { usuarios } = await SupabaseAdminService.listarUsuarios(1, 1000);
     const faturistas = usuarios
@@ -29,16 +41,16 @@ pastasRouter.get("/faturistas", async (_req, res, next) => {
   }
 });
 
-pastasRouter.post("/", async (req, res, next) => {
+pastasRouter.post("/", async (req, res: AuthedResponse, next) => {
   try {
     const nome = String(req.body?.nome || "").trim();
     const cor = req.body?.cor ? String(req.body.cor) : undefined;
-    const faturistaId = String(req.body?.faturistaId || "").trim();
     if (!nome) {
       res.status(400).json({ error: "Informe o nome da pasta." });
       return;
     }
-    const pasta = await PastaService.criar(nome, cor, faturistaId || null);
+    const faturistaId = await lerFaturista(req, res);
+    const pasta = await PastaService.criar(nome, cor, faturistaId ?? null);
     res.json({ success: true, pasta });
   } catch (err: any) {
     if (!err?.status) err.status = 400;
@@ -46,17 +58,17 @@ pastasRouter.post("/", async (req, res, next) => {
   }
 });
 
-pastasRouter.patch("/:id", async (req, res, next) => {
+pastasRouter.patch("/:id", async (req, res: AuthedResponse, next) => {
   try {
     const id = parseId(req.params.id);
     const nome = String(req.body?.nome || "").trim();
     const cor = req.body?.cor ? String(req.body.cor) : undefined;
-    const faturistaId = String(req.body?.faturistaId || "").trim();
     if (!nome) {
       res.status(400).json({ error: "Informe o nome da pasta." });
       return;
     }
-    const pasta = await PastaService.atualizar(id, nome, cor, faturistaId || null);
+    const faturistaId = await lerFaturista(req, res);
+    const pasta = await PastaService.atualizar(id, nome, cor, faturistaId);
     res.json({ success: true, pasta });
   } catch (err: any) {
     if (!err?.status) err.status = 400;
