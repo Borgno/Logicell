@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { SupabaseAdminService } from "../services/supabase-admin.server";
+import { CARGOS, SupabaseAdminService, type Cargo } from "../services/supabase-admin.server";
 import { PastaService } from "../services/pasta.server";
 import { getUser, type AuthedResponse } from "../middlewares/auth";
 import { invalidate } from "../lib/cache";
@@ -7,6 +7,16 @@ import { invalidate } from "../lib/cache";
 export const usuariosRouter = Router();
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const CARGO_LABEL: Record<Cargo, string> = {
+  admin: "Administrador",
+  gestor: "Gestor",
+  usuario: "Usuário",
+};
+
+function cargoValido(role: string): role is Cargo {
+  return (CARGOS as readonly string[]).includes(role);
+}
 
 function traduzirErroSupabase(err: any): string {
   const msg = String(err?.message || err || "Erro desconhecido");
@@ -71,7 +81,7 @@ usuariosRouter.post("/", async (req, res: AuthedResponse, next) => {
       res.status(400).json({ error: "Informe o nome do usuário." });
       return;
     }
-    if (role !== "admin" && role !== "usuario") {
+    if (!cargoValido(role)) {
       res.status(400).json({ error: "Cargo inválido." });
       return;
     }
@@ -96,7 +106,7 @@ usuariosRouter.patch("/:id", async (req, res: AuthedResponse, next) => {
       res.status(400).json({ error: "Informe o nome do usuário." });
       return;
     }
-    if (role !== "admin" && role !== "usuario") {
+    if (!cargoValido(role)) {
       res.status(400).json({ error: "Cargo inválido." });
       return;
     }
@@ -109,8 +119,11 @@ usuariosRouter.patch("/:id", async (req, res: AuthedResponse, next) => {
       return;
     }
 
+    //Só barra quando quem perde o cargo é justamente o último admin — trocar
+    //o cargo de outros usuários (ex.: usuário → gestor) segue liberado.
+    const alvo = await SupabaseAdminService.buscarPorId(usuarioId);
     const totalAdmins = await SupabaseAdminService.contarAdmins();
-    if (totalAdmins <= 1 && role !== "admin") {
+    if (alvo?.role === "admin" && totalAdmins <= 1 && role !== "admin") {
       res.status(400).json({ error: "Não é possível rebaixar o último administrador do sistema." });
       return;
     }
@@ -122,7 +135,7 @@ usuariosRouter.patch("/:id", async (req, res: AuthedResponse, next) => {
 
     res.json({
       success: true,
-      mensagem: `Usuário atualizado com cargo de ${role === "admin" ? "Administrador" : "Usuário"}.`,
+      mensagem: `Usuário atualizado com cargo de ${CARGO_LABEL[role]}.`,
     });
   } catch (err) {
     next(traduzirErroSupabase(err));
@@ -165,8 +178,9 @@ usuariosRouter.delete("/:id", async (req, res: AuthedResponse, next) => {
       res.status(400).json({ error: "Você não pode excluir a própria conta." });
       return;
     }
+    const alvo = await SupabaseAdminService.buscarPorId(usuarioId);
     const totalAdmins = await SupabaseAdminService.contarAdmins();
-    if (totalAdmins <= 1) {
+    if (alvo?.role === "admin" && totalAdmins <= 1) {
       res.status(400).json({ error: "Não é possível excluir o último administrador do sistema." });
       return;
     }

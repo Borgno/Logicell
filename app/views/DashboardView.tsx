@@ -12,6 +12,8 @@ import {
 } from "~/lib/query";
 import { formatarData, formatarMoeda } from "~/utils/formatters";
 import { Skeleton } from "~/components/Skeleton";
+import { useAuth } from "~/context/AuthContext";
+import { ehGestor } from "~/utils/cargos";
 
 type ItemBarra = { label: string; valor: number; quantidade: number; cor?: string | null };
 type FiltroCampo = keyof DashboardFiltros;
@@ -155,6 +157,7 @@ function DistribuicaoCard({
 // ---------------------------------------------------------------------------
 
 type OpcaoFiltro = { valor: string; label: string };
+type CampoFiltro = (typeof CAMPOS_FILTRO)[number];
 
 // Campos oferecidos no menu "+ Filtro". As sentinelas ("sem", "inbox",
 // "__vazio__") entram no fim de cada lista, como nos selects antigos.
@@ -222,16 +225,28 @@ const CAMPOS_FILTRO: {
   },
 ];
 
+//Usuário comum só vê as próprias pastas (o servidor força o recorte): sem filtro
+//de faturista nem a Caixa de Entrada, que não tem dono.
+const CAMPOS_FILTRO_USUARIO: CampoFiltro[] = CAMPOS_FILTRO
+  .filter((c) => c.campo !== "faturistaId")
+  .map((c) =>
+    c.campo === "pastaId"
+      ? { ...c, opcoes: (o?: DashboardOpcoes) => c.opcoes(o).filter((p) => p.valor !== "inbox") }
+      : c
+  );
+
 // Lista de clientes pode ter milhares de itens: renderiza só os primeiros.
 const MAX_OPCOES_VISIVEIS = 200;
 
 function MenuFiltro({
+  campos,
   campoInicial,
   filtros,
   opcoes,
   onEscolher,
   onFechar,
 }: {
+  campos: CampoFiltro[];
   campoInicial: FiltroCampo | null;
   filtros: DashboardFiltros;
   opcoes?: DashboardOpcoes;
@@ -247,7 +262,7 @@ function MenuFiltro({
     return () => window.removeEventListener("keydown", onKey);
   }, [onFechar]);
 
-  const def = CAMPOS_FILTRO.find((c) => c.campo === campo);
+  const def = campos.find((c) => c.campo === campo);
 
   const lista = useMemo(() => {
     if (!def) return [];
@@ -265,7 +280,7 @@ function MenuFiltro({
             <p className="px-2.5 pt-1.5 pb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">
               Filtrar por
             </p>
-            {CAMPOS_FILTRO.map((c) => (
+            {campos.map((c) => (
               <button
                 key={c.campo}
                 type="button"
@@ -346,11 +361,13 @@ function MenuFiltro({
 }
 
 function FiltrosBar({
+  campos,
   filtros,
   onChange,
   onLimpar,
   opcoes,
 }: {
+  campos: CampoFiltro[];
   filtros: DashboardFiltros;
   onChange: OnChangeFiltro;
   onLimpar: () => void;
@@ -361,10 +378,10 @@ function FiltrosBar({
   const fecharMenu = useCallback(() => setMenu(null), []);
 
   const temFiltro = Object.values(filtros).some(Boolean);
-  const ativos = CAMPOS_FILTRO.filter((c) => filtros[c.campo]);
+  const ativos = campos.filter((c) => filtros[c.campo]);
   const soAntigas = filtros.antigas === "1";
 
-  const rotuloValor = (def: (typeof CAMPOS_FILTRO)[number], valor: string) =>
+  const rotuloValor = (def: CampoFiltro, valor: string) =>
     def.opcoes(opcoes).find((o) => o.valor === valor)?.label ?? valor;
 
   const escolher = (campo: FiltroCampo, valor: string) => {
@@ -398,6 +415,7 @@ function FiltrosBar({
           </div>
           {menu === def.campo && (
             <MenuFiltro
+              campos={campos}
               campoInicial={def.campo}
               filtros={filtros}
               opcoes={opcoes}
@@ -420,6 +438,7 @@ function FiltrosBar({
         </button>
         {menu === "novo" && (
           <MenuFiltro
+            campos={campos}
             campoInicial={null}
             filtros={filtros}
             opcoes={opcoes}
@@ -699,6 +718,8 @@ function GeralConteudo({
 // ---------------------------------------------------------------------------
 
 export function DashboardView() {
+  const { user } = useAuth();
+  const gestor = ehGestor(user);
   const [filtros, setFiltros] = useState<DashboardFiltros>({});
 
   const { data, isLoading, isError, isPlaceholderData } = useDashboard(filtros);
@@ -724,12 +745,13 @@ export function DashboardView() {
           <div>
             <h1 className="text-xl font-bold text-text tracking-tight">Dashboard</h1>
             <p className="text-xs font-medium text-text-muted mt-1">
-              Visão geral das pastas e documentos
+              {gestor ? "Visão geral das pastas e documentos" : "Visão geral das suas pastas e documentos"}
             </p>
           </div>
         </div>
 
         <FiltrosBar
+          campos={gestor ? CAMPOS_FILTRO : CAMPOS_FILTRO_USUARIO}
           filtros={filtros}
           onChange={setFiltro}
           onLimpar={limparFiltros}

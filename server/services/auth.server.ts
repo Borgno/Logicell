@@ -1,9 +1,10 @@
 import { getSession } from "./session.server";
+import { normalizarCargo, type Cargo } from "./supabase-admin.server";
 
 export interface AuthedUser {
   id: string;
   email?: string;
-  app_metadata: { role: string };
+  app_metadata: { role: Cargo };
   user_metadata: { nome: string };
 }
 
@@ -21,7 +22,7 @@ export function resolveAuth(cookieHeader?: string | null): AuthedUser | null {
   return {
     id: session.sub,
     email: session.email,
-    app_metadata: { role: session.role === "admin" ? "admin" : "usuario" },
+    app_metadata: { role: normalizarCargo(session.role) },
     user_metadata: { nome: session.nome || "" },
   };
 }

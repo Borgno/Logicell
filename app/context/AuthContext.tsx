@@ -33,6 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (alive) setIsLoading(false);
       });
 
+    //O /init é refeito periodicamente (useInit) e o servidor devolve o cargo
+    //atual — assim uma promoção/rebaixamento atualiza menus e rotas sem relogin.
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated" || event.query.queryKey[0] !== queryKeys.init[0]) return;
+      const novo = (event.query.state.data as any)?.user;
+      if (!novo) return;
+      //Só atualiza quem já está logado — um /init atrasado não reloga após o logout.
+      setUser((atual: any) =>
+        !atual || atual.app_metadata?.role === novo.app_metadata?.role ? atual : novo
+      );
+    });
+
     const handleUnauthorized = () => {
       setUser(null);
       navigate("/login");
@@ -40,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("auth:unauthorized", handleUnauthorized);
     return () => {
       alive = false;
+      unsubscribe();
       window.removeEventListener("auth:unauthorized", handleUnauthorized);
     };
   }, [navigate]);

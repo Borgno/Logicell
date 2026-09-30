@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { resolveAuth, type AuthedUser } from "../services/auth.server";
-import { SupabaseAdminService } from "../services/supabase-admin.server";
+import { SupabaseAdminService, type Cargo } from "../services/supabase-admin.server";
+import { getSession, sessionStorage } from "../services/session.server";
 import { marcar } from "../lib/timing";
 
 export interface AuthedResponse extends Response {
@@ -43,29 +44,12 @@ export async function requireUser(req: Request, res: AuthedResponse, next: NextF
       throw err;
     }
 
-    res.locals.user = user;
-    next();
-  } catch (err) {
-    next(err);
-  }
-}
-
-//Além do cookie dizer "admin", confere na lista cacheada que o usuário continua
-//admin — rebaixamento pelo app vale na hora (invalidação), pelo painel do
-//Supabase em até 10 min (TTL do cache), sem chamada remota por request.
-export async function ehAdmin(user: AuthedUser | null | undefined): Promise<boolean> {
-  if (!user || user.app_metadata.role !== "admin") return false;
-  const admin = await SupabaseAdminService.buscarPorId(user.id);
-  return !!admin && !admin.bloqueado && admin.role === "admin";
-}
-
-export async function requireAdmin(req: Request, res: AuthedResponse, next: NextFunction) {
-  try {
-    const user = resolveAuth(getCookieHeader(req));
-    if (!user || !(await ehAdmin(user))) {
-      const err: any = new Error("Acesso restrito a administradores");
-      err.status = 403;
-      throw err;
+    //Cargo mudou depois do login (promoção ou rebaixamento): vale o da lista e
+    //o cookie é regravado, sem exigir novo login.
+    if (conta && conta.role !== user.app_metadata.role) {
+      user.app_metadata.role = conta.role;
+      const session = getSession(getCookieHeader(req));
+      res.append("Set-Cookie", sessionStorage.commitSession({ ...session, role: conta.role }));
     }
 
     res.locals.user = user;
@@ -74,3 +58,43 @@ export async function requireAdmin(req: Request, res: AuthedResponse, next: Next
     next(err);
   }
 }
+
+//O cargo que vale é o da lista cacheada, não o do cookie — mudança pelo app
+//vale na hora (invalidação), pelo painel do Supabase em até 10 min (TTL do
+//cache), sem chamada remota por request. Supabase fora do ar nega o acesso.
+async function temCargo(user: AuthedUser | null | undefined, cargos: Cargo[]): Promise<boolean> {
+  if (!user) return false;
+  const conta = await SupabaseAdminService.buscarPorId(user.id);
+  return !!conta && !conta.bloqueado && cargos.includes(conta.role);
+}
+
+export function ehAdmin(user: AuthedUser | null | undefined): Promise<boolean> {
+  return temCargo(user, ["admin"]);
+}
+
+//Gestor ou acima (admin herda tudo que o gestor pode).
+export function ehGestor(user: AuthedUser | null | undefined): Promise<boolean> {
+  return temCargo(user, ["admin", "gestor"]);
+}
+
+function exigir(verificar: (user: AuthedUser | null) => Promise<boolean>, mensagem: string) {
+  return async (req: Request, res: AuthedResponse, next: NextFunction) => {
+    try {
+      //Normalmente já resolvido (e com o cargo atualizado) pelo requireUser.
+      const user = res.locals.user ?? resolveAuth(getCookieHeader(req));
+      if (!user || !(await verificar(user))) {
+        const err: any = new Error(mensagem);
+        err.status = 403;
+        throw err;
+      }
+
+      res.locals.user = user;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+export const requireAdmin = exigir(ehAdmin, "Acesso restrito a administradores");
+export const requireGestor = exigir(ehGestor, "Acesso restrito a gestores e administradores");

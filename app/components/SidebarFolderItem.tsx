@@ -30,18 +30,18 @@ interface SidebarFolderItemProps {
   folder: FolderType;
   isCollapsed: boolean;
   antigas?: number;
-  isAdmin?: boolean;
+  podeVincularFaturista?: boolean;
 }
 
-export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0, isAdmin = false }: SidebarFolderItemProps) => {
+export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0, podeVincularFaturista = false }: SidebarFolderItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingValue, setEditingValue] = useState(folder.nome);
   const [editingColor, setEditingColor] = useState(folder.cor || PRESET_COLORS[0]);
   const [editingFaturista, setEditingFaturista] = useState(folder.faturistaId || "");
   const [isPending, setIsPending] = useState(false);
   const { confirm: confirmAction, alert: showAlert } = useUI();
-  // Só busca a lista de faturistas (admin) com o formulário de edição aberto.
-  const { data: faturistasData } = useFaturistas(isEditing && isAdmin);
+  // Só busca a lista de faturistas (gestor/admin) com o formulário de edição aberto.
+  const { data: faturistasData } = useFaturistas(isEditing && podeVincularFaturista);
   const faturistas = faturistasData?.faturistas || [];
 
   const refreshFolders = () => {
@@ -63,7 +63,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0,
       await api.patch(`/pastas/${folder.id}`, {
         nome: editingValue,
         cor: editingColor,
-        ...(isAdmin && { faturistaId: editingFaturista }),
+        ...(podeVincularFaturista && { faturistaId: editingFaturista }),
       });
       setIsEditing(false);
       refreshFolders();
@@ -72,7 +72,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0,
     } finally {
       setIsPending(false);
     }
-  }, [editingValue, editingColor, editingFaturista, isAdmin, isPending, folder.id]);
+  }, [editingValue, editingColor, editingFaturista, podeVincularFaturista, isPending, folder.id]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -109,7 +109,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0,
           onKeyDown={(e) => e.key === "Enter" && submitRename()}
           className="w-full bg-card-bg dark:bg-bg border border-[rgba(0,0,0,0.12)] dark:border-glass-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-primary text-text placeholder:text-text-dim"
         />
-        {isAdmin && (
+        {podeVincularFaturista && (
           <select
             value={editingFaturista}
             onChange={(e) => setEditingFaturista(e.target.value)}

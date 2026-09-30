@@ -2,6 +2,7 @@ import { CheckCircle2, Inbox, LayoutDashboard, Moon, Plus, Search, ShieldCheck, 
 import React, { useCallback, useMemo, useState } from "react";
 import { NavLink } from "react-router";
 import { buscarNomeUsuario } from "~/utils/formatters";
+import { ehAdmin, ehGestor } from "~/utils/cargos";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
 import { prefetchOperacoes, cancelPrefetch } from "~/hooks/useOperacoesGridData";
@@ -40,10 +41,11 @@ export const Sidebar = React.memo(({
   const [searchQuery, setSearchQuery] = useState("");
   const [filterColor, setFilterColor] = useState("");
 
-  const isAdmin = user?.app_metadata?.role === "admin";
+  const isAdmin = ehAdmin(user);
+  const isGestor = ehGestor(user);
 
-  // Só busca a lista de faturistas (admin) com o formulário de nova pasta aberto.
-  const { data: faturistasData } = useFaturistas(isAddingFolder && isAdmin);
+  // Só busca a lista de faturistas (gestor/admin) com o formulário de nova pasta aberto.
+  const { data: faturistasData } = useFaturistas(isAddingFolder && isGestor);
   const faturistas = faturistasData?.faturistas || [];
 
   const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -65,7 +67,7 @@ export const Sidebar = React.memo(({
       await api.post("/pastas", {
         nome: newFolderName,
         cor: newFolderColor,
-        ...(isAdmin && { faturistaId: newFolderFaturista }),
+        ...(isGestor && { faturistaId: newFolderFaturista }),
       });
       setNewFolderName("");
       setNewFolderColor(PRESET_COLORS[0]);
@@ -77,7 +79,7 @@ export const Sidebar = React.memo(({
     } finally {
       setIsCreating(false);
     }
-  }, [newFolderName, newFolderColor, newFolderFaturista, isAdmin, isCreating, showAlert]);
+  }, [newFolderName, newFolderColor, newFolderFaturista, isGestor, isCreating, showAlert]);
 
   return (
     <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[240px]'} bg-card-bg dark:bg-bg border-r border-glass-border transition-all duration-300 flex flex-col relative z-20`}>
@@ -135,7 +137,7 @@ export const Sidebar = React.memo(({
               )}
             </NavLink>
 
-            {isAdmin && (
+            {isGestor && (
               <NavLink to="/automacoes" className={({ isActive }) => `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${isActive ? 'text-primary bg-primary/10 dark:bg-transparent before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-primary before:rounded-r' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
                 {() => (
                   <div className="flex items-center gap-2.5">
@@ -222,7 +224,7 @@ export const Sidebar = React.memo(({
             {isAddingFolder && !isCollapsed && (
               <form onSubmit={handleCreateFolder} className="px-3 mb-2 space-y-2 bg-surface rounded-xl p-2 border border-glass-border">
                 <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)} placeholder="Nome..." className="w-full bg-card-bg dark:bg-bg rounded-lg px-2 py-1 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text placeholder:text-text-dim" />
-                {isAdmin && (
+                {isGestor && (
                   <select
                     value={newFolderFaturista}
                     onChange={e => setNewFolderFaturista(e.target.value)}
@@ -249,7 +251,7 @@ export const Sidebar = React.memo(({
             )}
 
             {filteredPastas.map((p: any) => (
-              <SidebarFolderItem key={p.id} folder={p} isCollapsed={isCollapsed} antigas={emissaoAntigasPorPasta[String(p.id)] ?? 0} isAdmin={isAdmin} />
+              <SidebarFolderItem key={p.id} folder={p} isCollapsed={isCollapsed} antigas={emissaoAntigasPorPasta[String(p.id)] ?? 0} podeVincularFaturista={isGestor} />
             ))}
 
             {!isCollapsed && pastas.length > 0 && filteredPastas.length === 0 && (

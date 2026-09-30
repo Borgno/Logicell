@@ -3,6 +3,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "~/context/AuthContext";
 import { AppLayout } from "~/components/AppLayout";
 import { OperacoesPage } from "~/pages/OperacoesPage";
+import { ehAdmin, ehGestor } from "~/utils/cargos";
 
 //Páginas menos acessadas ficam em chunks separados, baixados só quando visitadas
 const LoginPage = lazy(() => import("~/pages/LoginPage").then((m) => ({ default: m.LoginPage })));
@@ -40,9 +41,9 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-function RequireAdmin() {
+function RequireCargo({ permitido }: { permitido: (user: any) => boolean }) {
   const { user } = useAuth();
-  if (user?.app_metadata?.role !== "admin") return <Navigate to="/" replace />;
+  if (!permitido(user)) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
@@ -55,12 +56,14 @@ export function AppRoutes() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/caixa-de-entrada" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
             <Route path="caixa-de-entrada" element={<OperacoesPage />} />
             <Route path="pastas/:nome" element={<OperacoesPage />} />
             <Route path="perfil" element={<PerfilPage />} />
-            <Route element={<RequireAdmin />}>
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route element={<RequireCargo permitido={ehGestor} />}>
               <Route path="automacoes" element={<AutomacoesPage />} />
+            </Route>
+            <Route element={<RequireCargo permitido={ehAdmin} />}>
               <Route path="admin/usuarios" element={<UsuariosPage />} />
             </Route>
           </Route>

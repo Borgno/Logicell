@@ -1,5 +1,6 @@
 import { Loader2, Pencil, UserPlus, X } from "lucide-react";
 import { useState } from "react";
+import { CARGO_LABEL, type Cargo } from "~/utils/cargos";
 
 export type UsuarioModalMode = "criar" | "editar";
 
@@ -22,7 +23,9 @@ export function UsuarioModal({ mode, usuario, carregando, erro, onSubmit, onClos
   const [email, setEmail] = useState(usuario?.email || "");
   const [senha, setSenha] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
-  const [role, setRole] = useState<"admin" | "usuario">(usuario?.role === "admin" ? "admin" : "usuario");
+  const [role, setRole] = useState<Cargo>(
+    usuario?.role === "admin" || usuario?.role === "gestor" ? usuario.role : "usuario"
+  );
 
   const config = MODAL_CONFIG[mode];
   const Icon = config.icone;
@@ -137,22 +140,17 @@ export function UsuarioModal({ mode, usuario, carregando, erro, onSubmit, onClos
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Cargo</label>
               <div className="flex bg-surface p-1 rounded-xl border border-glass-border h-11 items-center self-start">
-                <button
-                  type="button"
-                  onClick={() => setRole("usuario")}
-                  disabled={carregando}
-                  className={`px-4 h-full flex items-center justify-center text-sm font-bold rounded-lg transition-all ${role === "usuario" ? "bg-card-bg text-text shadow-sm border border-glass-border" : "text-text-muted hover:text-text border border-transparent"}`}
-                >
-                  Usuário
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("admin")}
-                  disabled={carregando}
-                  className={`px-4 h-full flex items-center justify-center text-sm font-bold rounded-lg transition-all ${role === "admin" ? "bg-card-bg text-text shadow-sm border border-glass-border" : "text-text-muted hover:text-text border border-transparent"}`}
-                >
-                  Administrador
-                </button>
+                {(["usuario", "gestor", "admin"] as const).map((cargo) => (
+                  <button
+                    key={cargo}
+                    type="button"
+                    onClick={() => setRole(cargo)}
+                    disabled={carregando}
+                    className={`px-4 h-full flex items-center justify-center text-sm font-bold rounded-lg transition-all ${role === cargo ? "bg-card-bg text-text shadow-sm border border-glass-border" : "text-text-muted hover:text-text border border-transparent"}`}
+                  >
+                    {CARGO_LABEL[cargo]}
+                  </button>
+                ))}
               </div>
             </div>
           )}

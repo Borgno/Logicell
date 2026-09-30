@@ -3,6 +3,7 @@ import { createSupabaseAuthClient } from "../services/supabase.server";
 import { sessionStorage } from "../services/session.server";
 import { resolveAuth } from "../services/auth.server";
 import { getCookieHeader } from "../middlewares/auth";
+import { normalizarCargo } from "../services/supabase-admin.server";
 
 export const authRouter = Router();
 
@@ -31,7 +32,7 @@ authRouter.post("/login", async (req, res, next) => {
     res.append("Set-Cookie", sessionStorage.commitSession({
       sub: data.user.id,
       email: data.user.email || "",
-      role: data.user.app_metadata?.role === "admin" ? "admin" : "usuario",
+      role: normalizarCargo(data.user.app_metadata?.role),
       nome: data.user.user_metadata?.nome || "",
       exp: Math.floor(Date.now() / 1000) + SESSAO_DURACAO_SEGUNDOS,
     }));

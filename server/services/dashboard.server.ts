@@ -101,7 +101,7 @@ export interface DashboardFaturistaDetalhe {
 // Opções para os selects de filtro da dashboard.
 export interface DashboardOpcoes {
   faturistas: { id: string; nome: string }[];
-  pastas: { id: number; nome: string }[];
+  pastas: { id: number; nome: string; faturistaId: string | null }[];
   clientes: string[];
   status: string[];
   tiposDocumento: string[];
@@ -559,7 +559,7 @@ export class DashboardService {
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
     const pastasOpcoes = [...pastas]
-      .map((p) => ({ id: p.id, nome: p.nome }))
+      .map((p) => ({ id: p.id, nome: p.nome, faturistaId: p.faturistaId }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
     const opcoes: DashboardOpcoes = {

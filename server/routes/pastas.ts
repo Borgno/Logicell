@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { PastaService } from "../services/pasta.server";
 import { SupabaseAdminService } from "../services/supabase-admin.server";
-import { ehAdmin, getUser, requireAdmin, type AuthedResponse } from "../middlewares/auth";
+import { ehGestor, getUser, requireGestor, type AuthedResponse } from "../middlewares/auth";
 
 export const pastasRouter = Router();
 
@@ -16,20 +16,20 @@ function parseId(value: any): number {
 }
 
 //Criar e editar pasta é liberado a qualquer usuário, mas vincular faturista é
-//só de admin. Sem o campo no body, a pasta mantém o faturista atual (edição)
-//ou fica sem (criação); um não-admin mandando o campo recebe 403.
+//só de gestor ou admin. Sem o campo no body, a pasta mantém o faturista atual
+//(edição) ou fica sem (criação); um usuário comum mandando o campo recebe 403.
 async function lerFaturista(req: any, res: AuthedResponse): Promise<string | null | undefined> {
   if (req.body?.faturistaId === undefined) return undefined;
-  if (!(await ehAdmin(getUser(res)))) {
-    const err: any = new Error("Apenas administradores podem vincular faturistas.");
+  if (!(await ehGestor(getUser(res)))) {
+    const err: any = new Error("Apenas gestores e administradores podem vincular faturistas.");
     err.status = 403;
     throw err;
   }
   return String(req.body.faturistaId || "").trim() || null;
 }
 
-// Lista usuários ativos disponíveis para serem faturistas de uma pasta (só admin).
-pastasRouter.get("/faturistas", requireAdmin, async (_req, res, next) => {
+// Lista usuários ativos disponíveis para serem faturistas de uma pasta (gestor ou admin).
+pastasRouter.get("/faturistas", requireGestor, async (_req, res, next) => {
   try {
     const { usuarios } = await SupabaseAdminService.listarUsuarios(1, 1000);
     const faturistas = usuarios

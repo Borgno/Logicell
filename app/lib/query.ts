@@ -169,7 +169,7 @@ export interface DashboardFaturistaDetalhe {
 // Opções distintas para os selects de filtro.
 export interface DashboardOpcoes {
   faturistas: { id: string; nome: string }[];
-  pastas: { id: number; nome: string }[];
+  pastas: { id: number; nome: string; faturistaId: string | null }[];
   clientes: string[];
   status: string[];
   tiposDocumento: string[];

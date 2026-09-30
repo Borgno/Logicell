@@ -12,6 +12,19 @@ export interface BulkActionParams {
   excludedIds?: number[];
 }
 
+//Colunas que a grid deixa editar (COLUNAS_OPERACAO no front). Fora daqui —
+//id, pastaId, importacaoId, hash_assinatura, createdAt... — só o sistema grava:
+//mexer no hash quebra a deduplicação da importação e no importacaoId o desfazer.
+const CAMPOS_EDITAVEIS = new Set([
+  "nm_agencia", "dt_emissao_", "nm_proprietario_posse_cavalo", "nm_pessoa_pagador",
+  "nr_cpf_cnpj_raiz", "nr_cpf_cnpj_pagador", "nr_ctrc", "status", "data_status",
+  "id_solicitacao", "dt_quitacao_saldo", "comentarios", "id_tipo_documento",
+  "nm_pessoa_remetente", "nm_cidade_origem", "ds_sigla_origem", "nm_pessoa_destinatario",
+  "nm_cidade_destino", "ds_sigla_destino", "nm_produto", "vl_peso", "vl_tarifa",
+  "vl_total", "nr_nf", "ds_placa", "nm_pessoa_matriz", "nr_contrato", "nr_chave_acesso",
+  "nm_pessoa_usuario_lancamento", "id_tipo_ctrc", "cd_pessoa_pagador", "nm_motorista",
+]);
+
 //OperacaoService
 //Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
 //Transformações de dados, validações complexas e regras de negócio de parsing
@@ -296,6 +309,11 @@ export class OperacaoService {
   }
 
   static async update(id: number, campo: string, valorNovo: string) {
+    if (!CAMPOS_EDITAVEIS.has(campo)) {
+      const err: any = new Error("Campo não permitido para edição.");
+      err.status = 400;
+      throw err;
+    }
     this.invalidarCache();
 
     let valorLimpo: any = valorNovo;

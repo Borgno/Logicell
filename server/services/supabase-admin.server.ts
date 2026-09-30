@@ -5,13 +5,22 @@ export interface UsuarioAdmin {
   id: string;
   email: string;
   nome: string;
-  role: "admin" | "usuario";
+  role: Cargo;
   criadoEm: string | null;
   bloqueado: boolean;
 }
 
-const ROLE_ADMIN = "admin";
-const ROLE_USUARIO = "usuario";
+//Cargos em ordem crescente de acesso: usuário (caixa de entrada e pastas),
+//gestor (+ dashboard e automações) e admin (+ gestão de usuários).
+export const CARGOS = ["usuario", "gestor", "admin"] as const;
+export type Cargo = (typeof CARGOS)[number];
+
+const ROLE_ADMIN: Cargo = "admin";
+
+//Qualquer valor desconhecido (ou ausente) cai no cargo de menor acesso.
+export function normalizarCargo(role: unknown): Cargo {
+  return CARGOS.includes(role as Cargo) ? (role as Cargo) : "usuario";
+}
 const BAN_PERMANENTE = "876000h"; // 100 anos = banimento efetivamente permanente
 //Lista completa de usuários do Supabase muda pouco: cacheada 10 min e paginada
 //em memória (listarUsuarios, contarAdmins e quem mais precisar da lista toda).
@@ -38,7 +47,7 @@ function createSupabaseAdminClient() {
 }
 
 function mapearUsuario(u: any): UsuarioAdmin {
-  const role = u.app_metadata?.role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USUARIO;
+  const role = normalizarCargo(u.app_metadata?.role);
   const bloqueado = !!u.banned_until && new Date(u.banned_until).getTime() > Date.now();
   return {
     id: u.id,
@@ -109,7 +118,7 @@ export const SupabaseAdminService = {
 
   async criarUsuario(dados: { email: string; senha: string; nome: string; role: string }) {
     const supabase = createSupabaseAdminClient();
-    const role = dados.role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USUARIO;
+    const role = normalizarCargo(dados.role);
 
     const { data, error } = await supabase.auth.admin.createUser({
       email: dados.email,
@@ -125,7 +134,7 @@ export const SupabaseAdminService = {
 
   async atualizarCargo(usuarioId: string, role: string) {
     const supabase = createSupabaseAdminClient();
-    const novoRole = role === ROLE_ADMIN ? ROLE_ADMIN : ROLE_USUARIO;
+    const novoRole = normalizarCargo(role);
 
     const { error } = await supabase.auth.admin.updateUserById(usuarioId, {
       app_metadata: { role: novoRole },
