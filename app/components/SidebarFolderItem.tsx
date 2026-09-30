@@ -4,7 +4,7 @@ import { NavLink } from "react-router";
 import { useUI } from "~/hooks/use-ui";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
-import { prefetchOperacoes } from "~/hooks/useOperacoesGridData";
+import { prefetchOperacoes, cancelPrefetch } from "~/hooks/useOperacoesGridData";
 
 export const PRESET_COLORS = ["#64748b", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
@@ -30,16 +30,18 @@ interface SidebarFolderItemProps {
   folder: FolderType;
   isCollapsed: boolean;
   antigas?: number;
+  podeVincularFaturista?: boolean;
 }
 
-export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 }: SidebarFolderItemProps) => {
+export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0, podeVincularFaturista = false }: SidebarFolderItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingValue, setEditingValue] = useState(folder.nome);
   const [editingColor, setEditingColor] = useState(folder.cor || PRESET_COLORS[0]);
   const [editingFaturista, setEditingFaturista] = useState(folder.faturistaId || "");
   const [isPending, setIsPending] = useState(false);
   const { confirm: confirmAction, alert: showAlert } = useUI();
-  const { data: faturistasData } = useFaturistas();
+  // Só busca a lista de faturistas (gestor/admin) com o formulário de edição aberto.
+  const { data: faturistasData } = useFaturistas(isEditing && podeVincularFaturista);
   const faturistas = faturistasData?.faturistas || [];
 
   const refreshFolders = () => {
@@ -55,10 +57,14 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
   }, [folder]);
 
   const submitRename = useCallback(async () => {
-    if (!editingValue.trim() || !editingFaturista || isPending) return;
+    if (!editingValue.trim() || isPending) return;
     setIsPending(true);
     try {
-      await api.patch(`/pastas/${folder.id}`, { nome: editingValue, cor: editingColor, faturistaId: editingFaturista });
+      await api.patch(`/pastas/${folder.id}`, {
+        nome: editingValue,
+        cor: editingColor,
+        ...(podeVincularFaturista && { faturistaId: editingFaturista }),
+      });
       setIsEditing(false);
       refreshFolders();
     } catch (err) {
@@ -66,7 +72,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
     } finally {
       setIsPending(false);
     }
-  }, [editingValue, editingColor, editingFaturista, isPending, folder.id]);
+  }, [editingValue, editingColor, editingFaturista, podeVincularFaturista, isPending, folder.id]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -103,16 +109,18 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
           onKeyDown={(e) => e.key === "Enter" && submitRename()}
           className="w-full bg-card-bg dark:bg-bg border border-[rgba(0,0,0,0.12)] dark:border-glass-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-primary text-text placeholder:text-text-dim"
         />
-        <select
-          value={editingFaturista}
-          onChange={(e) => setEditingFaturista(e.target.value)}
-          className="w-full bg-card-bg dark:bg-bg border border-[rgba(0,0,0,0.12)] dark:border-glass-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-primary text-text"
-        >
-          <option value="" disabled>Faturista responsável...</option>
-          {faturistas.map((f) => (
-            <option key={f.id} value={f.id}>{f.nome || f.email}</option>
-          ))}
-        </select>
+        {podeVincularFaturista && (
+          <select
+            value={editingFaturista}
+            onChange={(e) => setEditingFaturista(e.target.value)}
+            className="w-full bg-card-bg dark:bg-bg border border-[rgba(0,0,0,0.12)] dark:border-glass-border rounded-lg px-2 py-1 text-xs font-bold outline-none focus:border-primary text-text"
+          >
+            <option value="">Sem faturista</option>
+            {faturistas.map((f) => (
+              <option key={f.id} value={f.id}>{f.nome || f.email}</option>
+            ))}
+          </select>
+        )}
         <div className="flex justify-between items-center px-1">
           <div className="flex gap-1.5">
             {PRESET_COLORS.map((c) => (
@@ -136,7 +144,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
             <button onClick={cancelEdit} className="p-1 hover:text-rose-500">
               <X size={14} />
             </button>
-            <button onClick={submitRename} disabled={isPending || !editingFaturista} className="p-1 hover:text-emerald-500 disabled:opacity-40">
+            <button onClick={submitRename} disabled={isPending} className="p-1 hover:text-emerald-500 disabled:opacity-40">
               <CheckCircle2 size={14} />
             </button>
           </div>
@@ -149,7 +157,8 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0 
     <div className={`relative group/item ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
       <NavLink
         to={`/pastas/${encodeURIComponent(folder.nome)}`}
-        onMouseEnter={() => prefetchOperacoes(folder.id)}
+        onMouseEnter={() => prefetchOperacoes({ pastaId: null, pastaNome: folder.nome })}
+        onMouseLeave={cancelPrefetch}
         className={({ isActive }) =>
           `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
             isActive

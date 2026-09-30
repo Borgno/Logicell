@@ -1,8 +1,24 @@
 import { PrazoService, type PrazoRegras } from "./prazo.server";
+import { PastaService } from "./pasta.server";
 
 const MILIS_DIA = 24 * 60 * 60 * 1000;
 
 export class OperacaoQueryBuilder {
+  // Resolve o identificador da pasta: pastaNome (rota de pasta, cacheada via
+  // PastaService) tem prioridade sobre pastaId; nome inexistente vira 404.
+  static async resolverPastaId(pastaId: any, filtros: any): Promise<number | null> {
+    if (filtros?.pastaNome) {
+      const pasta = await PastaService.buscarPorNome(String(filtros.pastaNome));
+      if (!pasta) {
+        const err: any = new Error("Pasta não encontrada.");
+        err.status = 404;
+        throw err;
+      }
+      return pasta.id;
+    }
+    return pastaId && pastaId !== "null" ? Number(pastaId) : null;
+  }
+
   // Condição SQL de "emissão antiga": fora do prazo padrão ou do prazo
   // específico do cliente (nm_pessoa_pagador). Compartilhada com
   // `emissoesAntigasPorPasta` para que o filtro e os contadores batam.
@@ -151,7 +167,7 @@ export class OperacaoQueryBuilder {
       whereAnd.push(`${condition} $${params.length}`);
     };
 
-    const pid = pastaId && pastaId !== "null" ? Number(pastaId) : null;
+    const pid = await this.resolverPastaId(pastaId, filtros);
 
     // Filtros especiais por coluna (sem valor digitado, baseados em regra de negócio)
     if (this.temFiltro(filtros, "dt_emissao_", "antigos")) {

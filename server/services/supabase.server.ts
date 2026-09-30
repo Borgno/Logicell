@@ -1,10 +1,10 @@
-import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
-import { getSession } from "./session.server";
+import { createClient } from "@supabase/supabase-js";
 
-export async function createSupabaseServerClient(
-  cookieHeader?: string | null,
-  options?: { skipSessionSync?: boolean }
-) {
+//Client do Supabase usado exclusivamente pelo login: valida e-mail/senha e
+//devolve os dados do usuário (id, e-mail, role, nome) para montar o cookie de
+//sessão próprio (ver session.server.ts). Sem sincronização de cookies do
+//Supabase — a sessão da aplicação é local, resolvida sem rede (A9).
+export function createSupabaseAuthClient() {
   const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 
@@ -12,37 +12,7 @@ export async function createSupabaseServerClient(
     throw new Error("VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set");
   }
 
-  const response = {
-    headers: new Headers(),
-  };
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return (cookieHeader ? parseCookieHeader(cookieHeader) : []).map((c) => ({
-          name: c.name,
-          value: c.value ?? "",
-        }));
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.headers.append("Set-Cookie", serializeCookieHeader(name, value, options))
-        );
-      },
-    },
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
   });
-
-  // SINCRONIZAÇÃO: Carrega os tokens do nosso cookie de sessão corporativo
-  const session = getSession(cookieHeader);
-  const accessToken = session.access_token;
-  const refreshToken = session.refresh_token;
-
-  if (accessToken && !options?.skipSessionSync) {
-    await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken || "",
-    });
-  }
-
-  return { supabase, response };
 }

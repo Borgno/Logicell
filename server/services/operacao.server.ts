@@ -12,6 +12,19 @@ export interface BulkActionParams {
   excludedIds?: number[];
 }
 
+//Colunas que a grid deixa editar (COLUNAS_OPERACAO no front). Fora daqui —
+//id, pastaId, importacaoId, hash_assinatura, createdAt... — só o sistema grava:
+//mexer no hash quebra a deduplicação da importação e no importacaoId o desfazer.
+const CAMPOS_EDITAVEIS = new Set([
+  "nm_agencia", "dt_emissao_", "nm_proprietario_posse_cavalo", "nm_pessoa_pagador",
+  "nr_cpf_cnpj_raiz", "nr_cpf_cnpj_pagador", "nr_ctrc", "status", "data_status",
+  "id_solicitacao", "dt_quitacao_saldo", "comentarios", "id_tipo_documento",
+  "nm_pessoa_remetente", "nm_cidade_origem", "ds_sigla_origem", "nm_pessoa_destinatario",
+  "nm_cidade_destino", "ds_sigla_destino", "nm_produto", "vl_peso", "vl_tarifa",
+  "vl_total", "nr_nf", "ds_placa", "nm_pessoa_matriz", "nr_contrato", "nr_chave_acesso",
+  "nm_pessoa_usuario_lancamento", "id_tipo_ctrc", "cd_pessoa_pagador", "nm_motorista",
+]);
+
 //OperacaoService
 //Responsabilidade: Interações puras de Banco de Dados com a tabela Operacao.
 //Transformações de dados, validações complexas e regras de negócio de parsing
@@ -73,6 +86,9 @@ export class OperacaoService {
     const offset = (p - 1) * l;
 
     const orderClause = this.montarOrderBy(filtros);
+    // Resolve pastaNome -> pastaId uma vez (cache) para usar tanto no WHERE
+    // quanto nas placas duplicadas, que hoje recebem o pastaId cru.
+    const pid = await OperacaoQueryBuilder.resolverPastaId(pastaId, filtros);
     const whereClause = await OperacaoQueryBuilder.construirWhere(pastaId, filtros);
     const cacheKey = JSON.stringify({ sql: whereClause.sql, params: whereClause.params });
     const cachedEntry = this.countCache.get(cacheKey);
@@ -81,8 +97,12 @@ export class OperacaoService {
     // Uma única ida ao banco: COUNT e SUM vêm como colunas de janela (OVER()),
     // eliminando a segunda query (COUNT+SUM) que antes dobrava o round-trip
     // de rede — o gargalo real aqui é latência (VPS/DB na Europa), não o SQL.
-    const data = await prisma.$queryRawUnsafe<any[]>(`
-        SELECT 
+    // As duas outras queries (placas duplicadas e regras de prazo) não dependem
+    // do resultado da principal: disparam todas juntas no mesmo Promise.all.
+    const dbInicio = Date.now();
+    const [data, placasDuplicadas, regras] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
           o.id, o.nm_agencia, o.dt_emissao_, o.cd_pessoa_pagador, o.nm_pessoa_pagador,
           o.nr_cpf_cnpj_raiz, o.nr_cpf_cnpj_pagador, o.nr_ctrc, o.status, o.comentarios,
           o.id_tipo_documento, o.nm_pessoa_remetente, o.nm_cidade_origem, o.ds_sigla_origem,
@@ -96,12 +116,11 @@ export class OperacaoService {
         ${whereClause.sql}
         ${orderClause}
         LIMIT ${l} OFFSET ${offset}
-      `, ...whereClause.params);
-
-    const [placasDuplicadas, regras] = await Promise.all([
-      this.placasDuplicadasDaPasta(pastaId),
+      `, ...whereClause.params),
+      this.placasDuplicadasDaPasta(pid),
       PrazoService.regras(),
     ]);
+    const dbMs = Date.now() - dbInicio;
     const agora = Date.now();
     const MILIS_DIA = 24 * 60 * 60 * 1000;
 
@@ -148,6 +167,7 @@ export class OperacaoService {
     return {
       data: sanitizedData,
       meta: { total, totalVl, page: p, limit: l, totalPages: Math.ceil(total / l) },
+      dbMs,
     };
   }
 
@@ -289,6 +309,11 @@ export class OperacaoService {
   }
 
   static async update(id: number, campo: string, valorNovo: string) {
+    if (!CAMPOS_EDITAVEIS.has(campo)) {
+      const err: any = new Error("Campo não permitido para edição.");
+      err.status = 400;
+      throw err;
+    }
     this.invalidarCache();
 
     let valorLimpo: any = valorNovo;
@@ -299,24 +324,23 @@ export class OperacaoService {
     } else if (campo.startsWith("vl_")) {
       valorLimpo = Number(valorNovo.replace(",", "."));
     }
-    
-    const dataUpdate: any = { [campo]: valorLimpo };
-    if (campo === "status") {
-      const operacaoAtual = await prisma.operacao.findUnique({
-        where: { id },
-        select: { status: true }
-      });
-      if (operacaoAtual?.status !== valorLimpo) {
-        dataUpdate.data_status = new Date();
-      }
-    }
-    
-    const operacaoAtualizada = await prisma.operacao.update({ 
-      where: { id }, 
-      data: dataUpdate 
-    });
 
-    return operacaoAtualizada;
+    if (campo === "status") {
+      // Uma única ida ao banco: o CASE só grava data_status quando o status
+      // muda de fato (IS DISTINCT FROM cobre o caso de status atual nulo) —
+      // antes eram 2 idas (findUnique para comparar + update).
+      await prisma.$executeRawUnsafe(
+        `UPDATE "Operacao"
+         SET status = $1,
+             data_status = CASE WHEN status IS DISTINCT FROM $1 THEN now() ELSE data_status END
+         WHERE id = $2`,
+        valorLimpo,
+        id
+      );
+      return;
+    }
+
+    await prisma.operacao.update({ where: { id }, data: { [campo]: valorLimpo } });
   }
 
   static async bulkUpdate(ids: number[], campo: string, valor: string) {

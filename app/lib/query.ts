@@ -1,4 +1,4 @@
-import { QueryClient, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 
 export const queryClient = new QueryClient({
@@ -30,13 +30,17 @@ export interface InitData {
   emissaoAntigasPorPasta: Record<string, number>;
 }
 
+// Extraída para ser reaproveitada pelo AuthContext (boot com uma única
+// request: sem /auth/me separado, ver AuthContext.tsx).
+export const fetchInit = () => api.get<InitData>("/init");
+
 // Dados de boot (sidebar + ordem de colunas). Mantidos frescos com polling
 // leve apenas com a aba em foco — é o que dá o "tempo real" dos contadores
 // da sidebar sem custo quando o usuário não está olhando.
 export function useInit() {
   return useQuery({
     queryKey: queryKeys.init,
-    queryFn: () => api.get<InitData>("/init"),
+    queryFn: fetchInit,
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     refetchInterval: 120_000,
@@ -50,12 +54,15 @@ export interface Faturista {
   email: string;
 }
 
-// Lista de usuários ativos que podem ser atribuídos como faturista de uma pasta.
-export function useFaturistas() {
+// Lista de usuários ativos que podem ser atribuídos como faturista de uma
+// pasta. Só busca quando o formulário de criar/editar pasta está aberto —
+// o select não aparece em mais lugar nenhum.
+export function useFaturistas(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.faturistas,
     queryFn: () => api.get<{ faturistas: Faturista[] }>("/pastas/faturistas"),
     staleTime: 60_000,
+    enabled,
   });
 }
 
@@ -93,6 +100,8 @@ export interface DashboardFiltros {
   tipoDocumento?: string;
   tipoCte?: string;
   agencia?: string;
+  // "1" = só emissões antigas (fora do prazo padrão/do cliente).
+  antigas?: string;
 }
 
 export interface DashboardGeral {
@@ -160,7 +169,7 @@ export interface DashboardFaturistaDetalhe {
 // Opções distintas para os selects de filtro.
 export interface DashboardOpcoes {
   faturistas: { id: string; nome: string }[];
-  pastas: { id: number; nome: string }[];
+  pastas: { id: number; nome: string; faturistaId: string | null }[];
   clientes: string[];
   status: string[];
   tiposDocumento: string[];
@@ -177,6 +186,7 @@ export function filtrosParaQuery(filtros: DashboardFiltros): string {
   if (filtros.tipoDocumento) p.set("tipo", filtros.tipoDocumento);
   if (filtros.tipoCte) p.set("tipoCte", filtros.tipoCte);
   if (filtros.agencia) p.set("agencia", filtros.agencia);
+  if (filtros.antigas) p.set("antigas", filtros.antigas);
   const qs = p.toString();
   return qs ? `?${qs}` : "";
 }
@@ -192,6 +202,8 @@ export function useDashboard(filtros: DashboardFiltros = {}) {
     refetchOnWindowFocus: true,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
+    // Mantém os números anteriores na tela ao trocar de filtro, até a resposta chegar.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -220,6 +232,8 @@ export function useDashboardFaturista(
       api.get<DashboardFaturistaDetalhe>(`/dashboard/faturistas/${encodeURIComponent(chave)}${qs}`),
     enabled,
     staleTime: 60_000,
+    // Mantém os números anteriores na tela ao trocar de filtro, até a resposta chegar.
+    placeholderData: keepPreviousData,
   });
 }
 

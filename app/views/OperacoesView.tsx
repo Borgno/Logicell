@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router";
 
-import { useOperacoesGridState } from "~/hooks/useOperacoesGridState";
+import { useOperacoesGridState, COLUNAS_OPERACAO } from "~/hooks/useOperacoesGridState";
 import { useOperacoesGridData, isFilterEmpty } from "~/hooks/useOperacoesGridData";
 import { useOperacoesStore } from "~/store/useOperacoesStore";
 import "react-data-grid/lib/styles.css";
@@ -11,6 +11,7 @@ import { useUI } from "~/hooks/use-ui";
 import { exportarExcel } from "~/utils/export";
 import { ColumnFilterMenu } from "~/components/ColumnFilterMenu";
 import { ImportModal } from "~/components/ImportModal";
+import { Skeleton } from "~/components/Skeleton";
 import { OperacoesToolbarView } from "./OperacoesToolbarView";
 import { getOperacoesColumns } from "./OperacoesColumns";
 import { api, errorMessage } from "~/lib/api";
@@ -20,11 +21,32 @@ import DataGrid from "react-data-grid";
 
 interface OperacoesViewProps {
   pastaId?: number | null;
+  pastaNome?: string;
   nomePasta: string;
   showImport?: boolean;
 }
 
-export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: OperacoesViewProps) {
+// Skeleton da grid: overlay sobre o container (que já é `relative`), visível
+// só na primeira carga da pasta (ainda sem dados) — trocar filtro com dados
+// já em tela não mostra isto, só a faixa do topo.
+const LARGURAS_SKELETON = ["w-10", "w-16", "w-24", "w-14", "w-20", "w-28", "w-12", "w-32"];
+
+function GridSkeleton() {
+  return (
+    <div className="absolute inset-0 pointer-events-none bg-bg/80 overflow-hidden">
+      <div className="h-[42px] border-b border-glass-border/30" />
+      {Array.from({ length: 15 }).map((_, i) => (
+        <div key={i} className="h-9 flex items-center gap-3 px-3 border-b border-glass-border/20">
+          {Array.from({ length: 6 + (i % 3) }).map((_, j) => (
+            <Skeleton key={j} className={`h-4 ${LARGURAS_SKELETON[(i + j) % LARGURAS_SKELETON.length]}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport = true }: OperacoesViewProps) {
   const { data: init } = useInit();
   const pastas = init?.pastas || [];
   const columnOrder = init?.columnOrder ?? null;
@@ -55,7 +77,7 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
   const [sortColumns, setSortColumns] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
 
-  const grid = useOperacoesGridData({ pastaId, columnFilters, sortColumns });
+  const grid = useOperacoesGridData({ pastaId, pastaNome, columnFilters, sortColumns });
   const { dados, setDados, meta, status, error: gridError, handleScroll, refresh } = grid;
 
   const [currentMetaTotal, setCurrentMetaTotal] = useState(0);
@@ -71,12 +93,19 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
   useEffect(() => {
     resetSelection();
     if (!location.state) {
-      setColumnFilters({});
+      // Só cria objeto novo quando há filtro pra limpar — {} de novo (mesma
+      // pasta ou montagem) mudaria a referência de columnFilters à toa e
+      // recriaria buildParams, reexecutando o efeito de dados do grid.
+      setColumnFilters((prev) => (Object.keys(prev).length ? {} : prev));
     }
-  }, [pastaId, location.pathname, location.state, setColumnFilters, resetSelection]);
+  }, [pastaId, pastaNome, location.pathname, location.state, setColumnFilters, resetSelection]);
 
+  // Envia pastaNome quando a pasta é identificada por nome (rota /pastas/:nome),
+  // para que mover/excluir "selecionar todas" fiquem restritos a ela.
   const getActiveFilters = () => {
-    const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams), pastaId };
+    const activeFilters: Record<string, any> = { ...Object.fromEntries(searchParams) };
+    if (pastaNome) activeFilters.pastaNome = pastaNome;
+    else activeFilters.pastaId = pastaId;
     for (const [key, filter] of Object.entries(columnFilters)) {
       if (isFilterEmpty(filter)) continue;
       activeFilters[`colFilter_${key}`] = `${filter.type}:${filter.value}`;
@@ -121,9 +150,7 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
   const onFillEnd = useMemo(() => (colKey: string) => handleFillEndRef.current(colKey), []);
 
   const lidarExportarExcel = () => {
-    import("~/hooks/useOperacoesGridState").then(({ COLUNAS_OPERACAO }) => {
-      exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showAlert);
-    });
+    exportarExcel(dadosRef.current, COLUNAS_OPERACAO, nomePasta, showAlert);
   };
 
   const colDefs = useMemo(() => getOperacoesColumns({
@@ -191,7 +218,7 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
         />
 
         <div
-          className="flex-1 w-full min-h-0 min-w-0 text-xs"
+          className="flex-1 w-full min-h-0 min-w-0 text-xs relative"
           style={{ "--rdg-font-family": "inherit", "--rdg-font-size": "12px" } as any}
           onScrollCapture={handleScroll}
         >
@@ -257,19 +284,19 @@ export function OperacoesView({ pastaId = null, nomePasta, showImport = true }: 
                 .catch((err) => showAlert({ title: "Erro ao salvar", message: errorMessage(err), variant: "error" }));
             }}
             onRowsChange={(newRows: any[], { indexes, column }: any) => {
+              // handleLocalUpdate já aplica o valor em `dados`; o setDados que
+              // varria todas as linhas com .map + .find era redundante (e quadrático).
               if (indexes.length > 0 && column) {
                 const row = newRows[indexes[0]];
                 handleLocalUpdate(row.id, column.key, row[column.key]);
               }
-              setDados((prev: any[]) => prev.map((d: any) => {
-                const updatedRow = newRows.find(nr => nr.id === d.id);
-                return updatedRow ? updatedRow : d;
-              }));
             }}
             className="h-full w-full rdg-light dark:rdg-dark rounded-none border-0"
             rowHeight={36}
             headerRowHeight={42}
           />
+
+          {status === "loading" && dados.length === 0 && <GridSkeleton />}
 
           <ColumnFilterMenu
             openFilterCol={openFilterCol}

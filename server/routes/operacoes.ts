@@ -3,6 +3,7 @@ import multer from "multer";
 import { OperacaoService } from "../services/operacao.server";
 import { OperacaoImportService } from "../services/operacao-import.server";
 import { getUser, type AuthedResponse } from "../middlewares/auth";
+import { aplicarServerTiming } from "../lib/timing";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
@@ -35,7 +36,9 @@ operacoesRouter.get("/", async (req, res: AuthedResponse, next) => {
   try {
     getUser(res);
     const params = parseParams(req.query as Record<string, unknown>);
-    const dados = await OperacaoService.listarOperacoesLocal(params);
+    const { dbMs, ...dados } = await OperacaoService.listarOperacoesLocal(params);
+    res.locals.timing.marcas.push({ nome: "db", dur: dbMs });
+    aplicarServerTiming(res);
     res.json(dados);
   } catch (err) {
     next(err);

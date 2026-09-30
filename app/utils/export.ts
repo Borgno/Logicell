@@ -1,8 +1,9 @@
-import * as XLSX from "xlsx";
 import { formatarData } from "./formatters";
 
-export function exportarExcel(dados: any[], colunas: any[], nomePasta: string, showAlert: any) {
+export async function exportarExcel(dados: any[], colunas: any[], nomePasta: string, showAlert: any) {
   try {
+    //xlsx só é baixado quando o usuário realmente exporta (~1 MB fora do bundle principal)
+    const XLSX = await import("xlsx");
     const exportData = dados.map(row => {
       const obj: any = {};
       colunas.forEach(col => {

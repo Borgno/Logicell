@@ -3,6 +3,28 @@ import crypto from "crypto";
 import * as XLSX from "xlsx";
 import { DateParser } from "../utils/date-parser";
 
+//Normaliza um cabeçalho (maiúsculas, sem acento, sem espaço/underscore) para
+//comparar com as chaves conhecidas do De-Para. As mesmas chaves (das colunas
+//da planilha e das listas de candidatos abaixo) se repetem em todas as ~7 mil
+//linhas do arquivo — um cache evita refazer a mesma limpeza de string milhares
+//de vezes por importação.
+const cacheNormalizacao = new Map<string, string>();
+function normalizarChave(valor: string): string {
+  const hit = cacheNormalizacao.get(valor);
+  if (hit !== undefined) return hit;
+  const limpo = valor.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_]+/g, "");
+  cacheNormalizacao.set(valor, limpo);
+  return limpo;
+}
+
+//Colunas obrigatórias — computado 1x no carregamento do módulo, não a cada planilha importada.
+const REQUIRED_CHECKS = [
+  { name: "AGÊNCIA", keys: ["NMAGENCIA", "AGENCIA"] },
+  { name: "CTRC", keys: ["NRCTRC", "CTRC", "CTE"] },
+  { name: "NF", keys: ["NRNF", "NF", "NOTAFISCAL"] },
+  { name: "VALOR TOTAL", keys: ["VLTOTAL", "VALORTOTAL", "TOTAL", "VALOR"] }
+];
+
 // Utilitário Server-Side para Ler e Padronizar Arquivos Excel
 // Realiza toda a extração, Mapeamento (De-Para das colunas) e Validação.
 export class ExcelParser {
@@ -13,19 +35,27 @@ export class ExcelParser {
   }
 
 //Converte um buffer de Excel cru para uma lista de operações rigidamente validadas e tipadas
-  static analisarBuffer(buffer: Buffer, importacaoId: number): { operacoes: Prisma.OperacaoCreateManyInput[], totalLido: number } {
+  static analisarBuffer(buffer: Buffer): { operacoes: Prisma.OperacaoCreateManyInput[], totalLido: number } {
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     
-    // Converte para matriz 2D para procurar onde estão os cabeçalhos
-    const dataAsArray: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const ref = sheet["!ref"];
+    if (!ref) throw new Error("Planilha vazia");
+
+    // 1ª passada: só as 2 primeiras linhas, para achar onde está o cabeçalho —
+    // evita converter a planilha inteira (~7 mil linhas) duas vezes.
+    // Linhas contadas a partir do início da área usada (!ref), que nem sempre é A1.
+    const fullRange = XLSX.utils.decode_range(ref);
+    const primeiraLinha = fullRange.s.r;
+    const headerRange = { s: { r: primeiraLinha, c: fullRange.s.c }, e: { r: Math.min(primeiraLinha + 1, fullRange.e.r), c: fullRange.e.c } };
+    const dataAsArray: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, range: headerRange });
     if (dataAsArray.length === 0) throw new Error("Planilha vazia");
 
     let headerRowIndex = 0;
     
     // Conforme sua regra: Verifica a linha 1 (índice 0), se não achar as chaves exatas da interface, tenta a linha 2 (índice 1).
     for (let i = 0; i < Math.min(2, dataAsArray.length); i++) {
-      const rowStr = (dataAsArray[i] || []).map(String).map(s => s.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_]+/g, ""));
+      const rowStr = (dataAsArray[i] || []).map(v => normalizarChave(String(v)));
       // Procurando chaves comuns
       if (rowStr.includes("NMAGENCIA") || rowStr.includes("AGENCIA") || rowStr.includes("NRCTRC") || rowStr.includes("CTRC") || rowStr.includes("VLTOTAL") || rowStr.includes("VALORTOTAL")) {
           headerRowIndex = i;
@@ -33,20 +63,13 @@ export class ExcelParser {
       }
     }
 
-    const rawData: any[] = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex });
+    const rawData: any[] = XLSX.utils.sheet_to_json(sheet, { range: primeiraLinha + headerRowIndex });
 
     if (rawData.length === 0) throw new Error("Não há dados na planilha além dos cabeçalhos");
 
     // Validação de Cabeçalhos
-    const availableHeaders = Object.keys(rawData[0]).map(h => h.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_]+/g, ""));
-    const requiredChecks = [
-      { name: "AGÊNCIA", keys: ["NMAGENCIA", "AGENCIA"] },
-      { name: "CTRC", keys: ["NRCTRC", "CTRC", "CTE"] },
-      { name: "NF", keys: ["NRNF", "NF", "NOTAFISCAL"] },
-      { name: "VALOR TOTAL", keys: ["VLTOTAL", "VALORTOTAL", "TOTAL", "VALOR"] }
-    ];
-
-    const missing = requiredChecks.filter(check => 
+    const availableHeaders = Object.keys(rawData[0]).map(normalizarChave);
+    const missing = REQUIRED_CHECKS.filter(check => 
       !check.keys.some(k => availableHeaders.includes(k))
     );
 
@@ -55,7 +78,7 @@ export class ExcelParser {
     }
 
     const operacoes = rawData
-      .map((row, index) => this.mapearLinha(row, importacaoId, index))
+      .map((row, index) => this.mapearLinha(row, index))
       .filter((op): op is Prisma.OperacaoCreateManyInput => op !== null);
 
     return { operacoes, totalLido: rawData.length };
@@ -75,18 +98,16 @@ export class ExcelParser {
     return Number.isFinite(normalizado) && normalizado === 0;
   }
 
-  private static mapearLinha(row: any, importacaoId: number, _index: number): Prisma.OperacaoCreateManyInput | null {
+  private static mapearLinha(row: any, _index: number): Prisma.OperacaoCreateManyInput | null {
     const rowNorm: Record<string, any> = {};
     for (const [k, v] of Object.entries(row)) {
-      const cleanKey = String(k).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_]+/g, "");
-      rowNorm[cleanKey] = v;
+      rowNorm[normalizarChave(String(k))] = v;
     }
 
     const get = (keys: string | string[]) => {
       const arr = Array.isArray(keys) ? keys : [keys];
       for (const k of arr) {
-        const cleanKey = k.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_]+/g, "");
-        const val = rowNorm[cleanKey];
+        const val = rowNorm[normalizarChave(k)];
         if (val !== undefined && val !== null && String(val).trim() !== "") return val;
       }
       return null;
@@ -107,7 +128,6 @@ export class ExcelParser {
     }
     
     const op = {
-      importacaoId,
       nm_agencia: this.padronizarAgencia(String(get(["nm_agencia", "AGÊNCIA", "AGENCIA"]) || "DESCONHECIDA")),
       dt_emissao_: dt_emissao_ || null,
       cd_pessoa_pagador: String(get(["cd_pessoa_pagador", "CÓD. PAGADOR", "COD PAGADOR", "CÓDIGO"]) || ""),

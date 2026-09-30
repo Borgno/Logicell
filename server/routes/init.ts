@@ -3,6 +3,7 @@ import { PastaService } from "../services/pasta.server";
 import { OperacaoService } from "../services/operacao.server";
 import { OrdemColunasService } from "../services/config.server";
 import { getUser, type AuthedResponse } from "../middlewares/auth";
+import { aplicarServerTiming } from "../lib/timing";
 
 export const initRouter = Router();
 
@@ -15,5 +16,6 @@ initRouter.get("/", async (_req, res: AuthedResponse) => {
     OrdemColunasService.get().catch(() => null),
     OperacaoService.contarEmissoesAntigasPorPasta().catch(() => ({})),
   ]);
+  aplicarServerTiming(res);
   res.json({ user, pastas, totalInbox, columnOrder, emissaoAntigasPorPasta });
 });

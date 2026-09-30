@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Mesmo logo da sidebar: quadrado azul (cor primary do tema, #0066ff) com o ícone "truck" do lucide em branco -->
+  <rect width="64" height="64" rx="16" fill="#0066ff"/>
+  <g transform="translate(12.8 12.8) scale(1.6)" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/>
+    <path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/>
+    <circle cx="7" cy="18" r="2"/>
+    <circle cx="17" cy="18" r="2"/>
+  </g>
+</svg>

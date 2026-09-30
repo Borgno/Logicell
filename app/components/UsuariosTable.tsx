@@ -84,10 +84,12 @@ export function UsuariosTable({
                       className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md whitespace-nowrap ${
                         u.role === "admin"
                           ? "bg-badge-primary-bg text-badge-primary-text"
-                          : "bg-surface text-text-muted border border-glass-border"
+                          : u.role === "gestor"
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                            : "bg-surface text-text-muted border border-glass-border"
                       }`}
                     >
-                      {u.role === "admin" ? "Admin" : "Usuário"}
+                      {u.role === "admin" ? "Admin" : u.role === "gestor" ? "Gestor" : "Usuário"}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">

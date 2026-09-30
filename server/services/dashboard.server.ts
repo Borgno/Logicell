@@ -32,6 +32,8 @@ export interface DashboardFiltros {
   tipoDocumento?: string | null;
   tipoCte?: string | null;
   agencia?: string | null;
+  // "1" = só emissões antigas (mesma regra de prazo do filtro "Antigos" da grid).
+  antigas?: string | null;
 }
 
 export interface DashboardGeral {
@@ -99,7 +101,7 @@ export interface DashboardFaturistaDetalhe {
 // Opções para os selects de filtro da dashboard.
 export interface DashboardOpcoes {
   faturistas: { id: string; nome: string }[];
-  pastas: { id: number; nome: string }[];
+  pastas: { id: number; nome: string; faturistaId: string | null }[];
   clientes: string[];
   status: string[];
   tiposDocumento: string[];
@@ -256,25 +258,19 @@ function parseDataUTC(valor: any): Date | null {
 //faturista. Otimizado para a latência do banco: poucas idas ao banco + cache em
 //memória (o cache só é usado quando não há filtros ativos).
 export class DashboardService {
-  // Nomes dos faturistas vêm do Supabase (rede) — cache longo.
-  private static nomesCache: Map<string, string> | null = null;
-  private static nomesCacheTime = 0;
-  private static readonly NOMES_TTL = 1000 * 60 * 10; // 10 minutos
-
-  // O resumo inteiro é cacheado no servidor: o client já faz polling de 30s,
-  // então o custo alto (rede + Supabase) acontece no máximo 1x por 30s.
+  // O resumo inteiro é cacheado no servidor: o client faz polling de 30s, e o
+  // TTL maior que o intervalo garante que o 2º poll seja cache hit.
   private static resumoCache: DashboardResumo | null = null;
   private static resumoCacheTime = 0;
-  private static readonly RESUMO_TTL = 1000 * 30;
+  private static readonly RESUMO_TTL = 1000 * 60;
 
   private static opcoesCache: DashboardOpcoes | null = null;
   private static opcoesCacheTime = 0;
   private static readonly OPCOES_TTL = 1000 * 60 * 5;
 
+  // Lista de usuários já vem cacheada de SupabaseAdminService (A6a) — sem
+  // cache próprio aqui para não duplicar a mesma informação em dois lugares.
   private static async nomesFaturista(): Promise<Map<string, string>> {
-    if (this.nomesCache && Date.now() - this.nomesCacheTime < this.NOMES_TTL) {
-      return this.nomesCache;
-    }
     const nomes = new Map<string, string>();
     try {
       const { usuarios } = await SupabaseAdminService.listarUsuarios(1, 1000);
@@ -282,8 +278,6 @@ export class DashboardService {
     } catch {
       // mantém fallback (id) se o Supabase falhar
     }
-    this.nomesCache = nomes;
-    this.nomesCacheTime = Date.now();
     return nomes;
   }
 
@@ -377,6 +371,12 @@ export class DashboardService {
 
     const params: any[] = [];
     const conds = this.construirWhereFiltros(filtros, params);
+    // A CTE lê "Operacao" sem alias, então o próprio nome da tabela serve de prefixo.
+    if (filtros.antigas) {
+      conds.push(
+        `("Operacao".dt_emissao_ IS NOT NULL AND ${OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, `"Operacao"`)})`
+      );
+    }
     const whereSql = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
     const condicaoAntigas = OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, "f");
 
@@ -559,7 +559,7 @@ export class DashboardService {
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
     const pastasOpcoes = [...pastas]
-      .map((p) => ({ id: p.id, nome: p.nome }))
+      .map((p) => ({ id: p.id, nome: p.nome, faturistaId: p.faturistaId }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
     const opcoes: DashboardOpcoes = {

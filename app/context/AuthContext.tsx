@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { api } from "~/lib/api";
-import { queryClient, queryKeys } from "~/lib/query";
+import { queryClient, queryKeys, fetchInit } from "~/lib/query";
 
 type AuthContextType = {
   user: any | null;
@@ -19,8 +19,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    api
-      .get<{ user: any }>("/auth/me")
+    // Boot com uma única request: /init já traz o usuário (sem /auth/me à parte).
+    // retry: false — deslogado, /init dá 401 e não adianta tentar de novo.
+    queryClient
+      .fetchQuery({ queryKey: queryKeys.init, queryFn: fetchInit, staleTime: 60_000, retry: false })
       .then((d) => {
         if (alive) setUser(d.user);
       })
@@ -31,6 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (alive) setIsLoading(false);
       });
 
+    //O /init é refeito periodicamente (useInit) e o servidor devolve o cargo
+    //atual — assim uma promoção/rebaixamento atualiza menus e rotas sem relogin.
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated" || event.query.queryKey[0] !== queryKeys.init[0]) return;
+      const novo = (event.query.state.data as any)?.user;
+      if (!novo) return;
+      //Só atualiza quem já está logado — um /init atrasado não reloga após o logout.
+      setUser((atual: any) =>
+        !atual || atual.app_metadata?.role === novo.app_metadata?.role ? atual : novo
+      );
+    });
+
     const handleUnauthorized = () => {
       setUser(null);
       navigate("/login");
@@ -38,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("auth:unauthorized", handleUnauthorized);
     return () => {
       alive = false;
+      unsubscribe();
       window.removeEventListener("auth:unauthorized", handleUnauthorized);
     };
   }, [navigate]);
@@ -45,9 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string, redirectTo = "/caixa-de-entrada") => {
       await api.post("/auth/login", { email, password });
-      const d = await api.get<{ user: any }>("/auth/me");
+      const d = await queryClient.fetchQuery({ queryKey: queryKeys.init, queryFn: fetchInit, staleTime: 60_000, retry: false });
       setUser(d.user);
-      queryClient.invalidateQueries({ queryKey: queryKeys.init });
       navigate(redirectTo, { replace: true });
     },
     [navigate]

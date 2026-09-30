@@ -1,5 +1,5 @@
-import { ChevronDown, Filter, Users, X } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Filter, Plus, Search, Users, X } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   useDashboard,
   useDashboardFaturista,
@@ -11,6 +11,9 @@ import {
   type DashboardOpcoes,
 } from "~/lib/query";
 import { formatarData, formatarMoeda } from "~/utils/formatters";
+import { Skeleton } from "~/components/Skeleton";
+import { useAuth } from "~/context/AuthContext";
+import { ehGestor } from "~/utils/cargos";
 
 type ItemBarra = { label: string; valor: number; quantidade: number; cor?: string | null };
 type FiltroCampo = keyof DashboardFiltros;
@@ -72,6 +75,41 @@ function BarList({
   );
 }
 
+// Skeleton do acordeão da dashboard, mostrado só no primeiro carregamento
+// (com keepPreviousData, os polls seguintes mantêm o conteúdo anterior em tela).
+function DashboardSkeleton() {
+  return (
+    <div className="bg-card-bg border border-glass-border rounded-2xl shadow-card overflow-hidden">
+      <div className="p-5 border-b border-glass-border">
+        <Skeleton className="h-10 w-48" />
+      </div>
+      <div className="p-5 flex flex-col gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-14" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Skeleton do detalhe do faturista: 5 MiniStat + 3 cards de distribuição.
+function FaturistaDetalheSkeleton() {
+  return (
+    <div className="px-5 py-5 bg-surface/40">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-16" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-64" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MiniStat({ label, valor, sub }: { label: string; valor: string; sub?: string }) {
   return (
     <div className="bg-card-bg border border-glass-border rounded-xl px-4 py-3">
@@ -118,136 +156,332 @@ function DistribuicaoCard({
 // Barra de filtros globais
 // ---------------------------------------------------------------------------
 
-const SELECT_CLS =
-  "h-9 flex-1 min-w-[140px] max-w-[220px] bg-surface border border-glass-border rounded-lg px-3 text-xs font-bold text-text outline-none focus:border-primary cursor-pointer";
+type OpcaoFiltro = { valor: string; label: string };
+type CampoFiltro = (typeof CAMPOS_FILTRO)[number];
+
+// Campos oferecidos no menu "+ Filtro". As sentinelas ("sem", "inbox",
+// "__vazio__") entram no fim de cada lista, como nos selects antigos.
+const CAMPOS_FILTRO: {
+  campo: FiltroCampo;
+  label: string;
+  busca?: boolean;
+  opcoes: (o?: DashboardOpcoes) => OpcaoFiltro[];
+}[] = [
+  {
+    campo: "faturistaId",
+    label: "Faturista",
+    opcoes: (o) => [
+      ...(o?.faturistas.map((f) => ({ valor: f.id, label: f.nome })) ?? []),
+      { valor: "sem", label: "Sem faturista" },
+    ],
+  },
+  {
+    campo: "pastaId",
+    label: "Pasta",
+    busca: true,
+    opcoes: (o) => [
+      ...(o?.pastas.map((p) => ({ valor: String(p.id), label: p.nome })) ?? []),
+      { valor: "inbox", label: "Caixa de Entrada" },
+    ],
+  },
+  {
+    campo: "pagador",
+    label: "Cliente",
+    busca: true,
+    opcoes: (o) => o?.clientes.map((c) => ({ valor: c, label: c })) ?? [],
+  },
+  {
+    campo: "status",
+    label: "Status",
+    opcoes: (o) => [
+      ...(o?.status.map((s) => ({ valor: s, label: s })) ?? []),
+      { valor: "__vazio__", label: "Sem status" },
+    ],
+  },
+  {
+    campo: "tipoDocumento",
+    label: "Tipo",
+    opcoes: (o) => [
+      ...(o?.tiposDocumento.map((t) => ({ valor: t, label: t })) ?? []),
+      { valor: "__vazio__", label: "Não informado" },
+    ],
+  },
+  {
+    campo: "tipoCte",
+    label: "Tipo de CTe",
+    opcoes: (o) => [
+      ...(o?.tiposCte.map((t) => ({ valor: t, label: t })) ?? []),
+      { valor: "__vazio__", label: "Não informado" },
+    ],
+  },
+  {
+    campo: "agencia",
+    label: "Agência",
+    busca: true,
+    opcoes: (o) => [
+      ...(o?.agencias.map((a) => ({ valor: a, label: a })) ?? []),
+      { valor: "__vazio__", label: "Sem agência" },
+    ],
+  },
+];
+
+//Usuário comum só vê as próprias pastas (o servidor força o recorte): sem filtro
+//de faturista nem a Caixa de Entrada, que não tem dono.
+const CAMPOS_FILTRO_USUARIO: CampoFiltro[] = CAMPOS_FILTRO
+  .filter((c) => c.campo !== "faturistaId")
+  .map((c) =>
+    c.campo === "pastaId"
+      ? { ...c, opcoes: (o?: DashboardOpcoes) => c.opcoes(o).filter((p) => p.valor !== "inbox") }
+      : c
+  );
+
+// Lista de clientes pode ter milhares de itens: renderiza só os primeiros.
+const MAX_OPCOES_VISIVEIS = 200;
+
+function MenuFiltro({
+  campos,
+  campoInicial,
+  filtros,
+  opcoes,
+  onEscolher,
+  onFechar,
+}: {
+  campos: CampoFiltro[];
+  campoInicial: FiltroCampo | null;
+  filtros: DashboardFiltros;
+  opcoes?: DashboardOpcoes;
+  onEscolher: (campo: FiltroCampo, valor: string) => void;
+  onFechar: () => void;
+}) {
+  const [campo, setCampo] = useState<FiltroCampo | null>(campoInicial);
+  const [busca, setBusca] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onFechar]);
+
+  const def = campos.find((c) => c.campo === campo);
+
+  const lista = useMemo(() => {
+    if (!def) return [];
+    const termo = busca.trim().toLowerCase();
+    const todas = def.opcoes(opcoes);
+    return termo ? todas.filter((o) => o.label.toLowerCase().includes(termo)) : todas;
+  }, [def, opcoes, busca]);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onFechar} />
+      <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-card-bg border border-glass-border rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden">
+        {!def ? (
+          <div className="p-1.5">
+            <p className="px-2.5 pt-1.5 pb-2 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+              Filtrar por
+            </p>
+            {campos.map((c) => (
+              <button
+                key={c.campo}
+                type="button"
+                onClick={() => setCampo(c.campo)}
+                className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-bold text-text hover:bg-surface transition-colors"
+              >
+                <span>{c.label}</span>
+                <span className="flex items-center gap-1.5">
+                  {filtros[c.campo] && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                  <ChevronRight size={14} className="text-text-muted" />
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 px-2 py-2 border-b border-glass-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setCampo(null);
+                  setBusca("");
+                }}
+                className="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors"
+                aria-label="Voltar"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              {def.busca || lista.length > 8 ? (
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  <Search size={13} className="text-text-muted shrink-0" />
+                  <input
+                    autoFocus
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder={`Buscar ${def.label.toLowerCase()}...`}
+                    className="flex-1 min-w-0 bg-transparent text-xs font-medium text-text placeholder:text-text-muted outline-none"
+                  />
+                </div>
+              ) : (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                  {def.label}
+                </span>
+              )}
+            </div>
+            <div className="max-h-72 overflow-y-auto custom-scrollbar p-1.5">
+              {lista.length === 0 ? (
+                <p className="px-2.5 py-4 text-xs text-text-muted text-center">Nada encontrado.</p>
+              ) : (
+                lista.slice(0, MAX_OPCOES_VISIVEIS).map((o) => {
+                  const ativo = filtros[def.campo] === o.valor;
+                  return (
+                    <button
+                      key={o.valor}
+                      type="button"
+                      onClick={() => onEscolher(def.campo, ativo ? "" : o.valor)}
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-colors ${
+                        ativo ? "bg-badge-primary-bg text-badge-primary-text font-bold" : "text-text font-medium hover:bg-surface"
+                      }`}
+                    >
+                      <span className="truncate">{o.label}</span>
+                      {ativo && <Check size={14} className="shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+              {lista.length > MAX_OPCOES_VISIVEIS && (
+                <p className="px-2.5 py-2 text-[11px] text-text-muted text-center">
+                  Mostrando {MAX_OPCOES_VISIVEIS} de {lista.length}. Refine a busca.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
 
 function FiltrosBar({
+  campos,
   filtros,
   onChange,
   onLimpar,
   opcoes,
 }: {
+  campos: CampoFiltro[];
   filtros: DashboardFiltros;
   onChange: OnChangeFiltro;
   onLimpar: () => void;
   opcoes?: DashboardOpcoes;
 }) {
+  // null = menu fechado; "novo" = abre na lista de campos; campo = edita o chip.
+  const [menu, setMenu] = useState<FiltroCampo | "novo" | null>(null);
+  const fecharMenu = useCallback(() => setMenu(null), []);
+
   const temFiltro = Object.values(filtros).some(Boolean);
+  const ativos = campos.filter((c) => filtros[c.campo]);
+  const soAntigas = filtros.antigas === "1";
+
+  const rotuloValor = (def: CampoFiltro, valor: string) =>
+    def.opcoes(opcoes).find((o) => o.valor === valor)?.label ?? valor;
+
+  const escolher = (campo: FiltroCampo, valor: string) => {
+    onChange(campo, valor);
+    setMenu(null);
+  };
 
   return (
-    <div className="bg-card-bg border border-glass-border rounded-2xl p-4 shadow-card flex flex-wrap xl:flex-nowrap items-center gap-3">
-      <div className="flex items-center gap-2 text-text-muted shrink-0">
-        <Filter size={14} strokeWidth={2.5} />
-        <span className="text-[10px] font-bold uppercase tracking-widest">Filtros</span>
+    <div className="bg-card-bg border border-glass-border rounded-2xl px-4 py-3 shadow-card flex flex-wrap items-center gap-2">
+      {ativos.map((def) => (
+        <div key={def.campo} className="relative">
+          <div className="flex items-center h-8 rounded-lg bg-badge-primary-bg text-xs overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setMenu(def.campo)}
+              className="flex items-center gap-1 pl-2.5 pr-1.5 h-full max-w-[260px] hover:opacity-80 transition-opacity"
+            >
+              <span className="font-medium text-text-muted">{def.label}:</span>
+              <span className="font-bold text-badge-primary-text truncate">
+                {rotuloValor(def, filtros[def.campo]!)}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange(def.campo, "")}
+              className="h-full px-1.5 text-badge-primary-text opacity-70 hover:opacity-100 transition-opacity"
+              aria-label={`Remover filtro ${def.label}`}
+            >
+              <X size={13} />
+            </button>
+          </div>
+          {menu === def.campo && (
+            <MenuFiltro
+              campos={campos}
+              campoInicial={def.campo}
+              filtros={filtros}
+              opcoes={opcoes}
+              onEscolher={escolher}
+              onFechar={fecharMenu}
+            />
+          )}
+        </div>
+      ))}
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setMenu(menu === "novo" ? null : "novo")}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-glass-border text-xs font-bold text-text-muted hover:text-text hover:border-primary hover:bg-surface transition-all"
+        >
+          <Filter size={13} strokeWidth={2.5} />
+          {ativos.length === 0 ? "Adicionar filtro" : "Filtro"}
+          <Plus size={13} strokeWidth={2.5} />
+        </button>
+        {menu === "novo" && (
+          <MenuFiltro
+            campos={campos}
+            campoInicial={null}
+            filtros={filtros}
+            opcoes={opcoes}
+            onEscolher={escolher}
+            onFechar={fecharMenu}
+          />
+        )}
       </div>
-
-      <select
-        value={filtros.faturistaId ?? ""}
-        onChange={(e) => onChange("faturistaId", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todos os faturistas</option>
-        {opcoes?.faturistas.map((f) => (
-          <option key={f.id} value={f.id}>
-            {f.nome}
-          </option>
-        ))}
-        <option value="sem">Sem faturista</option>
-      </select>
-
-      <select
-        value={filtros.pastaId ?? ""}
-        onChange={(e) => onChange("pastaId", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todas as pastas</option>
-        {opcoes?.pastas.map((p) => (
-          <option key={p.id} value={String(p.id)}>
-            {p.nome}
-          </option>
-        ))}
-        <option value="inbox">Caixa de Entrada</option>
-      </select>
-
-      <select
-        value={filtros.pagador ?? ""}
-        onChange={(e) => onChange("pagador", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todos os clientes</option>
-        {opcoes?.clientes.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={filtros.status ?? ""}
-        onChange={(e) => onChange("status", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todos os status</option>
-        {opcoes?.status.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-        <option value="__vazio__">Sem status</option>
-      </select>
-
-      <select
-        value={filtros.tipoDocumento ?? ""}
-        onChange={(e) => onChange("tipoDocumento", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todos os tipos</option>
-        {opcoes?.tiposDocumento.map((t) => (
-          <option key={t} value={t}>
-            {t}
-          </option>
-        ))}
-        <option value="__vazio__">Não informado</option>
-      </select>
-
-      <select
-        value={filtros.tipoCte ?? ""}
-        onChange={(e) => onChange("tipoCte", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todos os tipos de CTe</option>
-        {opcoes?.tiposCte.map((t) => (
-          <option key={t} value={t}>
-            {t}
-          </option>
-        ))}
-        <option value="__vazio__">Não informado</option>
-      </select>
-
-      <select
-        value={filtros.agencia ?? ""}
-        onChange={(e) => onChange("agencia", e.target.value)}
-        className={SELECT_CLS}
-      >
-        <option value="">Todas as agências</option>
-        {opcoes?.agencias.map((a) => (
-          <option key={a} value={a}>
-            {a}
-          </option>
-        ))}
-        <option value="__vazio__">Sem agência</option>
-      </select>
 
       {temFiltro && (
         <button
           type="button"
           onClick={onLimpar}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-surface border border-glass-border text-[11px] font-bold text-text-muted hover:text-badge-error-text hover:border-badge-error-text/40 transition-all shrink-0"
+          className="h-8 px-2 text-[11px] font-bold text-text-muted hover:text-badge-error-text transition-colors"
         >
-          <X size={13} />
-          Limpar filtros
+          Limpar
         </button>
       )}
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={soAntigas}
+        onClick={() => onChange("antigas", soAntigas ? "" : "1")}
+        className={`ml-auto flex items-center gap-2 h-8 px-3 rounded-lg border text-xs font-bold transition-all ${
+          soAntigas
+            ? "bg-badge-warning-bg border-transparent text-badge-warning-text"
+            : "bg-surface border-glass-border text-text-muted hover:text-text"
+        }`}
+      >
+        <span
+          className={`relative w-7 h-4 rounded-full transition-colors ${
+            soAntigas ? "bg-warning" : "bg-text-muted"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
+              soAntigas ? "translate-x-3" : ""
+            }`}
+          />
+        </span>
+        Só emissões antigas
+      </button>
     </div>
   );
 }
@@ -265,16 +499,10 @@ function FaturistaDetalhe({
   faturistaId: string | null;
   filtros: DashboardFiltros;
 }) {
-  const { data, isLoading, isError } = useDashboardFaturista(faturistaId, filtros, true);
+  const { data, isLoading, isError, isPlaceholderData } = useDashboardFaturista(faturistaId, filtros, true);
 
   if (isLoading) {
-    return (
-      <div className="px-5 py-8 text-center">
-        <p className="text-xs font-bold text-text-muted uppercase tracking-widest animate-pulse">
-          Carregando faturista...
-        </p>
-      </div>
-    );
+    return <FaturistaDetalheSkeleton />;
   }
 
   if (isError || !data) {
@@ -286,7 +514,10 @@ function FaturistaDetalhe({
   }
 
   return (
-    <div className="px-5 py-5 bg-surface/40">
+    // Ao trocar de filtro, os números anteriores ficam em tela (keepPreviousData)
+    // com opacidade menor até a resposta chegar. isPlaceholderData (e não
+    // isFetching) para o polling em segundo plano não escurecer a tela.
+    <div className={`px-5 py-5 bg-surface/40 transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}>
       <p className="text-[10px] font-bold text-text-dim uppercase tracking-widest mb-4">
         Período: {formatarData(data.primeiraEmissao)} → {formatarData(data.ultimaEmissao)}
       </p>
@@ -487,9 +718,11 @@ function GeralConteudo({
 // ---------------------------------------------------------------------------
 
 export function DashboardView() {
+  const { user } = useAuth();
+  const gestor = ehGestor(user);
   const [filtros, setFiltros] = useState<DashboardFiltros>({});
 
-  const { data, isLoading, isError } = useDashboard(filtros);
+  const { data, isLoading, isError, isPlaceholderData } = useDashboard(filtros);
   const { data: opcoes } = useDashboardOpcoes();
 
   const geral = data?.geral;
@@ -512,12 +745,13 @@ export function DashboardView() {
           <div>
             <h1 className="text-xl font-bold text-text tracking-tight">Dashboard</h1>
             <p className="text-xs font-medium text-text-muted mt-1">
-              Visão geral das pastas e documentos
+              {gestor ? "Visão geral das pastas e documentos" : "Visão geral das suas pastas e documentos"}
             </p>
           </div>
         </div>
 
         <FiltrosBar
+          campos={gestor ? CAMPOS_FILTRO : CAMPOS_FILTRO_USUARIO}
           filtros={filtros}
           onChange={setFiltro}
           onLimpar={limparFiltros}
@@ -531,13 +765,14 @@ export function DashboardView() {
             </p>
           </div>
         ) : isLoading || !geral ? (
-          <div className="bg-card-bg border border-glass-border rounded-2xl p-6 shadow-card">
-            <p className="text-xs font-bold text-text-muted uppercase tracking-widest text-center py-10 animate-pulse">
-              Carregando...
-            </p>
-          </div>
+          <DashboardSkeleton />
         ) : (
-          <GeralConteudo geral={geral} filtros={filtros} />
+          // keepPreviousData mantém os números do filtro anterior em tela; a
+          // opacidade cai um pouco só enquanto eles são placeholder (troca de
+          // filtro), não no polling em segundo plano.
+          <div className={`transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}>
+            <GeralConteudo geral={geral} filtros={filtros} />
+          </div>
         )}
       </div>
     </div>
