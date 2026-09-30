@@ -32,3 +32,7 @@ export function buscarNomeUsuario(email: string, metadataNome?: string): string 
   if (!email) return "Usuário";
   return metadataNome || email;
 }
+
+// Minúsculas e sem acentos, para buscas por nome ("aco" encontra "AÇO CEARENSE").
+export const normalizarBusca = (value: string) =>
+  value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

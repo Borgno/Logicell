@@ -1,7 +1,7 @@
 import { CheckCircle2, Inbox, LayoutDashboard, Moon, Plus, Search, ShieldCheck, Sun, Truck, User as UserIcon, X, Zap, Menu } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { NavLink } from "react-router";
-import { buscarNomeUsuario } from "~/utils/formatters";
+import { buscarNomeUsuario, normalizarBusca } from "~/utils/formatters";
 import { ehAdmin, ehGestor } from "~/utils/cargos";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
@@ -48,14 +48,12 @@ export const Sidebar = React.memo(({
   const { data: faturistasData } = useFaturistas(isAddingFolder && isGestor);
   const faturistas = faturistasData?.faturistas || [];
 
-  const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
   const filteredPastas = useMemo(() => {
-    const query = normalize(searchQuery.trim());
+    const query = normalizarBusca(searchQuery.trim());
     return pastas.filter((p) => {
       if (filterColor && p.cor !== filterColor) return false;
       if (!query) return true;
-      return normalize(p.nome).includes(query);
+      return normalizarBusca(p.nome).includes(query);
     });
   }, [pastas, searchQuery, filterColor]);
 
