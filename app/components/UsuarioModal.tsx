@@ -1,6 +1,7 @@
 import { Loader2, Pencil, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 import { CARGO_LABEL, type Cargo } from "~/utils/cargos";
+import { useFaturistas } from "~/lib/query";
 
 export type UsuarioModalMode = "criar" | "editar";
 
@@ -26,14 +27,30 @@ export function UsuarioModal({ mode, usuario, carregando, erro, onSubmit, onClos
   const [role, setRole] = useState<Cargo>(
     usuario?.role === "admin" || usuario?.role === "gestor" ? usuario.role : "usuario"
   );
+  const [supervisorId, setSupervisorId] = useState<string>(usuario?.supervisorId || "");
+
+  //Só o cargo Usuário tem supervisor, escolhido entre os usuários ativos com
+  //cargo Supervisor ("gestor"). Se o atual foi bloqueado (sai da lista de
+  //ativos), a opção dele continua no select para não sumir.
+  const { data: ativosData } = useFaturistas(true);
+  const supervisores = (ativosData?.faturistas || []).filter((u) => u.role === "gestor" && u.id !== usuario?.id);
+  if (usuario?.supervisorId && !supervisores.some((u) => u.id === usuario.supervisorId)) {
+    supervisores.push({
+      id: usuario.supervisorId,
+      nome: usuario.supervisorNome || "Supervisor",
+      email: "",
+      role: "gestor",
+    });
+  }
 
   const config = MODAL_CONFIG[mode];
   const Icon = config.icone;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === "criar") onSubmit({ nome, email, senha, role });
-    else onSubmit({ nome, role, novaSenha });
+    const supervisor = role === "usuario" ? supervisorId : "";
+    if (mode === "criar") onSubmit({ nome, email, senha, role, supervisorId: supervisor });
+    else onSubmit({ nome, role, supervisorId: supervisor, novaSenha });
   };
 
   const inputCls =
@@ -152,6 +169,32 @@ export function UsuarioModal({ mode, usuario, carregando, erro, onSubmit, onClos
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {(mode === "criar" || mode === "editar") && role === "usuario" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                Supervisor <span className="normal-case font-medium text-text-dim">(opcional)</span>
+              </label>
+              <select
+                value={supervisorId}
+                onChange={(e) => setSupervisorId(e.target.value)}
+                className={inputCls}
+                disabled={carregando}
+              >
+                <option value="">Sem supervisor</option>
+                {supervisores.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nome || u.email}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] font-medium text-text-muted">
+                {ativosData && supervisores.length === 0
+                  ? "Nenhum usuário com o cargo Supervisor ainda."
+                  : "Aparece junto do atendente no dashboard."}
+              </p>
             </div>
           )}
 

@@ -21,7 +21,7 @@ function parseId(value: any): number {
 async function lerFaturista(req: any, res: AuthedResponse): Promise<string | null | undefined> {
   if (req.body?.faturistaId === undefined) return undefined;
   if (!(await ehGestor(getUser(res)))) {
-    const err: any = new Error("Apenas gestores e administradores podem vincular faturistas.");
+    const err: any = new Error("Apenas supervisores e administradores podem vincular faturistas.");
     err.status = 403;
     throw err;
   }
@@ -34,7 +34,7 @@ pastasRouter.get("/faturistas", requireGestor, async (_req, res, next) => {
     const { usuarios } = await SupabaseAdminService.listarUsuarios(1, 1000);
     const faturistas = usuarios
       .filter(u => !u.bloqueado)
-      .map(u => ({ id: u.id, nome: u.nome, email: u.email }));
+      .map(u => ({ id: u.id, nome: u.nome, email: u.email, role: u.role }));
     res.json({ faturistas });
   } catch (err) {
     next(err);

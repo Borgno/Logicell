@@ -66,12 +66,14 @@ export function UsuariosView() {
           senha: dados.senha,
           nome: dados.nome,
           role: dados.role,
+          supervisorId: dados.supervisorId,
         });
       }
       if (intent === "editar") {
         return api.patch(`/usuarios/${dados.usuarioId}`, {
           nome: dados.nome,
           role: dados.role,
+          supervisorId: dados.supervisorId,
           novaSenha: dados.novaSenha || "",
         });
       }

@@ -8,10 +8,15 @@ export interface UsuarioAdmin {
   role: Cargo;
   criadoEm: string | null;
   bloqueado: boolean;
+  //Supervisor do atendente (outro usuário), vinculado só pelo admin. O nome
+  //vem resolvido da própria lista — null se não há vínculo.
+  supervisorId: string | null;
+  supervisorNome: string | null;
 }
 
 //Cargos em ordem crescente de acesso: usuário (caixa de entrada e pastas),
-//gestor (+ dashboard e automações) e admin (+ gestão de usuários).
+//gestor (+ dashboard e automações) e admin (+ gestão de usuários). Na tela o
+//"gestor" aparece como Supervisor — o valor salvo no Supabase continua o mesmo.
 export const CARGOS = ["usuario", "gestor", "admin"] as const;
 export type Cargo = (typeof CARGOS)[number];
 
@@ -56,6 +61,8 @@ function mapearUsuario(u: any): UsuarioAdmin {
     role,
     criadoEm: u.created_at || null,
     bloqueado,
+    supervisorId: u.app_metadata?.supervisorId || null,
+    supervisorNome: null,
   };
 }
 
@@ -83,7 +90,13 @@ async function carregarUsuarios(): Promise<UsuarioAdmin[]> {
   };
 
   totalUsuarios.sort((a, b) => chave(a).localeCompare(chave(b)));
-  return totalUsuarios.map(mapearUsuario);
+  const usuarios = totalUsuarios.map(mapearUsuario);
+
+  const nomes = new Map(usuarios.map((u) => [u.id, u.nome || u.email]));
+  for (const u of usuarios) {
+    if (u.supervisorId) u.supervisorNome = nomes.get(u.supervisorId) ?? null;
+  }
+  return usuarios;
 }
 
 //Recarrega a lista antes do TTL vencer (chamado por um setInterval de 5 min em
@@ -116,7 +129,13 @@ export const SupabaseAdminService = {
     }
   },
 
-  async criarUsuario(dados: { email: string; senha: string; nome: string; role: string }) {
+  async criarUsuario(dados: {
+    email: string;
+    senha: string;
+    nome: string;
+    role: string;
+    supervisorId: string | null;
+  }) {
     const supabase = createSupabaseAdminClient();
     const role = normalizarCargo(dados.role);
 
@@ -125,7 +144,7 @@ export const SupabaseAdminService = {
       password: dados.senha,
       email_confirm: true,
       user_metadata: { nome: dados.nome },
-      app_metadata: { role },
+      app_metadata: { role, ...(dados.supervisorId && { supervisorId: dados.supervisorId }) },
     });
 
     if (error) throw error;
@@ -142,6 +161,26 @@ export const SupabaseAdminService = {
 
     if (error) throw error;
     return novoRole;
+  },
+
+  //O Supabase mescla o app_metadata chave a chave (o cargo continua lá) e
+  //remove a chave quando o valor é null.
+  async atualizarSupervisor(usuarioId: string, supervisorId: string | null) {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.auth.admin.updateUserById(usuarioId, {
+      app_metadata: { supervisorId },
+    });
+
+    if (error) throw error;
+  },
+
+  //Desfaz o vínculo de todos os atendentes supervisionados por este usuário
+  //(ao excluí-lo ou tirar o cargo Supervisor). Devolve quantos foram desvinculados.
+  async removerSupervisor(supervisorId: string) {
+    const totalUsuarios = await getOrSet(USUARIOS_CACHE_KEY, USUARIOS_TTL, carregarUsuarios);
+    const atendentes = totalUsuarios.filter((u) => u.supervisorId === supervisorId);
+    for (const u of atendentes) await this.atualizarSupervisor(u.id, null);
+    return atendentes.length;
   },
 
   async renomear(usuarioId: string, nome: string) {

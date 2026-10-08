@@ -97,4 +97,4 @@ function exigir(verificar: (user: AuthedUser | null) => Promise<boolean>, mensag
 }
 
 export const requireAdmin = exigir(ehAdmin, "Acesso restrito a administradores");
-export const requireGestor = exigir(ehGestor, "Acesso restrito a gestores e administradores");
+export const requireGestor = exigir(ehGestor, "Acesso restrito a supervisores e administradores");

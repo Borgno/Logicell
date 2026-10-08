@@ -1,9 +1,11 @@
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Filter, Plus, Search, Users, X } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useDashboard,
   useDashboardFaturista,
   useDashboardOpcoes,
+  faturistaCuboQuery,
+  queryClient,
   type DashboardFaturistaGrupo,
   type DashboardFiltros,
   type DashboardGeral,
@@ -14,8 +16,11 @@ import { formatarData, formatarMoeda } from "~/utils/formatters";
 import { Skeleton } from "~/components/Skeleton";
 import { useAuth } from "~/context/AuthContext";
 import { ehGestor } from "~/utils/cargos";
+import { agregarCubo, FILTRO_VAZIO, type CampoDetalhe, type DetalheFaturista, type SubFiltros } from "~/utils/cubo";
 
-type ItemBarra = { label: string; valor: number; quantidade: number; cor?: string | null };
+// `filtro` é o valor mandado ao servidor quando o item é clicado (chave crua ou
+// a sentinela de vazio).
+type ItemBarra = { label: string; valor: number; quantidade: number; filtro: string; cor?: string | null };
 type FiltroCampo = keyof DashboardFiltros;
 type OnChangeFiltro = (campo: FiltroCampo, valor: string) => void;
 
@@ -23,14 +28,19 @@ type OnChangeFiltro = (campo: FiltroCampo, valor: string) => void;
 // Blocos reutilizáveis
 // ---------------------------------------------------------------------------
 
+// Cada item é clicável: escolhe (ou, se já ativo, remove) o filtro daquele valor.
 function BarList({
   items,
   total,
   vazio,
+  ativo,
+  onSelecionar,
 }: {
   items: ItemBarra[];
   total: number;
   vazio: string;
+  ativo?: string;
+  onSelecionar: (filtro: string) => void;
 }) {
   const max = Math.max(...items.map((i) => i.valor), 1);
 
@@ -39,12 +49,21 @@ function BarList({
   }
 
   return (
-    <div className="flex flex-col gap-3.5 max-h-[320px] overflow-y-auto pr-1">
+    <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto pr-1 -mx-2">
       {items.map((item, idx) => {
         const pct = total > 0 ? (item.valor / total) * 100 : 0;
+        const selecionado = ativo === item.filtro;
         return (
-          <div key={`${item.label}-${idx}`} className="flex flex-col gap-1">
-            <div className="flex items-baseline justify-between gap-3">
+          <button
+            key={`${item.label}-${idx}`}
+            type="button"
+            onClick={() => onSelecionar(selecionado ? "" : item.filtro)}
+            title={selecionado ? "Remover este filtro" : `Filtrar por ${item.label}`}
+            className={`flex flex-col gap-1 px-2 py-1.5 rounded-lg text-left transition-colors ${
+              selecionado ? "bg-badge-primary-bg" : "hover:bg-surface"
+            }`}
+          >
+            <div className="w-full flex items-baseline justify-between gap-3">
               <span className="text-xs font-bold text-text truncate" title={item.label}>
                 {item.label}
               </span>
@@ -61,14 +80,14 @@ function BarList({
                 }}
               />
             </div>
-            <div className="flex items-center justify-between text-[10px] font-bold text-text-dim uppercase tracking-widest">
+            <div className="w-full flex items-center justify-between text-[10px] font-bold text-text-dim uppercase tracking-widest">
               <span>
                 {item.quantidade.toLocaleString("pt-BR")}{" "}
                 {item.quantidade === 1 ? "documento" : "documentos"}
               </span>
               <span>{pct.toFixed(1)}%</span>
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -120,13 +139,24 @@ function MiniStat({ label, valor, sub }: { label: string; valor: string; sub?: s
   );
 }
 
+// NULL e texto em branco viram um item só: o filtro de vazio do servidor
+// cobre os dois, então clicar em qualquer um daria o mesmo recorte.
 function grupoParaItens(grupos: DashboardGrupo[], fallback: string): ItemBarra[] {
-  return grupos.map((g) => ({
-    label: String(g.chave ?? "").trim() || fallback,
-    valor: g.valor,
-    quantidade: g.quantidade,
-    cor: null,
-  }));
+  const itens: ItemBarra[] = [];
+  let vazio: ItemBarra | null = null;
+  for (const g of grupos) {
+    const label = String(g.chave ?? "").trim();
+    if (label) {
+      itens.push({ label, valor: g.valor, quantidade: g.quantidade, filtro: String(g.chave), cor: null });
+    } else if (vazio) {
+      vazio.valor += g.valor;
+      vazio.quantidade += g.quantidade;
+    } else {
+      vazio = { label: fallback, valor: g.valor, quantidade: g.quantidade, filtro: FILTRO_VAZIO, cor: null };
+      itens.push(vazio);
+    }
+  }
+  return itens.sort((a, b) => b.valor - a.valor);
 }
 
 function DistribuicaoCard({
@@ -134,11 +164,15 @@ function DistribuicaoCard({
   grupos,
   fallback,
   total,
+  ativo,
+  onSelecionar,
 }: {
   titulo: string;
   grupos: DashboardGrupo[];
   fallback: string;
   total: number;
+  ativo?: string;
+  onSelecionar: (filtro: string) => void;
 }) {
   return (
     <div className="bg-card-bg border border-glass-border rounded-xl p-4">
@@ -147,7 +181,13 @@ function DistribuicaoCard({
           {titulo}
         </p>
       </div>
-      <BarList items={grupoParaItens(grupos, fallback)} total={total} vazio="Sem dados." />
+      <BarList
+        items={grupoParaItens(grupos, fallback)}
+        total={total}
+        vazio="Sem dados."
+        ativo={ativo}
+        onSelecionar={onSelecionar}
+      />
     </div>
   );
 }
@@ -160,13 +200,21 @@ type OpcaoFiltro = { valor: string; label: string };
 type CampoFiltro = (typeof CAMPOS_FILTRO)[number];
 
 // Campos oferecidos no menu "+ Filtro". As sentinelas ("sem", "inbox",
-// "__vazio__") entram no fim de cada lista, como nos selects antigos.
+// "__vazio__") entram no fim de cada lista, como nos selects antigos. O
+// período não tem lista: abre um painel de datas (tipo "periodo").
 const CAMPOS_FILTRO: {
   campo: FiltroCampo;
   label: string;
+  tipo?: "periodo";
   busca?: boolean;
   opcoes: (o?: DashboardOpcoes) => OpcaoFiltro[];
 }[] = [
+  {
+    campo: "periodo",
+    label: "Período de emissão",
+    tipo: "periodo",
+    opcoes: () => [],
+  },
   {
     campo: "faturistaId",
     label: "Faturista",
@@ -237,6 +285,52 @@ const CAMPOS_FILTRO_USUARIO: CampoFiltro[] = CAMPOS_FILTRO
 
 // Lista de clientes pode ter milhares de itens: renderiza só os primeiros.
 const MAX_OPCOES_VISIVEIS = 200;
+
+// ---- Período de emissão ("YYYY-MM-DD..YYYY-MM-DD", um lado pode ficar vazio)
+
+const isoParaBr = (iso: string) => iso.split("-").reverse().join("/");
+
+function rotuloPeriodo(valor: string): string {
+  const [de, ate] = valor.split("..");
+  if (de && ate) return de === ate ? isoParaBr(de) : `${isoParaBr(de)} a ${isoParaBr(ate)}`;
+  return de ? `a partir de ${isoParaBr(de)}` : `até ${isoParaBr(ate)}`;
+}
+
+const inputDataCls =
+  "w-full bg-surface border border-glass-border rounded-xl px-3 py-2.5 text-xs font-bold outline-none text-text focus:border-primary focus:ring-1 focus:ring-primary transition-all";
+
+// As datas só valem no "Aplicar": cada troca dispara a consulta da dashboard,
+// e o input de data muda a cada dígito digitado no ano.
+function PainelPeriodo({ valor, onAplicar }: { valor?: string; onAplicar: (valor: string) => void }) {
+  const [deInicial = "", ateInicial = ""] = (valor ?? "").split("..");
+  const [de, setDe] = useState(deInicial);
+  const [ate, setAte] = useState(ateInicial);
+  const invalido = !!de && !!ate && de > ate;
+
+  return (
+    <div className="p-3 flex flex-col gap-3">
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">De</span>
+        <input type="date" value={de} max={ate || undefined} onChange={(e) => setDe(e.target.value)} className={inputDataCls} />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Até</span>
+        <input type="date" value={ate} min={de || undefined} onChange={(e) => setAte(e.target.value)} className={inputDataCls} />
+      </label>
+      {invalido && (
+        <p className="text-[11px] font-medium text-badge-error-text">A data inicial é depois da final.</p>
+      )}
+      <button
+        type="button"
+        disabled={invalido || (!de && !ate)}
+        onClick={() => onAplicar(`${de}..${ate}`)}
+        className="h-9 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-xs font-bold transition-all"
+      >
+        Aplicar
+      </button>
+    </div>
+  );
+}
 
 function MenuFiltro({
   campos,
@@ -326,33 +420,37 @@ function MenuFiltro({
                 </span>
               )}
             </div>
-            <div className="max-h-72 overflow-y-auto custom-scrollbar p-1.5">
-              {lista.length === 0 ? (
-                <p className="px-2.5 py-4 text-xs text-text-muted text-center">Nada encontrado.</p>
-              ) : (
-                lista.slice(0, MAX_OPCOES_VISIVEIS).map((o) => {
-                  const ativo = filtros[def.campo] === o.valor;
-                  return (
-                    <button
-                      key={o.valor}
-                      type="button"
-                      onClick={() => onEscolher(def.campo, ativo ? "" : o.valor)}
-                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-colors ${
-                        ativo ? "bg-badge-primary-bg text-badge-primary-text font-bold" : "text-text font-medium hover:bg-surface"
-                      }`}
-                    >
-                      <span className="truncate">{o.label}</span>
-                      {ativo && <Check size={14} className="shrink-0" />}
-                    </button>
-                  );
-                })
-              )}
-              {lista.length > MAX_OPCOES_VISIVEIS && (
-                <p className="px-2.5 py-2 text-[11px] text-text-muted text-center">
-                  Mostrando {MAX_OPCOES_VISIVEIS} de {lista.length}. Refine a busca.
-                </p>
-              )}
-            </div>
+            {def.tipo === "periodo" ? (
+              <PainelPeriodo valor={filtros.periodo} onAplicar={(v) => onEscolher(def.campo, v)} />
+            ) : (
+              <div className="max-h-72 overflow-y-auto custom-scrollbar p-1.5">
+                {lista.length === 0 ? (
+                  <p className="px-2.5 py-4 text-xs text-text-muted text-center">Nada encontrado.</p>
+                ) : (
+                  lista.slice(0, MAX_OPCOES_VISIVEIS).map((o) => {
+                    const ativo = filtros[def.campo] === o.valor;
+                    return (
+                      <button
+                        key={o.valor}
+                        type="button"
+                        onClick={() => onEscolher(def.campo, ativo ? "" : o.valor)}
+                        className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-colors ${
+                          ativo ? "bg-badge-primary-bg text-badge-primary-text font-bold" : "text-text font-medium hover:bg-surface"
+                        }`}
+                      >
+                        <span className="truncate">{o.label}</span>
+                        {ativo && <Check size={14} className="shrink-0" />}
+                      </button>
+                    );
+                  })
+                )}
+                {lista.length > MAX_OPCOES_VISIVEIS && (
+                  <p className="px-2.5 py-2 text-[11px] text-text-muted text-center">
+                    Mostrando {MAX_OPCOES_VISIVEIS} de {lista.length}. Refine a busca.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -382,7 +480,9 @@ function FiltrosBar({
   const soAntigas = filtros.antigas === "1";
 
   const rotuloValor = (def: CampoFiltro, valor: string) =>
-    def.opcoes(opcoes).find((o) => o.valor === valor)?.label ?? valor;
+    def.tipo === "periodo"
+      ? rotuloPeriodo(valor)
+      : (def.opcoes(opcoes).find((o) => o.valor === valor)?.label ?? valor);
 
   const escolher = (campo: FiltroCampo, valor: string) => {
     onChange(campo, valor);
@@ -492,6 +592,23 @@ function FiltrosBar({
 
 const PALETA = ["#0066ff", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16", "#e03048", "#64748b"];
 
+// Dimensões do detalhe do faturista. Clicar num item de um card filtra só
+// este faturista (por cima dos filtros globais) e recalcula todo o detalhe —
+// no navegador, em cima do cubo já carregado (sem request por clique).
+const DIMENSOES_DETALHE: {
+  campo: CampoDetalhe;
+  titulo: string;
+  rotulo: string;
+  fallback: string;
+  grupos: (d: DetalheFaturista) => DashboardGrupo[];
+}[] = [
+  { campo: "status", titulo: "Status", rotulo: "Status", fallback: "Sem status", grupos: (d) => d.porStatus },
+  { campo: "tipoDocumento", titulo: "Tipo de documento", rotulo: "Tipo", fallback: "Não informado", grupos: (d) => d.porTipoDocumento },
+  { campo: "agencia", titulo: "Agência", rotulo: "Agência", fallback: "Sem agência", grupos: (d) => d.porAgencia },
+  { campo: "tipoCte", titulo: "Tipo de CTe", rotulo: "Tipo de CTe", fallback: "Não informado", grupos: (d) => d.porTipoCte },
+  { campo: "pagador", titulo: "Top clientes (pagador)", rotulo: "Cliente", fallback: "Não informado", grupos: (d) => d.topPagadores },
+];
+
 function FaturistaDetalhe({
   faturistaId,
   filtros,
@@ -499,7 +616,19 @@ function FaturistaDetalhe({
   faturistaId: string | null;
   filtros: DashboardFiltros;
 }) {
-  const { data, isLoading, isError, isPlaceholderData } = useDashboardFaturista(faturistaId, filtros, true);
+  // Filtros "dentro" do faturista: somem ao fechar o acordeão.
+  const [subFiltros, setSubFiltros] = useState<SubFiltros>({});
+  const { data: cubo, isLoading, isError, isPlaceholderData } = useDashboardFaturista(faturistaId, filtros, true);
+  const data = useMemo(() => (cubo ? agregarCubo(cubo, subFiltros) : null), [cubo, subFiltros]);
+
+  const setSubFiltro = (campo: CampoDetalhe, valor: string) =>
+    setSubFiltros((f) => {
+      const novo = { ...f };
+      if (valor) novo[campo] = valor;
+      else delete novo[campo];
+      return novo;
+    });
+  const ativos = DIMENSOES_DETALHE.filter((d) => subFiltros[d.campo]);
 
   if (isLoading) {
     return <FaturistaDetalheSkeleton />;
@@ -514,13 +643,51 @@ function FaturistaDetalhe({
   }
 
   return (
-    // Ao trocar de filtro, os números anteriores ficam em tela (keepPreviousData)
+    // Ao trocar de filtro global, os números anteriores ficam em tela (keepPreviousData)
     // com opacidade menor até a resposta chegar. isPlaceholderData (e não
     // isFetching) para o polling em segundo plano não escurecer a tela.
     <div className={`px-5 py-5 bg-surface/40 transition-opacity duration-200 ${isPlaceholderData ? "opacity-60" : ""}`}>
-      <p className="text-[10px] font-bold text-text-dim uppercase tracking-widest mb-4">
-        Período: {formatarData(data.primeiraEmissao)} → {formatarData(data.ultimaEmissao)}
-      </p>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <p className="text-[10px] font-bold text-text-dim uppercase tracking-widest mr-auto">
+          Período: {formatarData(data.primeiraEmissao)} → {formatarData(data.ultimaEmissao)}
+        </p>
+        {ativos.length === 0 ? (
+          <p className="text-[11px] font-medium text-text-muted">
+            Clique em um item abaixo para filtrar este faturista.
+          </p>
+        ) : (
+          <>
+            {ativos.map((d) => {
+              const valor = subFiltros[d.campo]!;
+              return (
+                <div key={d.campo} className="flex items-center h-7 rounded-lg bg-badge-primary-bg text-xs overflow-hidden">
+                  <span className="flex items-center gap-1 pl-2.5 pr-1 max-w-[240px]">
+                    <span className="font-medium text-text-muted">{d.rotulo}:</span>
+                    <span className="font-bold text-badge-primary-text truncate">
+                      {valor === FILTRO_VAZIO ? d.fallback : valor}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSubFiltro(d.campo, "")}
+                    className="h-full px-1.5 text-badge-primary-text opacity-70 hover:opacity-100 transition-opacity"
+                    aria-label={`Remover filtro ${d.rotulo}`}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setSubFiltros({})}
+              className="h-7 px-2 text-[11px] font-bold text-text-muted hover:text-badge-error-text transition-colors"
+            >
+              Limpar
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-5">
         <MiniStat label="Valor total" valor={formatarMoeda(data.valor)} />
@@ -533,43 +700,25 @@ function FaturistaDetalhe({
         <MiniStat label="Pastas" valor={data.totalPastas.toLocaleString("pt-BR")} />
         <MiniStat
           label="Status vazio"
-          valor={String(
-            data.porStatus.find((s) => !String(s.chave ?? "").trim())?.quantidade ?? 0
-          )}
+          valor={data.porStatus
+            .filter((s) => !String(s.chave ?? "").trim())
+            .reduce((n, s) => n + s.quantidade, 0)
+            .toLocaleString("pt-BR")}
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <DistribuicaoCard
-          titulo="Status"
-          grupos={data.porStatus}
-          fallback="Sem status"
-          total={data.valor}
-        />
-        <DistribuicaoCard
-          titulo="Tipo de documento"
-          grupos={data.porTipoDocumento}
-          fallback="Não informado"
-          total={data.valor}
-        />
-        <DistribuicaoCard
-          titulo="Agência"
-          grupos={data.porAgencia}
-          fallback="Sem agência"
-          total={data.valor}
-        />
-        <DistribuicaoCard
-          titulo="Tipo de CTe"
-          grupos={data.porTipoCte}
-          fallback="Não informado"
-          total={data.valor}
-        />
-        <DistribuicaoCard
-          titulo="Top clientes (pagador)"
-          grupos={data.topPagadores}
-          fallback="Não informado"
-          total={data.valor}
-        />
+        {DIMENSOES_DETALHE.map((d) => (
+          <DistribuicaoCard
+            key={d.campo}
+            titulo={d.titulo}
+            grupos={d.grupos(data)}
+            fallback={d.fallback}
+            total={data.valor}
+            ativo={subFiltros[d.campo]}
+            onSelecionar={(valor) => setSubFiltro(d.campo, valor)}
+          />
+        ))}
       </div>
 
       {data.pastas.length > 0 && (
@@ -619,6 +768,18 @@ function FaturistasAcordeao({
   const [aberto, setAberto] = useState<string | null>(null);
   const total = faturistas.reduce((s, f) => s + f.valor, 0);
 
+  // Pré-carrega o cubo quando o mouse para sobre a linha (150 ms): até o
+  // clique, o detalhe normalmente já está no cache. Passar o mouse de relance
+  // pela lista não dispara nada.
+  const intencao = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(intencao.current), []);
+  const preCarregar = (faturistaId: string | null) => {
+    clearTimeout(intencao.current);
+    intencao.current = setTimeout(() => {
+      queryClient.prefetchQuery(faturistaCuboQuery(faturistaId, filtros));
+    }, 150);
+  };
+
   return (
     <div className="bg-card-bg border border-glass-border rounded-2xl shadow-card overflow-hidden">
       <div className="flex items-center justify-between gap-3 p-5 border-b border-glass-border">
@@ -647,6 +808,8 @@ function FaturistasAcordeao({
                 <button
                   type="button"
                   onClick={() => setAberto(estaAberto ? null : chave)}
+                  onMouseEnter={() => preCarregar(f.faturistaId)}
+                  onMouseLeave={() => clearTimeout(intencao.current)}
                   className={`w-full flex items-center gap-4 px-5 py-4 border-t border-glass-border text-left transition-colors ${
                     estaAberto ? "bg-surface-light" : "hover:bg-surface"
                   }`}
@@ -662,6 +825,11 @@ function FaturistasAcordeao({
                     <span className="block text-[10px] font-bold text-text-dim uppercase tracking-widest mt-0.5">
                       {f.quantidade.toLocaleString("pt-BR")} documentos
                     </span>
+                    {f.supervisorNome && (
+                      <span className="block text-[11px] font-medium text-text-muted truncate mt-1">
+                        Supervisor: <span className="font-bold text-text">{f.supervisorNome}</span>
+                      </span>
+                    )}
                   </span>
                   <span className="text-right shrink-0">
                     <span className="block text-xs font-mono font-bold text-text">

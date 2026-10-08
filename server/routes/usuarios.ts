@@ -10,7 +10,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const CARGO_LABEL: Record<Cargo, string> = {
   admin: "Administrador",
-  gestor: "Gestor",
+  gestor: "Supervisor",
   usuario: "Usuário",
 };
 
@@ -51,6 +51,26 @@ function parseId(value: any): string {
   return id;
 }
 
+//Supervisor vindo do formulário: undefined = campo ausente (não mexe no
+//vínculo), null = sem supervisor. Só o cargo Usuário é supervisionado — nos
+//demais o vínculo é sempre desfeito.
+function lerSupervisor(body: any, role: Cargo): string | null | undefined {
+  if (role !== "usuario") return null;
+  if (body?.supervisorId === undefined) return undefined;
+  return String(body.supervisorId || "").trim() || null;
+}
+
+//O supervisor precisa ser outro usuário, ativo e com o cargo Supervisor (valor
+//interno "gestor"). Devolve a mensagem de erro, se houver.
+async function validarSupervisor(supervisorId: string | null | undefined, usuarioId?: string) {
+  if (!supervisorId) return null;
+  const supervisor = await SupabaseAdminService.buscarPorId(supervisorId);
+  if (supervisorId === usuarioId || !supervisor || supervisor.bloqueado || supervisor.role !== "gestor") {
+    return "Escolha um usuário ativo com o cargo Supervisor.";
+  }
+  return null;
+}
+
 usuariosRouter.get("/", async (req, res: AuthedResponse, next) => {
   try {
     const user = getUser(res);
@@ -85,8 +105,14 @@ usuariosRouter.post("/", async (req, res: AuthedResponse, next) => {
       res.status(400).json({ error: "Cargo inválido." });
       return;
     }
+    const supervisorId = lerSupervisor(req.body, role) ?? null;
+    const erroSupervisor = await validarSupervisor(supervisorId);
+    if (erroSupervisor) {
+      res.status(400).json({ error: erroSupervisor });
+      return;
+    }
 
-    const usuario = await SupabaseAdminService.criarUsuario({ email, senha, nome, role });
+    const usuario = await SupabaseAdminService.criarUsuario({ email, senha, nome, role, supervisorId });
     invalidate("usuarios");
     res.json({ success: true, mensagem: `Usuário "${usuario.email}" criado com sucesso.` });
   } catch (err) {
@@ -120,22 +146,37 @@ usuariosRouter.patch("/:id", async (req, res: AuthedResponse, next) => {
     }
 
     //Só barra quando quem perde o cargo é justamente o último admin — trocar
-    //o cargo de outros usuários (ex.: usuário → gestor) segue liberado.
+    //o cargo de outros usuários (ex.: usuário → supervisor) segue liberado.
     const alvo = await SupabaseAdminService.buscarPorId(usuarioId);
     const totalAdmins = await SupabaseAdminService.contarAdmins();
     if (alvo?.role === "admin" && totalAdmins <= 1 && role !== "admin") {
       res.status(400).json({ error: "Não é possível rebaixar o último administrador do sistema." });
       return;
     }
+    //Só valida quando o vínculo muda: manter um supervisor que foi bloqueado
+    //depois não pode impedir de salvar o resto do formulário.
+    const supervisorId = lerSupervisor(req.body, role);
+    const mudouSupervisor = supervisorId !== undefined && supervisorId !== (alvo?.supervisorId ?? null);
+    const erroSupervisor = mudouSupervisor ? await validarSupervisor(supervisorId, usuarioId) : null;
+    if (erroSupervisor) {
+      res.status(400).json({ error: erroSupervisor });
+      return;
+    }
 
     await SupabaseAdminService.renomear(usuarioId, nome);
     await SupabaseAdminService.atualizarCargo(usuarioId, role);
+    //Deixou de ser Supervisor: os atendentes dele ficam sem supervisor.
+    const desvinculados =
+      alvo?.role === "gestor" && role !== "gestor" ? await SupabaseAdminService.removerSupervisor(usuarioId) : 0;
+    if (mudouSupervisor) await SupabaseAdminService.atualizarSupervisor(usuarioId, supervisorId ?? null);
     if (novaSenha) await SupabaseAdminService.redefinirSenha(usuarioId, novaSenha);
     invalidate("usuarios");
 
     res.json({
       success: true,
-      mensagem: `Usuário atualizado com cargo de ${CARGO_LABEL[role]}.`,
+      mensagem:
+        `Usuário atualizado com cargo de ${CARGO_LABEL[role]}.` +
+        (desvinculados > 0 ? ` ${desvinculados} atendente(s) ficaram sem supervisor.` : ""),
     });
   } catch (err) {
     next(traduzirErroSupabase(err));
@@ -185,6 +226,7 @@ usuariosRouter.delete("/:id", async (req, res: AuthedResponse, next) => {
       return;
     }
     await PastaService.removerFaturista(usuarioId);
+    await SupabaseAdminService.removerSupervisor(usuarioId);
     await SupabaseAdminService.excluir(usuarioId);
     invalidate("usuarios");
     res.json({ success: true, mensagem: "Usuário excluído com sucesso. As pastas em que ele era faturista ficaram sem responsável." });

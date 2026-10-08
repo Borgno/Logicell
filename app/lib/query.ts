@@ -1,5 +1,6 @@
-import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "./api";
+import type { Cargo } from "~/utils/cargos";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,11 +53,12 @@ export interface Faturista {
   id: string;
   nome: string;
   email: string;
+  role: Cargo;
 }
 
 // Lista de usuários ativos que podem ser atribuídos como faturista de uma
-// pasta. Só busca quando o formulário de criar/editar pasta está aberto —
-// o select não aparece em mais lugar nenhum.
+// pasta (ou supervisor de um atendente, no modal de usuário). Só busca com um
+// desses formulários aberto.
 export function useFaturistas(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.faturistas,
@@ -89,6 +91,8 @@ export interface DashboardGrupo {
 
 export interface DashboardFaturistaGrupo extends DashboardGrupo {
   faturistaId: string | null;
+  // Supervisor vinculado ao atendente na Gestão de Usuários (só admin vincula).
+  supervisorNome: string | null;
 }
 
 // Filtros globais. `faturistaId` aceita id real ou "sem" (sem responsável).
@@ -102,6 +106,8 @@ export interface DashboardFiltros {
   agencia?: string;
   // "1" = só emissões antigas (fora do prazo padrão/do cliente).
   antigas?: string;
+  // Período de emissão "YYYY-MM-DD..YYYY-MM-DD" (um dos lados pode ficar vazio).
+  periodo?: string;
 }
 
 export interface DashboardGeral {
@@ -147,23 +153,29 @@ export interface DashboardResumo {
   pastas: DashboardPastaResumo[];
 }
 
-// Detalhe agregado de um faturista (drill-down do acordeão "Por faturista").
-export interface DashboardFaturistaDetalhe {
+// Detalhe de um faturista pré-agregado por combinação de dimensões (espelha
+// o servidor). Os sub-filtros do detalhe são recalculados em cima dele no
+// navegador (app/utils/cubo.ts), sem nova request a cada clique.
+export interface DashboardCuboLinha {
+  s: string | null; // status
+  t: string | null; // tipo de documento
+  a: string | null; // agência
+  c: string | null; // tipo de CTe
+  p: string | null; // pagador
+  pid: number | null; // pasta (null = Caixa de Entrada)
+  v: number; // valor
+  q: number; // quantidade
+  d1: string | null; // primeira emissão
+  d2: string | null; // última emissão
+  aq: number; // emissões antigas: quantidade
+  av: number; // emissões antigas: valor
+}
+
+export interface DashboardFaturistaCubo {
   faturistaId: string | null;
   faturistaNome: string | null;
-  valor: number;
-  quantidade: number;
-  totalPastas: number;
-  emissaoAntigas: number;
-  emissaoAntigasValor: number;
-  primeiraEmissao: string | null;
-  ultimaEmissao: string | null;
-  porStatus: DashboardGrupo[];
-  porTipoDocumento: DashboardGrupo[];
-  porAgencia: DashboardGrupo[];
-  porTipoCte: DashboardGrupo[];
-  topPagadores: DashboardGrupo[];
-  pastas: DashboardPastaResumo[];
+  linhas: DashboardCuboLinha[];
+  pastas: { id: number; nome: string; cor: string | null }[];
 }
 
 // Opções distintas para os selects de filtro.
@@ -187,6 +199,11 @@ export function filtrosParaQuery(filtros: DashboardFiltros): string {
   if (filtros.tipoCte) p.set("tipoCte", filtros.tipoCte);
   if (filtros.agencia) p.set("agencia", filtros.agencia);
   if (filtros.antigas) p.set("antigas", filtros.antigas);
+  if (filtros.periodo) {
+    const [de, ate] = filtros.periodo.split("..");
+    if (de) p.set("de", de);
+    if (ate) p.set("ate", ate);
+  }
   const qs = p.toString();
   return qs ? `?${qs}` : "";
 }
@@ -218,21 +235,28 @@ export function useDashboardPasta(pastaId: number | "inbox" | null, enabled: boo
   });
 }
 
-//Detalhamento de um faturista sob demanda (ao expandir no acordeão).
+//Cubo de um faturista sob demanda. Compartilhado entre o acordeão aberto e o
+//pré-carregamento ao passar o mouse, para os dois usarem a mesma entrada de cache.
+export function faturistaCuboQuery(faturistaId: string | null, filtros: DashboardFiltros) {
+  const chave = faturistaId === null ? "sem" : faturistaId;
+  const qs = filtrosParaQuery(filtros);
+  return queryOptions({
+    queryKey: ["dashboard", "faturista", chave, filtros] as const,
+    queryFn: () =>
+      api.get<DashboardFaturistaCubo>(`/dashboard/faturistas/${encodeURIComponent(chave)}/cubo${qs}`),
+    staleTime: 60_000,
+  });
+}
+
 export function useDashboardFaturista(
   faturistaId: string | null,
   filtros: DashboardFiltros,
   enabled: boolean
 ) {
-  const chave = faturistaId === null ? "sem" : faturistaId;
-  const qs = filtrosParaQuery(filtros);
   return useQuery({
-    queryKey: ["dashboard", "faturista", chave, filtros] as const,
-    queryFn: () =>
-      api.get<DashboardFaturistaDetalhe>(`/dashboard/faturistas/${encodeURIComponent(chave)}${qs}`),
+    ...faturistaCuboQuery(faturistaId, filtros),
     enabled,
-    staleTime: 60_000,
-    // Mantém os números anteriores na tela ao trocar de filtro, até a resposta chegar.
+    // Mantém os números anteriores na tela ao trocar de filtro global, até a resposta chegar.
     placeholderData: keepPreviousData,
   });
 }

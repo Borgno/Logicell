@@ -36,10 +36,10 @@ export function UsuariosTable({
   return (
     <div className="bg-card-bg border border-glass-border rounded-2xl overflow-hidden shadow-sm">
       <div className="overflow-x-auto custom-scrollbar">
-        <table className="w-full min-w-[760px] text-left">
+        <table className="w-full min-w-[880px] text-left">
           <thead>
             <tr className="border-b border-glass-border bg-surface">
-              {["Usuário", "E-mail", "Cargo", "Status", "Criado em", "Ações"].map((h) => (
+              {["Usuário", "E-mail", "Cargo", "Supervisor", "Status", "Criado em", "Ações"].map((h) => (
                 <th
                   key={h}
                   className="px-5 py-3 text-[9px] font-bold uppercase tracking-[0.12em] text-text-muted whitespace-nowrap"
@@ -89,7 +89,12 @@ export function UsuariosTable({
                             : "bg-surface text-text-muted border border-glass-border"
                       }`}
                     >
-                      {u.role === "admin" ? "Admin" : u.role === "gestor" ? "Gestor" : "Usuário"}
+                      {u.role === "admin" ? "Admin" : u.role === "gestor" ? "Supervisor" : "Usuário"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className="text-xs font-medium text-text-muted whitespace-nowrap">
+                      {u.supervisorNome || "—"}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">

@@ -23,8 +23,18 @@ function negar(): never {
   throw err;
 }
 
+//Data no formato YYYY-MM-DD (o que o <input type="date"> envia); o resto é
+//ignorado. A ida e volta barra dias inexistentes (2026-02-30), que o
+//Date.parse aceita e o Postgres recusaria.
+function dataISO(value: any): string | undefined {
+  const v = texto(value);
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : undefined;
+}
+
 // Lê os filtros globais da querystring.
-// faturista=<id|sem> · cliente=<pagador> · status= · tipo= · agencia=
+// faturista=<id|sem> · cliente=<pagador> · status= · tipo= · agencia= · de=/ate=<YYYY-MM-DD>
 function parseFiltros(query: Record<string, any>): DashboardFiltros {
   return {
     faturistaId: texto(query.faturista),
@@ -35,6 +45,8 @@ function parseFiltros(query: Record<string, any>): DashboardFiltros {
     tipoCte: texto(query.tipoCte),
     agencia: texto(query.agencia),
     antigas: query.antigas === "1" ? "1" : undefined,
+    emissaoDe: dataISO(query.de),
+    emissaoAte: dataISO(query.ate),
   };
 }
 
@@ -71,18 +83,20 @@ dashboardRouter.get("/opcoes", async (_req, res: AuthedResponse, next) => {
   }
 });
 
-//Detalhe agregado de um faturista ("sem" = Caixa de Entrada + pastas sem dono).
-dashboardRouter.get("/faturistas/:faturistaId", async (req, res: AuthedResponse, next) => {
+//Cubo do detalhe de um faturista ("sem" = Caixa de Entrada + pastas sem dono)
+//com os filtros globais; os sub-filtros do detalhe são recalculados no navegador.
+dashboardRouter.get("/faturistas/:faturistaId/cubo", async (req, res: AuthedResponse, next) => {
   try {
     const raw = req.params.faturistaId;
     const faturistaId = raw === "sem" ? null : raw;
     const restrito = await faturistaRestrito(res);
     if (restrito && faturistaId !== restrito) negar();
-    const detalhe = await DashboardService.faturistaDetalhe(
+    const cubo = await DashboardService.faturistaCubo(
       faturistaId,
       parseFiltros(req.query as Record<string, any>)
     );
-    res.json(detalhe);
+    aplicarServerTiming(res);
+    res.json(cubo);
   } catch (err) {
     next(err);
   }

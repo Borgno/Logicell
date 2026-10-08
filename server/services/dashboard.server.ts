@@ -2,7 +2,7 @@ import prisma from "../lib/prisma.server";
 import { PastaService } from "./pasta.server";
 import { OperacaoService } from "./operacao.server";
 import { SupabaseAdminService } from "./supabase-admin.server";
-import { PrazoService } from "./prazo.server";
+import { PrazoService, type PrazoRegras } from "./prazo.server";
 import { OperacaoQueryBuilder } from "./operacao-query-builder.server";
 
 // Sentinela usada nos filtros para representar valores vazios/nulos
@@ -17,9 +17,10 @@ export interface DashboardGrupo {
 }
 
 // Faturista é uma dimensão derivada da pasta (não do documento): além do nome,
-// carrega o id para permitir o drill-down.
+// carrega o id para permitir o drill-down e o supervisor vinculado pelo admin.
 export interface DashboardFaturistaGrupo extends DashboardGrupo {
   faturistaId: string | null;
+  supervisorNome: string | null;
 }
 
 // Filtros globais da dashboard. `faturistaId` aceita um id real ou a sentinela
@@ -34,6 +35,9 @@ export interface DashboardFiltros {
   agencia?: string | null;
   // "1" = só emissões antigas (mesma regra de prazo do filtro "Antigos" da grid).
   antigas?: string | null;
+  // Período de emissão (YYYY-MM-DD, extremos inclusivos; qualquer um opcional).
+  emissaoDe?: string | null;
+  emissaoAte?: string | null;
 }
 
 export interface DashboardGeral {
@@ -79,23 +83,29 @@ export interface DashboardResumo {
   pastas: DashboardPastaResumo[];
 }
 
-// Detalhe agregado de um faturista (drill-down do acordeão "Por faturista").
-export interface DashboardFaturistaDetalhe {
+// Detalhe de um faturista pré-agregado por combinação de dimensões (o "cubo").
+// O navegador recalcula os sub-filtros do detalhe em cima dele, sem nova
+// request a cada clique. Chaves curtas porque viajam uma vez por linha.
+export interface DashboardCuboLinha {
+  s: string | null; // status
+  t: string | null; // id_tipo_documento
+  a: string | null; // nm_agencia
+  c: string | null; // id_tipo_ctrc
+  p: string | null; // nm_pessoa_pagador
+  pid: number | null; // pastaId (null = Caixa de Entrada)
+  v: number; // soma de vl_total
+  q: number; // quantidade
+  d1: string | null; // primeira emissão (ISO)
+  d2: string | null; // última emissão (ISO)
+  aq: number; // emissões antigas: quantidade
+  av: number; // emissões antigas: valor
+}
+
+export interface DashboardFaturistaCubo {
   faturistaId: string | null;
   faturistaNome: string | null;
-  valor: number;
-  quantidade: number;
-  totalPastas: number;
-  emissaoAntigas: number;
-  emissaoAntigasValor: number;
-  primeiraEmissao: string | null;
-  ultimaEmissao: string | null;
-  porStatus: DashboardGrupo[];
-  porTipoDocumento: DashboardGrupo[];
-  porAgencia: DashboardGrupo[];
-  porTipoCte: DashboardGrupo[];
-  topPagadores: DashboardGrupo[];
-  pastas: DashboardPastaResumo[];
+  linhas: DashboardCuboLinha[];
+  pastas: { id: number; nome: string; cor: string | null }[];
 }
 
 // Opções para os selects de filtro da dashboard.
@@ -168,6 +178,34 @@ SELECT
   ) FROM filtrada) AS total,
   (SELECT json_agg(pa ORDER BY pa.nome) FROM (
     SELECT id, nome, cor, "faturistaId" FROM "Pasta"
+  ) pa) AS pastas`;
+}
+
+// Cubo do faturista em UMA ida ao banco: o recorte agrupado pelas 5 dimensões
+// do detalhe + pasta, e o nome/cor só das pastas que aparecem nele.
+function sqlCubo(whereSql: string, condicaoAntigas: string): string {
+  return `
+WITH filtrada AS (
+  SELECT "status", "id_tipo_documento", "nm_agencia", "id_tipo_ctrc",
+         "nm_pessoa_pagador", "pastaId", "vl_total", "dt_emissao_"
+  FROM "Operacao"
+  ${whereSql}
+)
+SELECT
+  (SELECT json_agg(cb) FROM (
+    SELECT "status" AS s, "id_tipo_documento" AS t, "nm_agencia" AS a, "id_tipo_ctrc" AS c,
+           "nm_pessoa_pagador" AS p, "pastaId" AS pid,
+           COALESCE(SUM("vl_total"), 0) AS v,
+           COUNT(*)::int AS q,
+           MIN("dt_emissao_") AS d1,
+           MAX("dt_emissao_") AS d2,
+           (COUNT(*) FILTER (WHERE f.dt_emissao_ IS NOT NULL AND ${condicaoAntigas}))::int AS aq,
+           COALESCE(SUM("vl_total") FILTER (WHERE f.dt_emissao_ IS NOT NULL AND ${condicaoAntigas}), 0) AS av
+    FROM filtrada f
+    GROUP BY 1, 2, 3, 4, 5, 6
+  ) cb) AS cubo,
+  (SELECT json_agg(pa) FROM (
+    SELECT id, nome, cor FROM "Pasta" WHERE id IN (SELECT "pastaId" FROM filtrada)
   ) pa) AS pastas`;
 }
 
@@ -281,6 +319,18 @@ export class DashboardService {
     return nomes;
   }
 
+  // Nome do supervisor de cada atendente (faturista), da mesma lista cacheada.
+  private static async supervisores(): Promise<Map<string, string>> {
+    const supervisores = new Map<string, string>();
+    try {
+      const { usuarios } = await SupabaseAdminService.listarUsuarios(1, 1000);
+      for (const u of usuarios) if (u.supervisorNome) supervisores.set(u.id, u.supervisorNome);
+    } catch {
+      // sem supervisor na tela se o Supabase falhar
+    }
+    return supervisores;
+  }
+
   private static filtroAtivo(filtros: DashboardFiltros): boolean {
     return Object.values(filtros).some((v) => v !== undefined && v !== null && v !== "");
   }
@@ -311,6 +361,16 @@ export class DashboardService {
     addIgual("nm_agencia", filtros.agencia);
     addIgual("nm_pessoa_pagador", filtros.pagador);
 
+    // Datas de emissão são meia-noite UTC: "até" vira < dia seguinte (indexável).
+    if (filtros.emissaoDe) {
+      params.push(filtros.emissaoDe);
+      conds.push(`${col("dt_emissao_")} >= $${params.length}::date`);
+    }
+    if (filtros.emissaoAte) {
+      params.push(filtros.emissaoAte);
+      conds.push(`${col("dt_emissao_")} < $${params.length}::date + interval '1 day'`);
+    }
+
     // Pasta: "inbox" = Caixa de Entrada (pastaId null); demais = id numérico.
     if (filtros.pastaId) {
       if (filtros.pastaId === "inbox") {
@@ -340,6 +400,18 @@ export class DashboardService {
     return conds;
   }
 
+  // WHERE da CTE "filtrada" (resumo e cubo): filtros globais + "só antigas".
+  private static montarWhere(filtros: DashboardFiltros, regras: PrazoRegras, params: any[]): string {
+    const conds = this.construirWhereFiltros(filtros, params);
+    // A CTE lê "Operacao" sem alias, então o próprio nome da tabela serve de prefixo.
+    if (filtros.antigas) {
+      conds.push(
+        `("Operacao".dt_emissao_ IS NOT NULL AND ${OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, `"Operacao"`)})`
+      );
+    }
+    return conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
+  }
+
   private static montarResumoPasta(
     info: { id: number | null; nome: string; cor: string | null; faturistaId: string | null },
     grupo: GrupoPasta | null,
@@ -367,17 +439,14 @@ export class DashboardService {
     const temFiltro = this.filtroAtivo(filtros);
 
     // Nomes vêm do Supabase (cache longo); regras de prazo também são cacheadas.
-    const [regras, nomes] = await Promise.all([PrazoService.regras(), this.nomesFaturista()]);
+    const [regras, nomes, supervisores] = await Promise.all([
+      PrazoService.regras(),
+      this.nomesFaturista(),
+      this.supervisores(),
+    ]);
 
     const params: any[] = [];
-    const conds = this.construirWhereFiltros(filtros, params);
-    // A CTE lê "Operacao" sem alias, então o próprio nome da tabela serve de prefixo.
-    if (filtros.antigas) {
-      conds.push(
-        `("Operacao".dt_emissao_ IS NOT NULL AND ${OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, `"Operacao"`)})`
-      );
-    }
-    const whereSql = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
+    const whereSql = this.montarWhere(filtros, regras, params);
     const condicaoAntigas = OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, "f");
 
     // 1 única ida ao banco: dimensões, agregado por pasta, atrasos, total e pastas.
@@ -451,6 +520,7 @@ export class DashboardService {
       const item = acumuladoFaturista.get(chave) ?? {
         chave: p.faturistaNome ?? "Sem faturista",
         faturistaId: p.faturistaId,
+        supervisorNome: p.faturistaId ? supervisores.get(p.faturistaId) ?? null : null,
         valor: 0,
         quantidade: 0,
       };
@@ -496,44 +566,42 @@ export class DashboardService {
     return this.computarResumo(filtros);
   }
 
-  static async faturistaDetalhe(
+  // Cubo do detalhe de um faturista ("sem" = Caixa de Entrada + pastas sem
+  // dono) com os filtros globais. Os sub-filtros do detalhe rodam no navegador.
+  static async faturistaCubo(
     faturistaId: string | null,
     filtros: DashboardFiltros = {}
-  ): Promise<DashboardFaturistaDetalhe> {
-    const recorte: DashboardFiltros = {
-      ...filtros,
-      faturistaId: faturistaId ?? "sem",
-    };
-    const { geral, pastas } = await this.computarResumo(recorte);
-    const nomes = await this.nomesFaturista();
+  ): Promise<DashboardFaturistaCubo> {
+    const recorte: DashboardFiltros = { ...filtros, faturistaId: faturistaId ?? "sem" };
+    const [regras, nomes] = await Promise.all([PrazoService.regras(), this.nomesFaturista()]);
 
-    let primeiraEmissao: string | null = null;
-    let ultimaEmissao: string | null = null;
-    for (const p of pastas) {
-      if (p.primeiraEmissao && (!primeiraEmissao || p.primeiraEmissao < primeiraEmissao)) {
-        primeiraEmissao = p.primeiraEmissao;
-      }
-      if (p.ultimaEmissao && (!ultimaEmissao || p.ultimaEmissao > ultimaEmissao)) {
-        ultimaEmissao = p.ultimaEmissao;
-      }
-    }
+    const params: any[] = [];
+    const whereSql = this.montarWhere(recorte, regras, params);
+    const condicaoAntigas = OperacaoQueryBuilder.construirCondicaoAntigas(regras, params, "f");
+    const rows = await prisma.$queryRawUnsafe<any[]>(sqlCubo(whereSql, condicaoAntigas), ...params);
+    const row = rows[0] ?? {};
+
+    const iso = (d: any) => parseDataUTC(d)?.toISOString() ?? null;
+    const linhas: DashboardCuboLinha[] = (row.cubo ?? []).map((l: any) => ({
+      s: l.s,
+      t: l.t,
+      a: l.a,
+      c: l.c,
+      p: l.p,
+      pid: l.pid,
+      v: Number(l.v) || 0,
+      q: Number(l.q) || 0,
+      d1: iso(l.d1),
+      d2: iso(l.d2),
+      aq: Number(l.aq) || 0,
+      av: Number(l.av) || 0,
+    }));
 
     return {
       faturistaId,
       faturistaNome: faturistaId ? nomes.get(faturistaId) || "Faturista" : null,
-      valor: geral.valorTotal,
-      quantidade: geral.quantidade,
-      totalPastas: pastas.length,
-      emissaoAntigas: geral.emissaoAntigas,
-      emissaoAntigasValor: geral.emissaoAntigasValor,
-      primeiraEmissao,
-      ultimaEmissao,
-      porStatus: geral.porStatus,
-      porTipoDocumento: geral.porTipoDocumento,
-      porAgencia: geral.porAgencia,
-      porTipoCte: geral.porTipoCte,
-      topPagadores: geral.topPagadores,
-      pastas,
+      linhas,
+      pastas: row.pastas ?? [],
     };
   }
 
