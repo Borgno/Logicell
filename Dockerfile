@@ -1,55 +1,48 @@
-# Estágio 1: Dependências e Build
-FROM node:22-alpine AS builder
+# SPA + API num container só: o Hono serve build/client e /api na mesma porta.
 
-# Instala dependências nativas necessárias para compilação (ex: bcrypt, prisma) e OpenSSL
-RUN apk add --no-cache openssl
+# Mesma versão do "packageManager" no package.json. Um bun mais antigo não lê o bun.lock.
+ARG BUN_VERSION=1.4.2
 
+FROM oven/bun:${BUN_VERSION} AS bun
+
+# --- Build: instala tudo, gera build/client (Vite) e build/api (esbuild) -------------------------
+# Imagem Node com o binário do bun copiado: o bun instala as dependências, e o `react-router build`
+# roda sobre o Node, o mesmo runtime do dev e do CI.
+FROM node:24-slim AS builder
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 
-# Copia o package.json e package-lock.json
-COPY package.json package-lock.json* ./
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
-# Instala as dependências (incluindo devDependencies para rodar o build)
-RUN npm ci
-
-# Copia a pasta prisma e gera o client antes do build do código
-COPY prisma ./prisma
-RUN npx prisma generate
-
-# Copia o resto do código da aplicação
 COPY . .
+RUN bun run build
 
-# Roda o build do SPA (Vite) + bundle da API (esbuild)
-RUN npm run build
-
-# Limpa dependências de desenvolvimento para economizar espaço
-RUN npm prune --production
-
-# ==========================================
-# Estágio 2: Runner de Produção
-FROM node:22-alpine AS runner
-
-# O Prisma pode precisar do OpenSSL nativo mesmo na imagem de produção
-RUN apk add --no-cache openssl
-
+# --- Dependências de runtime: só o que o servidor importa (dependencies) -------------------------
+FROM bun AS deps
 WORKDIR /app
 
-# Define variáveis de ambiente de produção
-ENV NODE_ENV="production"
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+
+# --- Runtime -------------------------------------------------------------------------------------
+FROM node:24-alpine AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copia os node_modules (que agora têm apenas dependências de prod e o Prisma Client)
-COPY --from=builder /app/node_modules ./node_modules
+# package.json vai junto por causa do "type": "module": o bundle é ESM.
+COPY --chown=node:node package.json ./
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/build/client ./build/client
+COPY --from=builder --chown=node:node /app/build/api ./build/api
 
-# Copia as pastas de build geradas (estáticos do SPA + bundle da API), assets públicos e o schema do Prisma
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/build-server ./build-server
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/prisma ./prisma
+USER node
 
-# Expõe a porta padrão
 EXPOSE 3000
 
-# O comando npm run start roda a API que também serve os estáticos do SPA
-CMD ["npm", "run", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "build/api/index.js"]

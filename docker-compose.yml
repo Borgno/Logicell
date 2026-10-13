@@ -1,17 +1,23 @@
-version: '3.8'
+# Deploy no Dokploy: serviço do tipo Docker Compose apontando para este arquivo.
+#
+# Sem labels de Traefik: o domínio é cadastrado na aba Domains do Dokploy, que injeta os labels no
+# deploy. Sem `ports:` publicadas: o proxy alcança o container pela rede compartilhada, e publicar a
+# porta exporia o serviço direto, contornando o proxy e o TLS.
 
 services:
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: logicell-app
-    container_name: logicell-web
-    restart: unless-stopped
-    ports:
-      - "${APP_PORT:-3011}:3000"
-    env_file:
-      - .env
+  app:
+    build: .
+    expose:
+      - "${PORT:-3000}"
     environment:
-      - NODE_OPTIONS=--dns-result-order=ipv4first
+      - PORT=${PORT:-3000}
       - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET}
+      - SEED_PASSWORD=${SEED_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+
+networks:
+  dokploy-network:
+    external: true
