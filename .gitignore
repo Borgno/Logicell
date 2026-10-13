@@ -12,6 +12,7 @@ bun.lockb
 /dist/
 /.react-router/
 *.tsbuildinfo
+/server/db/generated/
 
 # Environment: everything starting with .env, except the example
 .env

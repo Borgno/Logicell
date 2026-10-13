@@ -8,6 +8,21 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Banco dos testes do Vitest e do E2E, com o usuário e a porta do docker-compose.dev.yml
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: logicell
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +32,10 @@ jobs:
 
       - name: Install
         run: bun install --frozen-lockfile
+
+      # O client do Prisma é gerado, não versionado: lint, typecheck, testes e build dependem dele
+      - name: Prisma generate
+        run: bun run db:generate
 
       - name: Lint
         run: bun run lint

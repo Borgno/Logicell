@@ -8,7 +8,7 @@
     "dev": "concurrently -k -n BACK,FRONT -c magenta,cyan \"bun run dev:api\" \"sleep 1 &&bun run dev:ui\"",
     "dev:ui": "react-router dev",
     "dev:api": "tsx watch server/index.ts",
-    "build": "react-router build && bun run build:api",
+    "build": "prisma generate && react-router build && bun run build:api",
     "build:api": "esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=build/api/index.js",
     "start": "NODE_ENV=production node build/api/index.js",
     "typecheck": "react-router typegen && tsc",
@@ -19,15 +19,25 @@
     "format:check": "prettier --check .",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "infra:up": "docker compose -f docker-compose.dev.yml up -d",
+    "infra:down": "docker compose -f docker-compose.dev.yml down",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:new": "prisma migrate dev --create-only",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "@hono/swagger-ui": "^0.6.1",
     "@hono/zod-openapi": "^1.6.3",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
     "hono": "^4.13.8",
     "isbot": "^5",
+    "pg": "^8.20.0",
+    "prisma": "^7.10.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -42,6 +52,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.103.2",
     "@types/node": "^22",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "class-variance-authority": "^0.7.1",

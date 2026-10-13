@@ -14,7 +14,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "bun run build && bun run start",
+    command: "tsx e2e/prepareDatabase.ts && bun run build && bun run start",
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 120_000,
@@ -22,6 +22,10 @@ export default defineConfig({
       PORT: String(PORT),
       SESSION_SECRET: "e2e-secret-with-at-least-32-characters",
       SEED_PASSWORD: "e2e-password",
+      // Banco próprio do E2E, recriado a cada rodada. O nome termina em _test pela trava do setup.
+      DATABASE_URL:
+        process.env.TEST_E2E_DATABASE_URL ??
+        "postgresql://dev:dev@localhost:5433/logicell_e2e_test",
     },
   },
 });

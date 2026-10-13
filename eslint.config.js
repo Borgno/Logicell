@@ -6,7 +6,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["build/", ".react-router/", "coverage/", ".claude/"]),
+  globalIgnores(["build/", ".react-router/", "coverage/", ".claude/", "server/db/generated/"]),
 
   {
     files: ["**/*.{ts,tsx}"],
@@ -56,7 +56,7 @@ export default defineConfig([
         {
           patterns: [
             {
-              group: ["**/lib/memoryStore*", "**/lib/prisma*", "@prisma/client"],
+              group: ["**/lib/memoryStore*", "**/db/*", "@prisma/client"],
               message: "ARCHITECTURE_VIOLATION: acesso a dados só em server/services/.",
             },
           ],

@@ -19,6 +19,11 @@ const schema = z.object({
   // Senha dos usuários semeados na subida (admin e usuário comum). Os dados ficam em memória nesta
   // etapa, então o seed roda em todo start.
   SEED_PASSWORD: z.string().min(8, "use ao menos 8 caracteres"),
+  // Postgres. Em dev, o do docker-compose.dev.yml; em produção, o pooler do Supabase em modo sessão.
+  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  // Conexões do pool por processo. O pooler em modo sessão limita o total de clientes (15 no plano
+  // atual): produção fica com 10, e fora dela 2, para não disputar slot com o container.
+  DB_CONNECTION_LIMIT: z.coerce.number().int().positive().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -28,7 +33,21 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const env = parsed.data;
+// Dev e teste nunca falam com o banco de produção: um `bun run dev` escreveria nele, e um
+// `prisma migrate dev` pediria para resetá-lo.
+if (
+  parsed.data.NODE_ENV !== "production" &&
+  /\.supabase\.(com|co)$/.test(new URL(parsed.data.DATABASE_URL).hostname)
+) {
+  console.error("DATABASE_URL aponta para o Supabase fora de produção. Use o Postgres local.");
+  process.exit(1);
+}
+
+export const env = {
+  ...parsed.data,
+  DB_CONNECTION_LIMIT:
+    parsed.data.DB_CONNECTION_LIMIT ?? (parsed.data.NODE_ENV === "production" ? 10 : 2),
+};
 
 // Em produção há um processo só (SPA e API na mesma porta); em dev o Hono fica atrás do Vite.
 export const listenPort = env.NODE_ENV === "production" ? env.PORT : env.API_PORT;

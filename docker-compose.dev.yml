@@ -1,0 +1,20 @@
+# Postgres local para desenvolvimento e testes. Não usar em produção: lá o banco é o Supabase.
+# Uso: bun run infra:up
+name: logicell-dev
+
+services:
+  db:
+    # Mesma versão maior de produção (Supabase, Postgres 17).
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: logicell
+    ports:
+      # 5432 fica livre para outros projetos na mesma máquina.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data:

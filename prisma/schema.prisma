@@ -1,12 +1,17 @@
+// Client sem engine binária, gerado como TypeScript e empacotado pelo esbuild junto com o servidor.
+// postgresqlExtensions ainda é preview no Prisma 7 e é o que permite declarar o pg_trgm.
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
+  output          = "../server/db/generated"
+  runtime         = "nodejs"
+  moduleFormat    = "esm"
   previewFeatures = ["postgresqlExtensions"]
 }
 
+// A URL fica no prisma.config.ts. Os índices em upper(<coluna>) de produção não cabem no schema:
+// existem só no SQL do 0_baseline, e o Prisma não os apaga.
 datasource db {
   provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
   extensions = [pg_trgm]
 }
 
@@ -70,6 +75,29 @@ model Operacao {
   @@index([nm_pessoa_pagador(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([ds_placa(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([nr_ctrc(ops: raw("gin_trgm_ops"))], type: Gin)
+
+  // Índices criados em produção por migrations que não estão no git.
+  @@index([comentarios(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_comentarios_gin_idx")
+  @@index([id_solicitacao(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_id_solicitacao_gin_idx")
+  @@index([nm_agencia(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_agencia_gin_idx")
+  @@index([nm_cidade_destino(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_cidade_destino_gin_idx")
+  @@index([nm_cidade_origem(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_cidade_origem_gin_idx")
+  @@index([nm_motorista(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_motorista_gin_idx")
+  @@index([nm_pessoa_destinatario(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_destinatario_gin_idx")
+  @@index([nm_pessoa_matriz(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_matriz_gin_idx")
+  @@index([nm_pessoa_remetente(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_remetente_gin_idx")
+  @@index([nm_pessoa_usuario_lancamento(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_usuario_lancamento_gin_idx")
+  @@index([nm_proprietario_posse_cavalo(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_proprietario_posse_cavalo_gin_idx")
+  @@index([nr_chave_acesso(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nr_chave_acesso_gin_idx")
+  @@index([nr_contrato(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nr_contrato_gin_idx")
+  @@index([nr_nf(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nr_nf_gin_idx")
+  @@index([status(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_status_gin_idx")
+  @@index([pastaId, data_status(sort: Desc)], map: "Operacao_pastaId_data_status_idx")
+  @@index([pastaId, dt_emissao_(sort: Desc)], map: "Operacao_pastaId_dt_emissao__idx")
+  @@index([pastaId, dt_quitacao_saldo(sort: Desc)], map: "Operacao_pastaId_dt_quitacao_saldo_idx")
+  @@index([pastaId, vl_peso(sort: Desc)], map: "Operacao_pastaId_vl_peso_idx")
+  @@index([pastaId, vl_tarifa(sort: Desc)], map: "Operacao_pastaId_vl_tarifa_idx")
+  @@index([pastaId, vl_total(sort: Desc)], map: "Operacao_pastaId_vl_total_idx")
 }
 
 model Importacao {
@@ -81,6 +109,8 @@ model Importacao {
   createdAt    DateTime   @default(now())
   operacoes    Operacao[]
   snapshot     SnapshotImportacao?
+
+  @@index([createdAt(sort: Desc)])
 }
 
 model SnapshotImportacao {
@@ -143,3 +173,4 @@ model Configuracao {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
