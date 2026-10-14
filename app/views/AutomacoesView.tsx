@@ -1,8 +1,9 @@
-import { FolderOpen, Plus, Timer, X, Zap, Folder } from "lucide-react";
-import { useState } from "react";
+import { FolderOpen, Plus, Search, Timer, X, Zap, Folder } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient } from "~/lib/query";
+import { normalizarBusca } from "~/utils/formatters";
 import { PrazosView } from "./PrazosView";
 
 export function AutomacoesView() {
@@ -18,6 +19,20 @@ export function AutomacoesView() {
   const [tipoRegra, setTipoRegra] = useState<"agencia" | "cliente" | "produto">("agencia");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [busca, setBusca] = useState("");
+
+  // Pasta entra pelo nome ou por qualquer regra; regrasEncontradas explica no card por que ela apareceu.
+  const pastasFiltradas = useMemo(() => {
+    const q = normalizarBusca(busca.trim());
+    if (!q) return pastas.map((pasta: any) => ({ pasta, regrasEncontradas: [] as string[] }));
+    return pastas.flatMap((pasta: any) => {
+      const regrasEncontradas = pasta.regras
+        .map((r: any) => r.agencia || r.cliente || r.produto || "")
+        .filter((valor: string) => normalizarBusca(valor).includes(q));
+      if (normalizarBusca(pasta.nome).includes(q)) return [{ pasta, regrasEncontradas: [] as string[] }];
+      return regrasEncontradas.length > 0 ? [{ pasta, regrasEncontradas }] : [];
+    });
+  }, [pastas, busca]);
 
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["automacoes"] });
 
@@ -68,6 +83,30 @@ export function AutomacoesView() {
             </p>
           </div>
 
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {aba === "pastas" && (
+            <div className="relative sm:w-80">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar pasta, agência, cliente ou produto..."
+                className="w-full h-11 pl-9 pr-9 bg-surface border border-glass-border rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary focus:border-primary text-text placeholder:font-medium placeholder:text-text-dim transition-all outline-none"
+              />
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => setBusca("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface-light transition-colors"
+                  title="Limpar busca"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex bg-surface p-1 rounded-xl border border-glass-border h-11 items-center gap-1 self-start sm:self-auto">
             <button
               type="button"
@@ -86,11 +125,12 @@ export function AutomacoesView() {
               Prazos de Emissão
             </button>
           </div>
+          </div>
         </div>
 
         {aba === "pastas" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {pastas.map((pasta: any) => {
+          {pastasFiltradas.map(({ pasta, regrasEncontradas }: { pasta: any; regrasEncontradas: string[] }) => {
             const hexColor = pasta.cor || "#64748b";
             return (
               <button
@@ -125,9 +165,26 @@ export function AutomacoesView() {
                 <span className="font-semibold text-xs text-text text-center px-3 leading-snug w-full">
                   {pasta.nome}
                 </span>
+                {regrasEncontradas.length > 0 && (
+                  <span
+                    className="text-[10px] font-semibold text-text-muted text-center px-3 w-full truncate"
+                    title={regrasEncontradas.join(", ")}
+                  >
+                    {regrasEncontradas.slice(0, 2).join(", ")}
+                    {regrasEncontradas.length > 2 && ` +${regrasEncontradas.length - 2}`}
+                  </span>
+                )}
               </button>
             );
           })}
+
+          {pastas.length > 0 && pastasFiltradas.length === 0 && (
+            <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
+              <Search size={40} className="text-text-dim mb-4 opacity-50" />
+              <h3 className="text-lg font-bold text-text mb-2">Nada encontrado</h3>
+              <p className="text-text-muted max-w-md">Nenhuma pasta ou regra encontrada para "{busca.trim()}".</p>
+            </div>
+          )}
 
           {!isFetching && pastas.length === 0 && (
             <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
