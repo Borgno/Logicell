@@ -9,6 +9,7 @@ import { ehAdmin, ehGestor } from "~/utils/cargos";
 const LoginPage = lazy(() => import("~/pages/LoginPage").then((m) => ({ default: m.LoginPage })));
 const DashboardPage = lazy(() => import("~/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const AutomacoesPage = lazy(() => import("~/pages/AutomacoesPage").then((m) => ({ default: m.AutomacoesPage })));
+const StatusPage = lazy(() => import("~/pages/StatusPage").then((m) => ({ default: m.StatusPage })));
 const UsuariosPage = lazy(() => import("~/pages/UsuariosPage").then((m) => ({ default: m.UsuariosPage })));
 const PerfilPage = lazy(() => import("~/pages/PerfilPage").then((m) => ({ default: m.PerfilPage })));
 
@@ -62,6 +63,7 @@ export function AppRoutes() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route element={<RequireCargo permitido={ehGestor} />}>
               <Route path="automacoes" element={<AutomacoesPage />} />
+              <Route path="status" element={<StatusPage />} />
             </Route>
             <Route element={<RequireCargo permitido={ehAdmin} />}>
               <Route path="admin/usuarios" element={<UsuariosPage />} />

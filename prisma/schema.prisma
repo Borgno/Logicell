@@ -136,6 +136,16 @@ model PrazoCliente {
   updatedAt DateTime @updatedAt
 }
 
+// Opções fechadas do campo status de Operacao (Operacao.status segue String? sem FK).
+model StatusOperacao {
+  id        Int      @id @default(autoincrement())
+  nome      String   @unique
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Configurações globais singleton (id = 1, padrão usado por OrdemColunas).
 model Configuracao {
   id               Int      @id @default(1)

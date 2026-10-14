@@ -10,6 +10,7 @@ const SORTABLE_COLUMNS = ["nr_ctrc", "dt_emissao_", "data_status", "dt_quitacao_
 
 const PLACA_DUPLICADA_BG = { backgroundColor: "rgba(217,119,6,0.18)" };
 const EMISSAO_ANTIGA_BG = { backgroundColor: "rgba(224,48,72,0.14)" };
+const STATUS_FORA_DA_LISTA_BG = { backgroundColor: "rgba(124,58,237,0.16)" };
 
 export function getOperacoesColumns({
   orderedColumns,
@@ -26,6 +27,7 @@ export function getOperacoesColumns({
   setFillRange,
   handleFillEnd,
   totalVl,
+  statusOpcoes,
 }: any) {
   const defs: any[] = [
     SelectColumn,
@@ -80,6 +82,25 @@ export function getOperacoesColumns({
       },
       renderEditCell: (props: any) => {
         let editValue = props.row[col.key];
+        if (col.key === "status") {
+          // Lista fechada: escolher já grava. Valor fora da lista (legado)
+          // aparece desabilitado só para mostrar o que estava antes.
+          const opcoes: string[] = statusOpcoes ?? [];
+          const legado = editValue && !opcoes.includes(editValue);
+          return (
+            <select
+              autoFocus
+              className="w-full h-full px-1 outline-none border-2 border-indigo-500 rounded text-xs bg-white text-black"
+              value={editValue || ""}
+              onChange={(e) => props.onRowChange({ ...props.row, [col.key]: e.target.value }, true)}
+              onBlur={() => props.onClose(false)}
+            >
+              <option value="">(sem status)</option>
+              {legado && <option value={editValue} disabled>{editValue}</option>}
+              {opcoes.map((s: string) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          );
+        }
         return (
           <input
             autoFocus
@@ -128,11 +149,16 @@ export function getOperacoesColumns({
 
         const placaDuplicada = col.key === "ds_placa" && props.row.placaDuplicada === true;
         const emissaoAntiga = col.key === "dt_emissao_" && props.row.emissaoAntiga === true;
+        // Status gravado antes da lista fechada (ou de opção desativada). Só marca
+        // depois que o /init trouxe as opções, para não piscar na carga.
+        const statusForaDaLista = col.key === "status" && !!value && !!statusOpcoes && !statusOpcoes.includes(value);
         const tooltip = placaDuplicada
           ? "Placa duplicada nesta pasta"
           : emissaoAntiga
             ? "Emissão antiga (fora do prazo)"
-            : undefined;
+            : statusForaDaLista
+              ? "Status fora da lista: escolha uma opção"
+              : undefined;
 
         return (
           <div
@@ -184,10 +210,10 @@ export function getOperacoesColumns({
           >
             {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-[rgba(0,102,255,0.15)] pointer-events-none" />}
             {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-primary bg-[rgba(0,102,255,0.1)] pointer-events-none" />}
-            {(placaDuplicada || emissaoAntiga) && (
+            {(placaDuplicada || emissaoAntiga || statusForaDaLista) && (
               <div
                 className="absolute -inset-x-2 -inset-y-2 pointer-events-none"
-                style={placaDuplicada ? PLACA_DUPLICADA_BG : EMISSAO_ANTIGA_BG}
+                style={placaDuplicada ? PLACA_DUPLICADA_BG : emissaoAntiga ? EMISSAO_ANTIGA_BG : STATUS_FORA_DA_LISTA_BG}
               />
             )}
             

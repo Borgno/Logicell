@@ -42,9 +42,11 @@ export function useOperacoesActions({
   const salvarEdicao = (id: number, campo: string, valor: string) => {
     api
       .patch(`/operacoes/${id}`, { campo, valor })
-      .catch((err) =>
-        showAlert({ title: "Erro ao salvar", message: errorMessage(err), variant: "error" })
-      );
+      .catch((err) => {
+        showAlert({ title: "Erro ao salvar", message: errorMessage(err), variant: "error" });
+        //Recarrega para tirar da tela o valor otimista que o servidor recusou.
+        onMutated?.();
+      });
   };
 
   const moverParaPasta = (pId: number | null, pNome: string) => {

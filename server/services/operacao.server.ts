@@ -3,6 +3,7 @@ import { DateParser } from "../utils/date-parser";
 import { PastaService } from "./pasta.server";
 import { OperacaoQueryBuilder } from "./operacao-query-builder.server";
 import { PrazoService } from "./prazo.server";
+import { StatusService } from "./status.server";
 
 export interface BulkActionParams {
   ids: number[];
@@ -326,6 +327,7 @@ export class OperacaoService {
     }
 
     if (campo === "status") {
+      valorLimpo = await this.statusValido(valorNovo);
       // Uma única ida ao banco: o CASE só grava data_status quando o status
       // muda de fato (IS DISTINCT FROM cobre o caso de status atual nulo) —
       // antes eram 2 idas (findUnique para comparar + update).
@@ -343,6 +345,18 @@ export class OperacaoService {
     await prisma.operacao.update({ where: { id }, data: { [campo]: valorLimpo } });
   }
 
+  //Status só aceita um nome ativo da lista (StatusService); vazio limpa o campo.
+  private static async statusValido(valor: string): Promise<string | null> {
+    if (!valor.trim()) return null;
+    const nome = await StatusService.canonico(valor);
+    if (!nome) {
+      const err: any = new Error(`Status inválido: "${valor}". Escolha uma opção da lista.`);
+      err.status = 400;
+      throw err;
+    }
+    return nome;
+  }
+
   static async bulkUpdate(ids: number[], campo: string, valor: string) {
     if (!['status', 'comentarios', 'id_solicitacao'].includes(campo)) {
       throw new Error("Campo não permitido para atualização em lote");
@@ -353,9 +367,17 @@ export class OperacaoService {
     const dataUpdate: any = { [campo]: valor };
     
     if (campo === "status") {
+      const status = await this.statusValido(valor);
+      dataUpdate.status = status;
       dataUpdate.data_status = new Date();
+      // Só as linhas em que o status muda. `status <> x` é falso quando status é NULL, daí o OR.
       await prisma.operacao.updateMany({
-        where: { id: { in: ids }, status: { not: valor } },
+        where: {
+          id: { in: ids },
+          ...(status === null
+            ? { status: { not: null } }
+            : { OR: [{ status: null }, { status: { not: status } }] }),
+        },
         data: dataUpdate
       });
     } else {

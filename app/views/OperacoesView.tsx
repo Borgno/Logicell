@@ -50,6 +50,7 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
   const { data: init } = useInit();
   const pastas = init?.pastas || [];
   const columnOrder = init?.columnOrder ?? null;
+  const statusOpcoes = init?.statusOpcoes;
 
   const {
     columnWidths, setColumnWidths,
@@ -134,7 +135,10 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
   const handleBulkUpdate = (ids: number[], campo: string, valor: string) => {
     api
       .post("/operacoes/bulk", { action: "update", ids, campo, valor })
-      .catch((err) => showAlert({ title: "Erro ao salvar", message: errorMessage(err), variant: "error" }));
+      .catch((err) => {
+        showAlert({ title: "Erro ao salvar", message: errorMessage(err), variant: "error" });
+        refresh();
+      });
   };
 
   const { handleFillEnd } = useOperacoesInteractions({
@@ -157,8 +161,8 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
     orderedColumns, columnWidths, columnFilters, selectedRanges, isDragging,
     setOpenFilterCol, setSelectedRanges, setIsDragging,
     isFillDragging, setIsFillDragging, fillRange, setFillRange, handleFillEnd: onFillEnd,
-    totalVl: meta.totalVl
-  }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths, isFillDragging, fillRange, meta.totalVl, onFillEnd]);
+    totalVl: meta.totalVl, statusOpcoes
+  }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths, isFillDragging, fillRange, meta.totalVl, onFillEnd, statusOpcoes]);
 
   const handleLocalUpdate = (id: number, campo: string, valor: string) => {
     setDados((prev: any[]) => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));

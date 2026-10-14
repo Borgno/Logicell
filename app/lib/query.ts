@@ -20,6 +20,7 @@ export const queryKeys = {
   perfil: ["perfil"] as const,
   faturistas: ["faturistas"] as const,
   prazos: ["prazos"] as const,
+  status: ["status"] as const,
 };
 
 export interface InitData {
@@ -29,6 +30,8 @@ export interface InitData {
   columnOrder: string[] | null;
   // Contagem de emissões antigas por pasta (chave "inbox" = Caixa de Entrada).
   emissaoAntigasPorPasta: Record<string, number>;
+  // Opções ativas do campo status, na ordem cadastrada (editor da grid).
+  statusOpcoes: string[];
 }
 
 // Extraída para ser reaproveitada pelo AuthContext (boot com uma única
@@ -79,6 +82,22 @@ export function usePrazos() {
   return useQuery({
     queryKey: queryKeys.prazos,
     queryFn: () => api.get<{ padrao: number; clientes: PrazoClienteItem[] }>("/prazos"),
+    staleTime: 60_000,
+  });
+}
+
+export interface StatusItem {
+  id: number;
+  nome: string;
+  ordem: number;
+  ativo: boolean;
+}
+
+// Lista completa de status (inclusive inativos) para a página de gestão.
+export function useStatus() {
+  return useQuery({
+    queryKey: queryKeys.status,
+    queryFn: () => api.get<{ status: StatusItem[] }>("/status"),
     staleTime: 60_000,
   });
 }

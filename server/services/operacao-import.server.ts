@@ -7,6 +7,7 @@ import { PastaService } from "./pasta.server";
 import { AutomacaoService } from "./automacao.server";
 import { MotorRoteamentoService } from "./motor-roteamento.server";
 import { BackupService } from "./backup.server";
+import { StatusService } from "./status.server";
 
 //Colunas da Operacao preenchidas pela planilha (De-Para do excel-parser +
 //importacaoId/pastaId/hash_assinatura, atribuídos depois do parse). Usada
@@ -36,9 +37,10 @@ export class OperacaoImportService {
     // mesmo lote em vez de em sequência. Aguardados juntos: uma falha no
     // backup vira erro desta request, não uma rejeição solta que derruba o
     // processo.
-    const [mapas] = await Promise.all([
+    const [mapas, , statusCanonico] = await Promise.all([
       AutomacaoService.obterMapasRoteamento(),
       BackupService.criarBackup(),
+      StatusService.mapaCanonico(),
     ]);
 
     // --- AUTOMAÇÃO (ROTEAMENTO) ---
@@ -48,8 +50,11 @@ export class OperacaoImportService {
       data: { nomeArquivo: originalName, usuario, qtdRegistros: parsedData.totalLido, hashArquivo: hash }
     });
 
+    // Status da planilha que bate com a lista vira o nome cadastrado; o que não
+    // bate fica como veio (valor legado, trocado na próxima edição pela grid).
     for (const op of spreadsheetOps as any[]) {
       op.importacaoId = importacao.id;
+      if (op.status) op.status = statusCanonico.get(StatusService.normalizar(op.status)) ?? op.status;
     }
 
     const spreadsheetSignatures = spreadsheetOps.map((op: any) => op.hash_assinatura as string);
