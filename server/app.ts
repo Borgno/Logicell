@@ -59,6 +59,10 @@ export function createApp({
       { name: "Me", description: "O usuário da sessão" },
       { name: "Users", description: "Gestão de usuários (admin)" },
       { name: "Audit", description: "Histórico de ações (admin)" },
+      { name: "Pastas", description: "Pastas de operações e o faturista de cada uma" },
+      { name: "Automações", description: "Regras que mandam a operação importada para uma pasta" },
+      { name: "Prazos", description: "Prazo de emissão padrão e por cliente" },
+      { name: "Operações", description: "Grid de operações" },
     ],
   });
   v1.get("/docs", swaggerUI({ url: `${API_V1}/openapi.json` }));

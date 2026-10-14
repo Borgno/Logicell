@@ -2,6 +2,10 @@ import { createApp } from "../app";
 import { prisma } from "../db/client";
 import type { Prisma } from "../db/generated/client";
 import { resetLoginThrottle } from "../services/auth/loginThrottle.service";
+import { invalidateColunas } from "../services/colunas/colunas.service";
+import { invalidatePastas } from "../services/pastas/pastas.service";
+import { invalidatePrazos } from "../services/prazos/prazos.service";
+import { invalidateRegras } from "../services/regras/regras.service";
 import { hashPassword } from "../services/auth/password.service";
 import { clearUserCache, forgetCachedUser } from "../services/users/users.service";
 import { resetDatabase } from "./db";
@@ -16,7 +20,12 @@ let seedHash: Promise<string> | null = null;
 // Banco vazio com um admin e um usuário comum, os dois com SEED_PASSWORD.
 export async function setupApp() {
   await resetDatabase();
+  // Os caches do processo guardam o que o TRUNCATE acabou de apagar.
   clearUserCache();
+  invalidatePastas();
+  invalidateRegras();
+  invalidatePrazos();
+  invalidateColunas();
   resetLoginThrottle();
   seedHash ??= hashPassword(SEED_PASSWORD);
   const passwordHash = await seedHash;

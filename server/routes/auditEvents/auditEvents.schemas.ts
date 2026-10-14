@@ -2,8 +2,8 @@ import { z } from "@hono/zod-openapi";
 import { listSchema, PageQuerySchema } from "../../schemas/common";
 
 export const ListAuditEventsQuerySchema = PageQuerySchema.extend({
-  targetType: z.enum(["user"]).optional(),
-  targetId: z.uuid().optional(),
+  targetType: z.enum(["user", "pasta"]).optional(),
+  targetId: z.string().min(1).optional(),
 });
 
 export const AuditEventSchema = z

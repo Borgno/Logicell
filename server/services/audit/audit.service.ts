@@ -9,12 +9,19 @@ export type AuditAction =
   | "user.deactivated"
   | "user.activated"
   | "user.passwordReset"
-  | "user.passwordChanged";
+  | "user.passwordChanged"
+  | "pasta.created"
+  | "pasta.updated"
+  | "pasta.deleted"
+  | "regra.created"
+  | "regra.deleted";
+
+export type AuditTargetType = "user" | "pasta";
 
 type AuditInput = {
   actorId: string | null;
   action: AuditAction;
-  targetType: "user";
+  targetType: AuditTargetType;
   targetId: string;
   data?: Prisma.InputJsonObject;
 };

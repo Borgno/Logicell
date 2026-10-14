@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, type LucideIcon } from "lucide-react";
+import { CalendarClock, Folders, LayoutDashboard, Users, Zap, type LucideIcon } from "lucide-react";
 import type { Role } from "~/types/user";
 
 export type NavItem = {
@@ -17,7 +17,22 @@ export type NavSection = { title: string; items: NavItem[] };
 export const NAVIGATION: NavSection[] = [
   {
     title: "Principal",
-    items: [{ to: "/", label: "Dashboard", icon: LayoutDashboard, end: true }],
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/pastas", label: "Pastas", icon: Folders, end: true },
+    ],
+  },
+  {
+    title: "Organização",
+    items: [
+      { to: "/automacoes", label: "Automações", icon: Zap, roles: ["admin", "gestor"] },
+      {
+        to: "/prazos",
+        label: "Prazos de emissão",
+        icon: CalendarClock,
+        roles: ["admin", "gestor"],
+      },
+    ],
   },
   {
     title: "Administração",

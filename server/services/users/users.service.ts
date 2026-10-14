@@ -3,6 +3,7 @@ import type { Prisma, User } from "../../db/generated/client";
 import { ApiProblem } from "../../lib/problem";
 import { recordAudit } from "../audit/audit.service";
 import { generateTemporaryPassword, hashPassword, verifyPassword } from "../auth/password.service";
+import { invalidatePastas } from "../pastas/pastas.service";
 
 // `gestor` aparece como "Supervisor" na tela.
 export const ROLE_CODES = ["admin", "gestor", "user"] as const;
@@ -352,6 +353,8 @@ export async function updateUser(
     return tx.user.update({ where: { id }, data, include: withSupervisor });
   });
 
+  // A lista de pastas mostra o nome do faturista, e desativar tira a pessoa das pastas.
+  if (deactivating || updated.name !== user.name) invalidatePastas();
   // O cache dos atendentes guarda o nome e o vínculo do supervisor: quando eles mudam, tudo é relido.
   if (user.role === "gestor" && (releasesAttendants || updated.name !== user.name)) {
     clearUserCache();
