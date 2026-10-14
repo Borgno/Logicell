@@ -1,11 +1,11 @@
-import { randomUUID } from "node:crypto";
-import { store, type AuditEventRecord } from "../../lib/memoryStore";
-import { paginate } from "../pagination";
+import { prisma, type TransactionClient } from "../../db/client";
+import type { Prisma } from "../../db/generated/client";
 
 export type AuditAction =
   | "user.created"
   | "user.updated"
   | "user.roleChanged"
+  | "user.supervisorChanged"
   | "user.deactivated"
   | "user.activated"
   | "user.passwordReset"
@@ -16,18 +16,12 @@ type AuditInput = {
   action: AuditAction;
   targetType: "user";
   targetId: string;
-  data?: Record<string, unknown>;
+  data?: Prisma.InputJsonObject;
 };
 
-export function recordAudit(input: AuditInput): AuditEventRecord {
-  const event: AuditEventRecord = {
-    id: randomUUID(),
-    data: {},
-    ...input,
-    createdAt: new Date(),
-  };
-  store.auditEvents.push(event);
-  return event;
+// Recebe o client da transação quando a mudança e o audit precisam gravar juntos.
+export async function recordAudit(input: AuditInput, db: TransactionClient = prisma) {
+  await db.auditEvent.create({ data: { ...input, data: input.data ?? {} } });
 }
 
 export type PublicAuditEvent = {
@@ -40,30 +34,33 @@ export type PublicAuditEvent = {
   createdAt: string;
 };
 
-function toPublicEvent(event: AuditEventRecord): PublicAuditEvent {
-  const actor = event.actorId ? store.users.get(event.actorId) : undefined;
-  return {
-    id: event.id,
-    action: event.action,
-    actor: actor ? { id: actor.id, fullName: actor.fullName } : null,
-    targetType: event.targetType,
-    targetId: event.targetId,
-    data: event.data,
-    createdAt: event.createdAt.toISOString(),
-  };
-}
-
 // Mais recentes primeiro.
-export function listAuditEvents(query: {
+export async function listAuditEvents(query: {
   targetType?: string;
   targetId?: string;
   page: number;
   pageSize: number;
 }) {
-  const events = store.auditEvents
-    .filter((event) => !query.targetType || event.targetType === query.targetType)
-    .filter((event) => !query.targetId || event.targetId === query.targetId)
-    .toReversed();
-  const page = paginate(events, query.page, query.pageSize);
-  return { data: page.data.map(toPublicEvent), meta: page.meta };
+  const where = { targetType: query.targetType, targetId: query.targetId };
+  const [events, total] = await prisma.$transaction([
+    prisma.auditEvent.findMany({
+      where,
+      include: { actor: { select: { id: true, name: true } } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    }),
+    prisma.auditEvent.count({ where }),
+  ]);
+
+  const data: PublicAuditEvent[] = events.map((event) => ({
+    id: event.id,
+    action: event.action,
+    actor: event.actor ? { id: event.actor.id, fullName: event.actor.name } : null,
+    targetType: event.targetType,
+    targetId: event.targetId,
+    data: event.data as Record<string, unknown>,
+    createdAt: event.createdAt.toISOString(),
+  }));
+  return { data, meta: { page: query.page, pageSize: query.pageSize, total } };
 }

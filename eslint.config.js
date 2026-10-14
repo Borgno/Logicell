@@ -45,7 +45,7 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
 
-  // Acesso a dados só em server/services/. Testes ficam de fora: eles leem o store para conferir o
+  // Acesso a dados só em server/services/. Testes ficam de fora: eles leem o banco para conferir o
   // efeito de uma requisição.
   {
     files: ["server/routes/**/*.ts", "server/middleware/**/*.ts"],
@@ -56,7 +56,7 @@ export default defineConfig([
         {
           patterns: [
             {
-              group: ["**/lib/memoryStore*", "**/db/*", "@prisma/client"],
+              group: ["**/db/*", "@prisma/client"],
               message: "ARCHITECTURE_VIOLATION: acesso a dados só em server/services/.",
             },
           ],

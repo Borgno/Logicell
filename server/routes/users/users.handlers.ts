@@ -15,8 +15,8 @@ import type {
   updateUserRoute,
 } from "./users.routes";
 
-export const listUsersHandler: RouteHandler<typeof listUsersRoute, HonoEnv> = (c) => {
-  return c.json(listUsers(c.req.valid("query")), 200);
+export const listUsersHandler: RouteHandler<typeof listUsersRoute, HonoEnv> = async (c) => {
+  return c.json(await listUsers(c.req.valid("query")), 200);
 };
 
 export const createUserHandler: RouteHandler<typeof createUserRoute, HonoEnv> = async (c) => {
@@ -25,12 +25,12 @@ export const createUserHandler: RouteHandler<typeof createUserRoute, HonoEnv> = 
   return c.json(user, 201);
 };
 
-export const getUserHandler: RouteHandler<typeof getUserRoute, HonoEnv> = (c) => {
-  return c.json(getUser(c.req.valid("param").id), 200);
+export const getUserHandler: RouteHandler<typeof getUserRoute, HonoEnv> = async (c) => {
+  return c.json(await getUser(c.req.valid("param").id), 200);
 };
 
-export const updateUserHandler: RouteHandler<typeof updateUserRoute, HonoEnv> = (c) => {
-  const user = updateUser(c.get("user").id, c.req.valid("param").id, c.req.valid("json"));
+export const updateUserHandler: RouteHandler<typeof updateUserRoute, HonoEnv> = async (c) => {
+  const user = await updateUser(c.get("user").id, c.req.valid("param").id, c.req.valid("json"));
   return c.json(user, 200);
 };
 

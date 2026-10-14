@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 import { FormAlert, FormField } from "~/components/patterns/FormField";
@@ -9,18 +9,20 @@ import { SearchableSelect } from "~/components/patterns/SearchableSelect";
 import { ApiError } from "~/lib/api";
 import { applyApiErrors } from "~/lib/forms";
 import { ROLE_LABELS } from "~/lib/labels";
+import { useSupervisorOptions } from "../_hooks/useSupervisorOptions";
 import { useCreateUser } from "../_hooks/users.queries";
-import { createUserSchema } from "./userForm";
+import { createUserSchema, NO_SUPERVISOR, supervisorForApi } from "./userForm";
 
 const ROLE_OPTIONS = [
   { value: "user", label: ROLE_LABELS.user },
+  { value: "gestor", label: ROLE_LABELS.gestor },
   { value: "admin", label: ROLE_LABELS.admin },
 ];
 
 type FormInput = z.input<typeof createUserSchema>;
 type FormOutput = z.output<typeof createUserSchema>;
 
-const FIELDS = ["email", "fullName", "role", "password"] as const;
+const FIELDS = ["email", "fullName", "role", "supervisorId", "password"] as const;
 
 export function CreateUserDialog({
   open,
@@ -32,9 +34,17 @@ export function CreateUserDialog({
   const mutation = useCreateUser();
   const form = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { email: "", fullName: "", role: "user", password: "" },
+    defaultValues: {
+      email: "",
+      fullName: "",
+      role: "user",
+      supervisorId: NO_SUPERVISOR,
+      password: "",
+    },
   });
   const { errors } = form.formState;
+  const isUser = useWatch({ control: form.control, name: "role" }) === "user";
+  const supervisorOptions = useSupervisorOptions(open && isUser);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
@@ -45,15 +55,18 @@ export function CreateUserDialog({
   }
 
   const onSubmit = form.handleSubmit((values) =>
-    mutation.mutate(values, {
-      onSuccess: (user) => {
-        toast.success("Usuário criado", {
-          description: `${user.fullName} troca a senha no primeiro acesso.`,
-        });
-        handleOpenChange(false);
+    mutation.mutate(
+      { ...values, supervisorId: supervisorForApi(values.role, values.supervisorId) },
+      {
+        onSuccess: (user) => {
+          toast.success("Usuário criado", {
+            description: `${user.fullName} troca a senha no primeiro acesso.`,
+          });
+          handleOpenChange(false);
+        },
+        onError: (error) => applyApiErrors(error, form.setError, FIELDS),
       },
-      onError: (error) => applyApiErrors(error, form.setError, FIELDS),
-    }),
+    ),
   );
 
   const generalError =
@@ -98,6 +111,26 @@ export function CreateUserDialog({
           />
         )}
       </FormField>
+
+      {isUser && (
+        <FormField id="create-supervisorId" label="Supervisor" error={errors.supervisorId?.message}>
+          {(props) => (
+            <Controller
+              control={form.control}
+              name="supervisorId"
+              render={({ field }) => (
+                <SearchableSelect
+                  {...props}
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={supervisorOptions}
+                  searchPlaceholder="Buscar supervisor..."
+                />
+              )}
+            />
+          )}
+        </FormField>
+      )}
 
       <FormField
         id="create-password"

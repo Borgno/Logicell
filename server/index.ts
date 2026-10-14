@@ -1,10 +1,6 @@
 import { serve } from "@hono/node-server";
 import { env, listenPort } from "./env";
 import { createApp } from "./app";
-import { seedUsers } from "./services/users/users.service";
-
-// Dados em memória: o seed roda em todo start.
-await seedUsers(env.SEED_PASSWORD);
 
 const app = createApp({ serveClient: env.NODE_ENV === "production", logRequests: true });
 

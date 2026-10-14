@@ -6,7 +6,7 @@ export const USER = { email: "user@local.test", password: PASSWORD };
 
 export async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
-  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Usuário").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Entrar" }).click();
 }
@@ -16,7 +16,7 @@ export async function loginAsAdmin(page: Page) {
   await expect(page).toHaveURL("/");
 }
 
-// E-mail único por teste: os dados ficam em memória e são compartilhados entre os testes da rodada.
+// E-mail único por teste: o banco é recriado por rodada, não por teste.
 export function uniqueEmail(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}@local.test`;
 }

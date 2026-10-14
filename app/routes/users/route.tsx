@@ -10,6 +10,7 @@ import { useDebouncedValue } from "~/hooks/useDebouncedValue";
 import { useListParams } from "~/hooks/useListParams";
 import { meQuery, requireRole } from "~/lib/auth";
 import { formatDateTime } from "~/lib/format";
+import { ROLE_LABELS } from "~/lib/labels";
 import { queryClient } from "~/lib/queryClient";
 import type { User } from "~/types/user";
 import type { Route } from "./+types/route";
@@ -46,6 +47,12 @@ const columns: Column<User>[] = [
     ),
   },
   { key: "role", header: "Cargo", cell: (user) => <RoleBadge role={user.role} /> },
+  {
+    key: "supervisor",
+    header: "Supervisor",
+    cell: (user) =>
+      user.supervisor?.fullName ?? <span className="text-muted-foreground">Sem supervisor</span>,
+  },
   { key: "status", header: "Status", cell: (user) => <StatusBadge user={user} /> },
   {
     key: "lastLoginAt",
@@ -106,8 +113,9 @@ export default function UsersPage() {
               onChange={(value) => set({ role: value === "all" ? null : value })}
               options={[
                 { value: "all", label: "Todos os cargos" },
-                { value: "admin", label: "Administrador" },
-                { value: "user", label: "Usuário" },
+                { value: "admin", label: ROLE_LABELS.admin },
+                { value: "gestor", label: ROLE_LABELS.gestor },
+                { value: "user", label: ROLE_LABELS.user },
               ]}
               searchPlaceholder="Buscar cargo..."
             />

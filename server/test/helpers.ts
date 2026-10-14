@@ -1,17 +1,40 @@
 import { createApp } from "../app";
-import { resetStore } from "../lib/memoryStore";
+import { prisma } from "../db/client";
+import type { Prisma } from "../db/generated/client";
 import { resetLoginThrottle } from "../services/auth/loginThrottle.service";
-import { seedUsers } from "../services/users/users.service";
+import { hashPassword } from "../services/auth/password.service";
+import { clearUserCache, forgetCachedUser } from "../services/users/users.service";
+import { resetDatabase } from "./db";
 
 export const SEED_PASSWORD = "seed-password";
 export const ADMIN_EMAIL = "admin@local.test";
 export const USER_EMAIL = "user@local.test";
 
+// O bcrypt é lento de propósito: o hash da senha comum é calculado uma vez por arquivo de teste.
+let seedHash: Promise<string> | null = null;
+
+// Banco vazio com um admin e um usuário comum, os dois com SEED_PASSWORD.
 export async function setupApp() {
-  resetStore();
+  await resetDatabase();
+  clearUserCache();
   resetLoginThrottle();
-  await seedUsers(SEED_PASSWORD);
+  seedHash ??= hashPassword(SEED_PASSWORD);
+  const passwordHash = await seedHash;
+  await prisma.user.createMany({
+    data: [
+      { email: ADMIN_EMAIL, name: "Administrador", role: "admin", passwordHash },
+      { email: USER_EMAIL, name: "Usuário Comum", role: "user", passwordHash },
+    ],
+  });
   return createApp();
+}
+
+export function findUser(email: string) {
+  return prisma.user.findUniqueOrThrow({ where: { email } });
+}
+
+export function lastAuditEvent() {
+  return prisma.auditEvent.findFirst({ orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
 }
 
 type App = Awaited<ReturnType<typeof setupApp>>;
@@ -28,4 +51,12 @@ export async function loginAs(app: App, email: string, password = SEED_PASSWORD)
   if (res.status !== 201) throw new Error(`login falhou: ${res.status}`);
   const setCookie = res.headers.get("Set-Cookie") ?? "";
   return setCookie.split(";")[0];
+}
+
+// Muda o usuário direto no banco, para montar o cenário sem passar pela API. Tira a entrada do cache,
+// como faria o TTL.
+export async function setUser(email: string, data: Prisma.UserUpdateInput) {
+  const user = await prisma.user.update({ where: { email }, data });
+  forgetCachedUser(user.id);
+  return user;
 }

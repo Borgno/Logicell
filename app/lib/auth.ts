@@ -34,9 +34,10 @@ export async function requireSessionUser(request: Request): Promise<User> {
 
 // Para clientMiddleware de rota restrita. Esconder o item da sidebar não basta: a URL pode ser digitada.
 // O backend barra do mesmo jeito; aqui é só para não mostrar uma tela que vai falhar.
-export async function requireRole(request: Request, role: Role) {
+// Mais de uma role libera qualquer uma delas, como no requireRole do servidor.
+export async function requireRole(request: Request, ...roles: Role[]) {
   const user = await requireSessionUser(request);
-  if (user.role !== role) throw redirect("/");
+  if (!roles.includes(user.role)) throw redirect("/");
   return user;
 }
 

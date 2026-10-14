@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { store } from "../../lib/memoryStore";
-import { findUserByEmail } from "../../services/users/users.service";
-import { jsonRequest, loginAs, SEED_PASSWORD, setupApp, USER_EMAIL } from "../../test/helpers";
+import {
+  findUser,
+  jsonRequest,
+  lastAuditEvent,
+  loginAs,
+  SEED_PASSWORD,
+  setUser,
+  setupApp,
+  USER_EMAIL,
+} from "../../test/helpers";
 
 let app: Awaited<ReturnType<typeof setupApp>>;
 let cookie: string;
@@ -30,7 +37,7 @@ describe("/api/v1/me", () => {
   });
 
   it("derruba a sessão na hora quando o usuário é desativado", async () => {
-    findUserByEmail(USER_EMAIL)!.active = false;
+    await setUser(USER_EMAIL, { active: false });
     const res = await app.request("/api/v1/me", { headers: { Cookie: cookie } });
     expect(res.status).toBe(401);
   });
@@ -42,7 +49,7 @@ describe("/api/v1/me", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ fullName: "Ana" });
-    expect(store.auditEvents.at(-1)).toMatchObject({ action: "user.updated" });
+    expect(await lastAuditEvent()).toMatchObject({ action: "user.updated" });
   });
 
   it("responde 405 com Allow para método não suportado", async () => {
@@ -91,7 +98,7 @@ describe("troca de senha", () => {
   });
 
   it("com troca pendente, só libera ver a si mesmo e trocar a senha", async () => {
-    findUserByEmail(USER_EMAIL)!.mustChangePassword = true;
+    await setUser(USER_EMAIL, { mustChangePassword: true });
 
     const me = await app.request("/api/v1/me", { headers: { Cookie: cookie } });
     expect(me.status).toBe(200);
@@ -108,7 +115,7 @@ describe("troca de senha", () => {
       jsonRequest("PUT", { currentPassword: SEED_PASSWORD, newPassword: "nova-senha-123" }, cookie),
     );
     expect(change.status).toBe(204);
-    expect(findUserByEmail(USER_EMAIL)!.mustChangePassword).toBe(false);
+    expect((await findUser(USER_EMAIL)).mustChangePassword).toBe(false);
 
     // A troca reemite o cookie de quem trocou; é com ele que a sessão segue.
     const renewed = (change.headers.get("Set-Cookie") ?? "").split(";")[0];

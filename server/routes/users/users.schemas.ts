@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { listSchema, PageQuerySchema, QueryBooleanSchema, sortSchema } from "../../schemas/common";
 
-export const RoleSchema = z.enum(["admin", "user"]).openapi("Role");
+export const RoleSchema = z.enum(["admin", "gestor", "user"]).openapi("Role");
 
 export const UserSchema = z
   .object({
@@ -9,6 +9,10 @@ export const UserSchema = z
     email: z.email(),
     fullName: z.string(),
     role: RoleSchema,
+    supervisor: z
+      .object({ id: z.uuid(), fullName: z.string() })
+      .nullable()
+      .openapi({ description: "Supervisor do atendente. Só o cargo user tem." }),
     active: z.boolean(),
     mustChangePassword: z.boolean(),
     lastLoginAt: z.iso.datetime().nullable(),
@@ -56,6 +60,11 @@ const FullNameSchema = z
   .min(1, "Informe o nome.")
   .max(120, "Use no máximo 120 caracteres.");
 
+const SupervisorIdSchema = z.uuid().nullable().optional().openapi({
+  description:
+    "Usuário ativo com o cargo gestor. Só vale para o cargo user; null desfaz o vínculo.",
+});
+
 export const CreateUserSchema = z
   .object({
     email: EmailSchema,
@@ -64,6 +73,7 @@ export const CreateUserSchema = z
     password: PasswordSchema.openapi({
       description: "Senha inicial. O usuário troca no primeiro login.",
     }),
+    supervisorId: SupervisorIdSchema,
   })
   .openapi("CreateUser");
 
@@ -72,6 +82,7 @@ export const UpdateUserSchema = z
     fullName: FullNameSchema.optional(),
     role: RoleSchema.optional(),
     active: z.boolean().optional(),
+    supervisorId: SupervisorIdSchema,
   })
   .refine((patch) => Object.keys(patch).length > 0, { message: "Informe ao menos um campo." })
   .openapi("UpdateUser");

@@ -16,9 +16,6 @@ const schema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3001),
   // Chave do HMAC que assina o cookie de sessão. Trocar invalida todas as sessões abertas.
   SESSION_SECRET: z.string().min(32, "use ao menos 32 caracteres"),
-  // Senha dos usuários semeados na subida (admin e usuário comum). Os dados ficam em memória nesta
-  // etapa, então o seed roda em todo start.
-  SEED_PASSWORD: z.string().min(8, "use ao menos 8 caracteres"),
   // Postgres. Em dev, o do docker-compose.dev.yml; em produção, o pooler do Supabase em modo sessão.
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   // Conexões do pool por processo. O pooler em modo sessão limita o total de clientes (15 no plano

@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { store } from "../../lib/memoryStore";
-import { findUserByEmail } from "../../services/users/users.service";
-import { ADMIN_EMAIL, jsonRequest, SEED_PASSWORD, setupApp } from "../../test/helpers";
+import { prisma } from "../../db/client";
+import {
+  ADMIN_EMAIL,
+  findUser,
+  jsonRequest,
+  SEED_PASSWORD,
+  setUser,
+  setupApp,
+} from "../../test/helpers";
 
 let app: Awaited<ReturnType<typeof setupApp>>;
 beforeEach(async () => {
@@ -25,12 +31,32 @@ describe("POST /api/v1/sessions", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body).toMatchObject({ email: ADMIN_EMAIL, role: "admin" });
     expect(body).not.toHaveProperty("passwordHash");
-    expect(findUserByEmail(ADMIN_EMAIL)?.lastLoginAt).toBeInstanceOf(Date);
+    expect((await findUser(ADMIN_EMAIL)).lastLoginAt).toBeInstanceOf(Date);
   });
 
   it("aceita e-mail com maiúsculas e espaços", async () => {
     const res = await login("  Admin@Local.Test ", SEED_PASSWORD);
     expect(res.status).toBe(201);
+  });
+
+  it("aceita só o nome de usuário, sem o domínio", async () => {
+    const res = await login("Admin", SEED_PASSWORD);
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ email: ADMIN_EMAIL });
+  });
+
+  it("recusa o nome quando ele existe em dois domínios", async () => {
+    await prisma.user.create({
+      data: { email: "admin@outro.test", name: "Outro", passwordHash: "x" },
+    });
+    expect((await login("admin", SEED_PASSWORD)).status).toBe(401);
+    expect((await login(ADMIN_EMAIL, SEED_PASSWORD)).status).toBe(201);
+  });
+
+  it("não trata _ no nome como curinga", async () => {
+    await setUser(ADMIN_EMAIL, { email: "ana.paula@local.test" });
+    expect((await login("ana_paula", SEED_PASSWORD)).status).toBe(401);
+    expect((await login("ana.paula", SEED_PASSWORD)).status).toBe(201);
   });
 
   it("responde igual para senha errada e para e-mail inexistente", async () => {
@@ -42,7 +68,7 @@ describe("POST /api/v1/sessions", () => {
   });
 
   it("responde 403 para usuário desativado que acerta a senha", async () => {
-    findUserByEmail(ADMIN_EMAIL)!.active = false;
+    await setUser(ADMIN_EMAIL, { active: false });
     const res = await login(ADMIN_EMAIL, SEED_PASSWORD);
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ code: "USER_INACTIVE" });
@@ -57,14 +83,14 @@ describe("POST /api/v1/sessions", () => {
   });
 
   it("responde 422 com os campos quando o corpo é inválido", async () => {
-    const res = await login("nao-e-email", "");
+    const res = await login("  ", "");
     expect(res.status).toBe(422);
     const body = (await res.json()) as { errors: { field: string }[] };
     expect(body.errors.map((e) => e.field).sort()).toEqual(["email", "password"]);
   });
 
-  it("não guarda senha em texto no store", async () => {
-    for (const user of store.users.values()) {
+  it("não guarda senha em texto no banco", async () => {
+    for (const user of await prisma.user.findMany()) {
       expect(user.passwordHash).not.toContain(SEED_PASSWORD);
       expect(user.passwordHash).toMatch(/^\$2[aby]\$/);
     }

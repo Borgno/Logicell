@@ -16,7 +16,6 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       SESSION_SECRET: "test-secret-with-at-least-32-characters",
-      SEED_PASSWORD: "seed-password",
       // TEST_DATABASE_URL troca o banco de teste, por exemplo no CI. O nome precisa terminar em _test.
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ?? "postgresql://dev:dev@localhost:5433/logicell_test",

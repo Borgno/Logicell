@@ -20,7 +20,7 @@ export function usersParamsFrom(searchParams: URLSearchParams): UsersParams {
   const active = searchParams.get("active");
   return {
     search: searchParams.get("search") || undefined,
-    role: role === "admin" || role === "user" ? role : undefined,
+    role: role === "admin" || role === "gestor" || role === "user" ? role : undefined,
     active: active === "true" || active === "false" ? active : undefined,
     sort: searchParams.get("sort") || "fullName",
     page: Math.max(1, Number(searchParams.get("page")) || 1),
@@ -62,8 +62,27 @@ export const userHistoryQuery = (id: string) =>
       }),
   });
 
-export type CreateUserInput = { email: string; fullName: string; role: Role; password: string };
-export type UpdateUserInput = Partial<{ fullName: string; role: Role; active: boolean }>;
+// Supervisores que podem ser escolhidos: gestores ativos. São poucos, cabem numa página.
+export const supervisorsQuery = queryOptions({
+  queryKey: ["users", "supervisors"],
+  queryFn: ({ signal }) =>
+    api.get<Page<User>>("/users?role=gestor&active=true&sort=fullName&pageSize=100", { signal }),
+  select: (page) => page.data.map((user) => ({ value: user.id, label: user.fullName })),
+});
+
+export type CreateUserInput = {
+  email: string;
+  fullName: string;
+  role: Role;
+  password: string;
+  supervisorId: string | null;
+};
+export type UpdateUserInput = Partial<{
+  fullName: string;
+  role: Role;
+  active: boolean;
+  supervisorId: string | null;
+}>;
 
 export function useCreateUser() {
   const queryClient = useQueryClient();

@@ -21,7 +21,6 @@ export default defineConfig({
     env: {
       PORT: String(PORT),
       SESSION_SECRET: "e2e-secret-with-at-least-32-characters",
-      SEED_PASSWORD: "e2e-password",
       // Banco próprio do E2E, recriado a cada rodada. O nome termina em _test pela trava do setup.
       DATABASE_URL:
         process.env.TEST_E2E_DATABASE_URL ??

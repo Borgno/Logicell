@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import type { ITXClientDenyList } from "@prisma/client/runtime/client";
 import { env } from "../env";
 import { isConnectionError } from "./connectionError";
 import { PrismaClient } from "./generated/client";
@@ -55,6 +56,10 @@ export const prisma = base.$extends({
     },
   },
 });
+
+// Client de dentro de um $transaction. O Prisma.TransactionClient do gerado é o do client sem a
+// extensão de retry, e não aceita o tx deste.
+export type TransactionClient = Omit<typeof prisma, ITXClientDenyList>;
 
 // Em produção, um SELECT 1 por minuto mantém uma conexão quente. O keepalive TCP reinicia o idle do
 // balanceador, mas não está provado que o Supavisor mantém a sessão ociosa; fica até alguém medir.

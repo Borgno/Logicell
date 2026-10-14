@@ -1,11 +1,16 @@
-import { randomUUID } from "node:crypto";
+import { prisma } from "../../db/client";
+import type { Prisma, User } from "../../db/generated/client";
 import { ApiProblem } from "../../lib/problem";
-import { store, type RoleCode, type UserRecord } from "../../lib/memoryStore";
 import { recordAudit } from "../audit/audit.service";
 import { generateTemporaryPassword, hashPassword, verifyPassword } from "../auth/password.service";
-import { paginate, sortBy } from "../pagination";
 
-export type { RoleCode };
+// `gestor` aparece como "Supervisor" na tela.
+export const ROLE_CODES = ["admin", "gestor", "user"] as const;
+export type RoleCode = (typeof ROLE_CODES)[number];
+
+// Toda leitura de usuário que vira PublicUser traz o nome do supervisor junto, na mesma query.
+const withSupervisor = { supervisor: { select: { id: true, name: true } } } as const;
+type UserRecord = User & { supervisor: { id: string; name: string } | null };
 
 // O que sai do servidor. Nunca inclui o hash da senha nem o sessionVersion.
 export type PublicUser = {
@@ -13,6 +18,7 @@ export type PublicUser = {
   email: string;
   fullName: string;
   role: RoleCode;
+  supervisor: { id: string; fullName: string } | null;
   active: boolean;
   mustChangePassword: boolean;
   lastLoginAt: string | null;
@@ -24,8 +30,9 @@ export function toPublicUser(user: UserRecord): PublicUser {
   return {
     id: user.id,
     email: user.email,
-    fullName: user.fullName,
+    fullName: user.name,
     role: user.role,
+    supervisor: user.supervisor && { id: user.supervisor.id, fullName: user.supervisor.name },
     active: user.active,
     mustChangePassword: user.mustChangePassword,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
@@ -38,72 +45,64 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-export function findUserByEmail(email: string) {
-  const normalized = normalizeEmail(email);
-  for (const user of store.users.values()) if (user.email === normalized) return user;
-  return undefined;
+// --- Cache por id ------------------------------------------------------------------------------
+
+// O requireAuth lê o usuário em toda request, e o banco fica a ~200 ms do servidor. O cache guarda o
+// registro por id; toda escrita em usuário passa por este arquivo e troca a entrada. O TTL só cobre
+// mudança feita fora do app (SQL direto no banco). Vale para um processo só, que é o deploy de hoje.
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const userCache = new Map<string, { user: UserRecord; expiresAt: number }>();
+
+function cacheUser(user: UserRecord) {
+  userCache.set(user.id, { user, expiresAt: Date.now() + CACHE_TTL_MS });
+  return user;
 }
 
-export function getUserRecord(id: string) {
-  const user = store.users.get(id);
+export function forgetCachedUser(id: string) {
+  userCache.delete(id);
+}
+
+export function clearUserCache() {
+  userCache.clear();
+}
+
+export async function findUserById(id: string) {
+  const hit = userCache.get(id);
+  if (hit && hit.expiresAt > Date.now()) return hit.user;
+  const user = await prisma.user.findUnique({ where: { id }, include: withSupervisor });
+  if (!user) {
+    userCache.delete(id);
+    return null;
+  }
+  return cacheUser(user);
+}
+
+// --- Leitura ----------------------------------------------------------------------------------
+
+// A migration grava o e-mail normalizado, então a busca é exata.
+export function findUserByEmail(email: string) {
+  return prisma.user.findUnique({ where: { email: normalizeEmail(email) } });
+}
+
+export async function getUserRecord(id: string) {
+  const user = await findUserById(id);
   if (!user) throw new ApiProblem(404, "USER_NOT_FOUND", "Usuário não encontrado.");
   return user;
 }
 
-export function getUser(id: string) {
-  return toPublicUser(getUserRecord(id));
+export async function getUser(id: string) {
+  return toPublicUser(await getUserRecord(id));
 }
 
-function assertEmailAvailable(email: string) {
-  if (findUserByEmail(email)) {
-    throw new ApiProblem(409, "EMAIL_TAKEN", "Já existe um usuário com este e-mail.", {
-      errors: [{ field: "email", message: "Já existe um usuário com este e-mail." }],
-    });
-  }
-}
-
-async function insertUser(input: {
-  email: string;
-  fullName: string;
-  password: string;
-  role: RoleCode;
-  mustChangePassword: boolean;
-}) {
-  assertEmailAvailable(input.email);
-  const now = new Date();
-  const user: UserRecord = {
-    id: randomUUID(),
-    email: normalizeEmail(input.email),
-    fullName: input.fullName.trim(),
-    passwordHash: await hashPassword(input.password),
-    role: input.role,
-    active: true,
-    mustChangePassword: input.mustChangePassword,
-    sessionVersion: 1,
-    lastLoginAt: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  store.users.set(user.id, user);
-  return user;
-}
-
-// Usuários da subida: um admin e um comum, com a mesma senha de SEED_PASSWORD.
-export async function seedUsers(password: string) {
-  await insertUser({
-    email: "admin@local.test",
-    fullName: "Administrador",
-    password,
-    role: "admin",
-    mustChangePassword: false,
-  });
-  await insertUser({
-    email: "user@local.test",
-    fullName: "Usuário Comum",
-    password,
-    role: "user",
-    mustChangePassword: false,
-  });
+// Último acesso, gravado no login. Atualiza o cache com o registro novo.
+export async function touchLastLogin(id: string) {
+  return cacheUser(
+    await prisma.user.update({
+      where: { id },
+      data: { lastLoginAt: new Date() },
+      include: withSupervisor,
+    }),
+  );
 }
 
 // --- Gestão (admin) -------------------------------------------------------------------------
@@ -117,62 +116,128 @@ export type ListUsersQuery = {
   pageSize: number;
 };
 
-export function listUsers(query: ListUsersQuery) {
-  const search = query.search?.trim().toLowerCase();
-  const filtered = [...store.users.values()]
-    .filter(
-      (user) =>
-        !search || user.fullName.toLowerCase().includes(search) || user.email.includes(search),
-    )
-    .filter((user) => !query.role || user.role === query.role)
-    .filter((user) => query.active === undefined || user.active === query.active);
+function userOrderBy(sort: string): Prisma.UserOrderByWithRelationInput[] {
+  const direction = sort.startsWith("-") ? "desc" : "asc";
+  const field = sort.replace(/^-/, "");
+  switch (field) {
+    case "fullName":
+      return [{ name: direction }, { email: "asc" }];
+    case "email":
+      return [{ email: direction }];
+    case "lastLoginAt":
+      return [{ lastLoginAt: { sort: direction, nulls: "last" } }, { email: "asc" }];
+    default:
+      return [{ createdAt: direction }, { email: "asc" }];
+  }
+}
 
-  const sorted = sortBy(filtered, query.sort, (user, field) => {
-    switch (field) {
-      case "fullName":
-        return user.fullName.toLowerCase();
-      case "email":
-        return user.email;
-      case "lastLoginAt":
-        return user.lastLoginAt?.getTime() ?? null;
-      default:
-        return user.createdAt.getTime();
-    }
-  });
+export async function listUsers(query: ListUsersQuery) {
+  const search = query.search?.trim();
+  const where: Prisma.UserWhereInput = {
+    role: query.role,
+    active: query.active,
+    OR: search
+      ? [
+          { name: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ]
+      : undefined,
+  };
+  const [users, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      include: withSupervisor,
+      orderBy: userOrderBy(query.sort),
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    }),
+    prisma.user.count({ where }),
+  ]);
+  return {
+    data: users.map(toPublicUser),
+    meta: { page: query.page, pageSize: query.pageSize, total },
+  };
+}
 
-  const page = paginate(sorted, query.page, query.pageSize);
-  return { data: page.data.map(toPublicUser), meta: page.meta };
+const INVALID_SUPERVISOR = "Escolha um usuário ativo com o cargo Supervisor.";
+
+// Só o cargo comum tem supervisor, e ele precisa ser outro usuário, ativo, com o cargo `gestor`.
+async function assertSupervisor(role: RoleCode, supervisorId: string, userId?: string) {
+  if (role !== "user") {
+    throw new ApiProblem(422, "VALIDATION_FAILED", "Só o cargo Usuário tem supervisor.", {
+      errors: [{ field: "supervisorId", message: "Só o cargo Usuário tem supervisor." }],
+    });
+  }
+  const supervisor = await findUserById(supervisorId);
+  if (supervisorId === userId || !supervisor?.active || supervisor.role !== "gestor") {
+    throw new ApiProblem(422, "VALIDATION_FAILED", INVALID_SUPERVISOR, {
+      errors: [{ field: "supervisorId", message: INVALID_SUPERVISOR }],
+    });
+  }
+  return supervisor;
 }
 
 // O usuário criado entra com a senha definida pelo admin e troca no primeiro login.
 export async function createUser(
   actorId: string,
-  input: { email: string; fullName: string; role: RoleCode; password: string },
+  input: {
+    email: string;
+    fullName: string;
+    role: RoleCode;
+    password: string;
+    supervisorId?: string | null;
+  },
 ) {
-  const user = await insertUser({ ...input, mustChangePassword: true });
-  recordAudit({
-    actorId,
-    action: "user.created",
-    targetType: "user",
-    targetId: user.id,
-    data: { email: user.email, role: user.role },
+  if (await findUserByEmail(input.email)) {
+    throw new ApiProblem(409, "EMAIL_TAKEN", "Já existe um usuário com este e-mail.", {
+      errors: [{ field: "email", message: "Já existe um usuário com este e-mail." }],
+    });
+  }
+  const supervisor = input.supervisorId
+    ? await assertSupervisor(input.role, input.supervisorId)
+    : null;
+  const passwordHash = await hashPassword(input.password);
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: {
+        email: normalizeEmail(input.email),
+        name: input.fullName.trim(),
+        passwordHash,
+        role: input.role,
+        supervisor: supervisor ? { connect: { id: supervisor.id } } : undefined,
+        mustChangePassword: true,
+      },
+      include: withSupervisor,
+    });
+    await recordAudit(
+      {
+        actorId,
+        action: "user.created",
+        targetType: "user",
+        targetId: created.id,
+        data: { email: created.email, role: created.role, supervisor: supervisor?.name ?? null },
+      },
+      tx,
+    );
+    return created;
   });
-  return toPublicUser(user);
+  return toPublicUser(cacheUser(user));
 }
 
-export function updateUser(
+export async function updateUser(
   actorId: string,
   id: string,
-  patch: { fullName?: string; role?: RoleCode; active?: boolean },
+  patch: { fullName?: string; role?: RoleCode; active?: boolean; supervisorId?: string | null },
 ) {
-  const user = getUserRecord(id);
+  const user = await getUserRecord(id);
   const losesAdmin =
     user.role === "admin" &&
     user.active &&
     ((patch.role !== undefined && patch.role !== "admin") || patch.active === false);
 
   // O admin não tira o próprio acesso: sem essa trava, um clique errado tranca a pessoa para fora.
-  // Isso também garante que sempre sobra ao menos um admin ativo: quem chama já é um.
+  // Isso também garante que sempre sobra ao menos um admin ativo: quem chama já é um, então o último
+  // admin nunca perde o cargo.
   if (id === actorId && losesAdmin) {
     throw new ApiProblem(
       409,
@@ -181,52 +246,138 @@ export function updateUser(
     );
   }
 
-  if (patch.fullName !== undefined && patch.fullName.trim() !== user.fullName) {
-    const from = user.fullName;
-    user.fullName = patch.fullName.trim();
-    recordAudit({
-      actorId,
-      action: "user.updated",
-      targetType: "user",
-      targetId: id,
-      data: { from, to: user.fullName },
-    });
-  }
-  if (patch.role !== undefined && patch.role !== user.role) {
-    const from = user.role;
-    user.role = patch.role;
-    recordAudit({
-      actorId,
-      action: "user.roleChanged",
-      targetType: "user",
-      targetId: id,
-      data: { from, to: patch.role },
-    });
-  }
-  if (patch.active !== undefined && patch.active !== user.active) {
-    user.active = patch.active;
-    recordAudit({
-      actorId,
-      action: patch.active ? "user.activated" : "user.deactivated",
-      targetType: "user",
-      targetId: id,
-    });
-  }
+  const role = patch.role ?? user.role;
+  // Sair do cargo comum desfaz o vínculo com o supervisor. Só valida quando o vínculo muda: manter um
+  // supervisor que foi desativado depois não pode impedir de salvar o resto.
+  if (role !== "user" && patch.supervisorId) await assertSupervisor(role, patch.supervisorId, id);
+  const supervisorId =
+    role !== "user"
+      ? null
+      : patch.supervisorId === undefined
+        ? user.supervisorId
+        : patch.supervisorId;
+  const supervisorChanged = supervisorId !== user.supervisorId;
+  const supervisor =
+    supervisorChanged && supervisorId ? await assertSupervisor(role, supervisorId, id) : null;
 
-  user.updatedAt = new Date();
-  return toPublicUser(user);
+  const deactivating = patch.active === false && user.active;
+  // Quem deixa de ser supervisor, por cargo ou desativação, solta os atendentes.
+  const releasesAttendants = user.role === "gestor" && (role !== "gestor" || deactivating);
+
+  const fullName = patch.fullName?.trim();
+  const updated = await prisma.$transaction(async (tx) => {
+    const data: Prisma.UserUpdateInput = {};
+    if (fullName !== undefined && fullName !== user.name) {
+      data.name = fullName;
+      await recordAudit(
+        {
+          actorId,
+          action: "user.updated",
+          targetType: "user",
+          targetId: id,
+          data: { from: user.name, to: fullName },
+        },
+        tx,
+      );
+    }
+    if (role !== user.role) {
+      data.role = role;
+      await recordAudit(
+        {
+          actorId,
+          action: "user.roleChanged",
+          targetType: "user",
+          targetId: id,
+          data: { from: user.role, to: role },
+        },
+        tx,
+      );
+    }
+    if (supervisorChanged) {
+      data.supervisor = supervisor ? { connect: { id: supervisor.id } } : { disconnect: true };
+      await recordAudit(
+        {
+          actorId,
+          action: "user.supervisorChanged",
+          targetType: "user",
+          targetId: id,
+          data: { from: user.supervisor?.name ?? null, to: supervisor?.name ?? null },
+        },
+        tx,
+      );
+    }
+    if (patch.active !== undefined && patch.active !== user.active) {
+      data.active = patch.active;
+      const extra: Record<string, number> = {};
+      if (deactivating) {
+        // Desativar derruba as sessões: sem isso, reativar devolveria a vida aos cookies antigos.
+        data.sessionVersion = { increment: 1 };
+        // Faturista precisa ser usuário ativo: as pastas dele ficam sem responsável.
+        const pastas = await tx.pasta.updateMany({
+          where: { faturistaId: id },
+          data: { faturistaId: null },
+        });
+        if (pastas.count > 0) extra.pastasSemFaturista = pastas.count;
+      }
+      await recordAudit(
+        {
+          actorId,
+          action: patch.active ? "user.activated" : "user.deactivated",
+          targetType: "user",
+          targetId: id,
+          data: extra,
+        },
+        tx,
+      );
+    }
+    if (releasesAttendants) {
+      const attendants = await tx.user.findMany({
+        where: { supervisorId: id },
+        select: { id: true },
+      });
+      await tx.user.updateMany({ where: { supervisorId: id }, data: { supervisorId: null } });
+      for (const attendant of attendants) {
+        await recordAudit(
+          {
+            actorId,
+            action: "user.supervisorChanged",
+            targetType: "user",
+            targetId: attendant.id,
+            data: { from: user.name, to: null },
+          },
+          tx,
+        );
+      }
+    }
+    return tx.user.update({ where: { id }, data, include: withSupervisor });
+  });
+
+  // O cache dos atendentes guarda o nome e o vínculo do supervisor: quando eles mudam, tudo é relido.
+  if (user.role === "gestor" && (releasesAttendants || updated.name !== user.name)) {
+    clearUserCache();
+  }
+  return toPublicUser(cacheUser(updated));
 }
 
 // Gera uma senha temporária, obriga a troca no próximo login e derruba as sessões abertas do usuário.
 // A senha é devolvida uma única vez: o servidor só guarda o hash.
 export async function resetPassword(actorId: string, id: string) {
-  const user = getUserRecord(id);
+  await getUserRecord(id);
   const temporaryPassword = generateTemporaryPassword();
-  user.passwordHash = await hashPassword(temporaryPassword);
-  user.mustChangePassword = true;
-  user.sessionVersion += 1;
-  user.updatedAt = new Date();
-  recordAudit({ actorId, action: "user.passwordReset", targetType: "user", targetId: id });
+  const passwordHash = await hashPassword(temporaryPassword);
+  const updated = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.update({
+      where: { id },
+      data: { passwordHash, mustChangePassword: true, sessionVersion: { increment: 1 } },
+      include: withSupervisor,
+    });
+    await recordAudit(
+      { actorId, action: "user.passwordReset", targetType: "user", targetId: id },
+      tx,
+    );
+    return user;
+  });
+  cacheUser(updated);
   return { temporaryPassword };
 }
 
@@ -241,7 +392,7 @@ export async function changeOwnPassword(
   userId: string,
   input: { currentPassword: string; newPassword: string },
 ) {
-  const user = getUserRecord(userId);
+  const user = await getUserRecord(userId);
 
   if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
     throw new ApiProblem(422, "INVALID_CURRENT_PASSWORD", "A senha atual não confere.", {
@@ -254,41 +405,56 @@ export async function changeOwnPassword(
     });
   }
 
-  user.passwordHash = await hashPassword(input.newPassword);
-  user.mustChangePassword = false;
-  user.sessionVersion += 1;
-  user.updatedAt = new Date();
-  recordAudit({
-    actorId: userId,
-    action: "user.passwordChanged",
-    targetType: "user",
-    targetId: userId,
+  const passwordHash = await hashPassword(input.newPassword);
+  const updated = await prisma.$transaction(async (tx) => {
+    const changed = await tx.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false, sessionVersion: { increment: 1 } },
+      include: withSupervisor,
+    });
+    await recordAudit(
+      { actorId: userId, action: "user.passwordChanged", targetType: "user", targetId: userId },
+      tx,
+    );
+    return changed;
   });
+  cacheUser(updated);
 }
 
 // --- Números para o dashboard ------------------------------------------------------------------
 
-export function getUserStats() {
-  const users = [...store.users.values()];
-  const active = users.filter((user) => user.active);
+export async function getUserStats() {
+  const [byStatus, byRole, recent] = await Promise.all([
+    prisma.user.groupBy({
+      by: ["active", "mustChangePassword"],
+      _count: { _all: true },
+      orderBy: [{ active: "asc" }, { mustChangePassword: "asc" }],
+    }),
+    prisma.user.groupBy({ by: ["role"], _count: { _all: true }, orderBy: { role: "asc" } }),
+    prisma.user.findMany({
+      where: { lastLoginAt: { not: null } },
+      orderBy: { lastLoginAt: "desc" },
+      take: 5,
+    }),
+  ]);
+  const count = (match: (row: (typeof byStatus)[number]) => boolean) =>
+    byStatus.filter(match).reduce((sum, row) => sum + row._count._all, 0);
+  const total = count(() => true);
+  const active = count((row) => row.active);
   return {
-    total: users.length,
-    active: active.length,
-    inactive: users.length - active.length,
-    pendingPasswordChange: active.filter((user) => user.mustChangePassword).length,
-    byRole: (["admin", "user"] as const).map((role) => ({
+    total,
+    active,
+    inactive: total - active,
+    pendingPasswordChange: count((row) => row.active && row.mustChangePassword),
+    byRole: ROLE_CODES.map((role) => ({
       role,
-      count: users.filter((user) => user.role === role).length,
+      count: byRole.find((row) => row.role === role)?._count._all ?? 0,
     })),
-    recentLogins: users
-      .filter((user) => user.lastLoginAt)
-      .sort((a, b) => b.lastLoginAt!.getTime() - a.lastLoginAt!.getTime())
-      .slice(0, 5)
-      .map((user) => ({
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        lastLoginAt: user.lastLoginAt!.toISOString(),
-      })),
+    recentLogins: recent.map((user) => ({
+      id: user.id,
+      fullName: user.name,
+      email: user.email,
+      lastLoginAt: user.lastLoginAt!.toISOString(),
+    })),
   };
 }

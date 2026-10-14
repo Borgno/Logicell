@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { KeyRound, Loader2, UserCheck, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 import { useConfirm } from "~/components/patterns/ConfirmDialog";
@@ -27,10 +27,12 @@ import {
 import { TemporaryPasswordDialog } from "./TemporaryPasswordDialog";
 import { RoleBadge, StatusBadge } from "./UserBadges";
 import { UserHistory } from "./UserHistory";
-import { editUserSchema } from "./userForm";
+import { useSupervisorOptions } from "../_hooks/useSupervisorOptions";
+import { editUserSchema, NO_SUPERVISOR, supervisorForApi } from "./userForm";
 
 const ROLE_OPTIONS = [
   { value: "user", label: ROLE_LABELS.user },
+  { value: "gestor", label: ROLE_LABELS.gestor },
   { value: "admin", label: ROLE_LABELS.admin },
 ];
 
@@ -40,24 +42,34 @@ function EditForm({ user, isSelf }: { user: User; isSelf: boolean }) {
   const mutation = useUpdateUser(user.id);
   const form = useForm<EditValues>({
     resolver: zodResolver(editUserSchema),
-    defaultValues: { fullName: user.fullName, role: user.role },
+    defaultValues: {
+      fullName: user.fullName,
+      role: user.role,
+      supervisorId: user.supervisor?.id ?? NO_SUPERVISOR,
+    },
   });
   const { errors, isDirty, dirtyFields } = form.formState;
+  const isUser = useWatch({ control: form.control, name: "role" }) === "user";
+  const supervisorOptions = useSupervisorOptions(isUser, user.supervisor);
 
   // Quando o usuário muda por fora (outra aba, desativação), o formulário acompanha.
+  const supervisorId = user.supervisor?.id ?? NO_SUPERVISOR;
   useEffect(() => {
-    form.reset({ fullName: user.fullName, role: user.role });
-  }, [form, user.fullName, user.role]);
+    form.reset({ fullName: user.fullName, role: user.role, supervisorId });
+  }, [form, user.fullName, user.role, supervisorId]);
 
   const onSubmit = form.handleSubmit((values) => {
     const patch: UpdateUserInput = {};
     if (dirtyFields.fullName) patch.fullName = values.fullName;
     if (dirtyFields.role) patch.role = values.role;
+    if (dirtyFields.supervisorId && values.role === "user") {
+      patch.supervisorId = supervisorForApi(values.role, values.supervisorId);
+    }
     mutation.mutate(patch, {
       onSuccess: () => toast.success("Alterações salvas"),
       onError: (error) => {
         if (
-          !applyApiErrors(error, form.setError, ["fullName", "role"]) &&
+          !applyApiErrors(error, form.setError, ["fullName", "role", "supervisorId"]) &&
           error instanceof ApiError
         ) {
           toast.error(error.message);
@@ -94,6 +106,25 @@ function EditForm({ user, isSelf }: { user: User; isSelf: boolean }) {
           />
         )}
       </FormField>
+      {isUser && (
+        <FormField id="edit-supervisorId" label="Supervisor" error={errors.supervisorId?.message}>
+          {(props) => (
+            <Controller
+              control={form.control}
+              name="supervisorId"
+              render={({ field }) => (
+                <SearchableSelect
+                  {...props}
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={supervisorOptions}
+                  searchPlaceholder="Buscar supervisor..."
+                />
+              )}
+            />
+          )}
+        </FormField>
+      )}
       <Button type="submit" disabled={!isDirty || mutation.isPending}>
         {mutation.isPending && <Loader2 className="animate-spin" />}
         Salvar alterações

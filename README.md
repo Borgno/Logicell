@@ -27,16 +27,19 @@ Requisitos: Node.js 22.22 ou superior e bun 1.4.2 (fixado em `packageManager`).
 
 ```bash
 bun install
-cp .env.example .env   # preencha SESSION_SECRET (openssl rand -base64 48) e SEED_PASSWORD
+cp .env.example .env   # preencha SESSION_SECRET (openssl rand -base64 48)
+bun run infra:up       # Postgres local na porta 5433
+bun run db:generate    # client do Prisma em server/db/generated (não versionado)
+bun run db:migrate
+bun run db:seed        # usuários de teste, todos com a senha 123456
 bun run dev            # front em http://localhost:3000, API em :3001
 ```
 
-Todo start recria dois usuários, com a senha de `SEED_PASSWORD`:
-
-| E-mail             | Role  |
-| :----------------- | :---- |
-| `admin@local.test` | admin |
-| `user@local.test`  | user  |
+| E-mail              | Role   |
+| :------------------ | :----- |
+| `admin@local.test`  | admin  |
+| `gestor@local.test` | gestor |
+| `user@local.test`   | user   |
 
 O `.env` de dev nunca aponta para o banco de produção.
 

@@ -12,6 +12,11 @@ function detail(event: AuditEvent) {
     const to = ROLE_LABELS[event.data.to as keyof typeof ROLE_LABELS] ?? event.data.to;
     return `${from} para ${to}`;
   }
+  if (event.action === "user.supervisorChanged") {
+    const from = typeof event.data.from === "string" ? event.data.from : "sem supervisor";
+    const to = typeof event.data.to === "string" ? event.data.to : "sem supervisor";
+    return `${from} para ${to}`;
+  }
   if (event.action === "user.updated" && typeof event.data.to === "string")
     return `Agora: ${event.data.to}`;
   return null;

@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 // O contrato não depende de segredo, mas o env.ts exige as variáveis para carregar os módulos.
 process.env.SESSION_SECRET ??= "openapi-dump-placeholder-secret-0000000000";
-process.env.SEED_PASSWORD ??= "openapi-dump";
+process.env.DATABASE_URL ??= "postgresql://openapi:dump@localhost:5433/openapi_dump";
 
 const { createApp } = await import("../app");
 const res = await createApp().request("/api/v1/openapi.json");

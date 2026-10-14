@@ -13,7 +13,7 @@ type RequireAuthOptions = {
 
 export function requireAuth(options: RequireAuthOptions = {}) {
   return createMiddleware<HonoEnv>(async (c, next) => {
-    const user = resolveSession(getCookie(c, SESSION_COOKIE));
+    const user = await resolveSession(getCookie(c, SESSION_COOKIE));
     if (!user) throw new ApiProblem(401, "UNAUTHENTICATED", "Sessão ausente ou expirada.");
 
     if (user.mustChangePassword && !options.allowPendingPasswordChange) {
@@ -25,10 +25,11 @@ export function requireAuth(options: RequireAuthOptions = {}) {
   });
 }
 
-// Usar depois do requireAuth: middleware: [requireAuth(), requireRole("admin")].
-export function requireRole(role: RoleCode) {
+// Usar depois do requireAuth: middleware: [requireAuth(), requireRole("admin")]. Mais de uma role
+// libera qualquer uma delas: requireRole("admin", "gestor").
+export function requireRole(...roles: RoleCode[]) {
   return createMiddleware<HonoEnv>(async (c, next) => {
-    if (c.get("user").role !== role) {
+    if (!roles.includes(c.get("user").role)) {
       throw new ApiProblem(403, "FORBIDDEN", "Você não tem permissão para esta ação.");
     }
     await next();

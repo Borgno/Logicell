@@ -12,6 +12,7 @@ import { api } from "~/lib/api";
 import { formatDateTime, formatNumber } from "~/lib/format";
 import { ROLE_LABELS } from "~/lib/labels";
 import type { UserStats } from "~/types/stats";
+import type { Role } from "~/types/user";
 
 // Dashboard do admin: quem acessa o sistema.
 const userStatsQuery = queryOptions({
@@ -19,7 +20,11 @@ const userStatsQuery = queryOptions({
   queryFn: ({ signal }) => api.get<UserStats>("/userStats", { signal }),
 });
 
-const ROLE_COLORS = { admin: "var(--chart-1)", user: "var(--chart-2)" } as const;
+const ROLE_COLORS: Record<Role, string> = {
+  admin: "var(--chart-1)",
+  gestor: "var(--chart-3)",
+  user: "var(--chart-2)",
+};
 
 export function AdminDashboard() {
   const { data: stats, isLoading, error, refetch } = useQuery(userStatsQuery);

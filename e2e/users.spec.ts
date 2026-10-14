@@ -53,6 +53,44 @@ test("drawer: trocar role aparece no histórico, e Esc fecha", async ({ page }) 
   await expect(page).not.toHaveURL(/userId=/);
 });
 
+test("supervisor: o admin vincula pelo drawer e a lista mostra o nome", async ({ page }) => {
+  await loginAsAdmin(page);
+  const sufixo = Date.now();
+  await createUser(page, {
+    fullName: `Sara Supervisora ${sufixo}`,
+    email: uniqueEmail("sara"),
+    password: "inicial-123",
+  });
+  await page.getByRole("row", { name: new RegExp(`Sara Supervisora ${sufixo}`) }).click();
+  let drawer = page.getByRole("dialog", { name: `Sara Supervisora ${sufixo}` });
+  await drawer.getByRole("combobox", { name: "Cargo" }).click();
+  await page.getByRole("option", { name: "Supervisor" }).click();
+  // Supervisor não tem supervisor: o campo some quando o cargo deixa de ser Usuário.
+  await expect(drawer.getByRole("combobox", { name: "Supervisor" })).toBeHidden();
+  await drawer.getByRole("button", { name: "Salvar alterações" }).click();
+  await expect(page.getByText("Alterações salvas")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await createUser(page, {
+    fullName: `Tito Atendente ${sufixo}`,
+    email: uniqueEmail("tito"),
+    password: "inicial-123",
+  });
+  const row = page.getByRole("row", { name: new RegExp(`Tito Atendente ${sufixo}`) });
+  await expect(row).toContainText("Sem supervisor");
+  await row.click();
+  drawer = page.getByRole("dialog", { name: `Tito Atendente ${sufixo}` });
+  await drawer.getByRole("combobox", { name: "Supervisor" }).click();
+  await page.getByRole("option", { name: `Sara Supervisora ${sufixo}` }).click();
+  await drawer.getByRole("button", { name: "Salvar alterações" }).click();
+  await expect(page.getByText("Alterações salvas")).toBeVisible();
+  await expect(drawer.getByRole("list", { name: "Histórico" })).toContainText(
+    `sem supervisor para Sara Supervisora ${sufixo}`,
+  );
+  await page.keyboard.press("Escape");
+  await expect(row).toContainText(`Sara Supervisora ${sufixo}`);
+});
+
 test("reset de senha: a pessoa entra com a temporária e é obrigada a trocar", async ({ page }) => {
   await loginAsAdmin(page);
   const email = uniqueEmail("carla");

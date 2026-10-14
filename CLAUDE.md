@@ -89,15 +89,16 @@ Gates antes de dar uma tarefa por concluída: `lint`, `lint:api`, `format:check`
 
 ### Dados e sessão
 
-- Estado atual: ainda sem banco. `server/lib/memoryStore.ts` guarda os dados em memória, e o start
-  recria os usuários do seed (`SEED_PASSWORD`). Só `server/services/` importa o store.
-- Destino: o Postgres do Supabase (Brasil), acessado pelo Prisma 7 com `@prisma/adapter-pg`, client
-  em `server/db/`, e os usuários numa tabela própria, fora do GoTrue. Em dev, um Postgres local em
-  Docker. O schema e as migrations do sistema antigo estão em `prisma/`, e as migrations não
-  descrevem o banco de produção: não as rode para recriar o banco.
+- Banco: o Postgres do Supabase (Brasil), acessado pelo Prisma 7 com `@prisma/adapter-pg`, client
+  em `server/db/`. Só `server/services/` importa o client. Em dev, o Postgres local do
+  `docker-compose.dev.yml`; usuários de teste com `bun run db:seed`.
+- Usuários na tabela `users`, fora do GoTrue, com o mesmo id e o mesmo hash bcrypt de `auth.users`.
+  Usuário não é apagado, só desativado. Audit em `audit_events`.
 - Sessão: cookie `session` HttpOnly com `{ sub, ver, exp }` assinado por HMAC (`SESSION_SECRET`). O
-  `requireAuth` (`server/middleware/auth.ts`) relê o usuário a cada request, então role e status valem
-  na hora. Rotas de admin usam `requireAuth()` seguido de `requireRole("admin")`.
+  `requireAuth` (`server/middleware/auth.ts`) lê o usuário a cada request pelo cache por id do
+  `users.service.ts`, e toda escrita em usuário troca a entrada; role e status valem na hora sem ida
+  ao banco. Escrita em `users` fora do service (SQL direto) só vale depois do TTL de 10 minutos.
+  Rotas de admin usam `requireAuth()` seguido de `requireRole("admin")`.
 - `ver` é o `sessionVersion` do usuário. Reset de senha e troca da própria senha incrementam, o que
   derruba as sessões abertas; na troca própria, o handler reemite o cookie para quem trocou.
 - Usuário nunca é apagado, só desativado (`active: false`): o audit precisa do autor.
