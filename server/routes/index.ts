@@ -3,6 +3,8 @@ import auditEvents from "./auditEvents";
 import colunas from "./colunas";
 import faturistas from "./faturistas";
 import me from "./me";
+import operacaoStats from "./operacaoStats";
+import operacoes from "./operacoes";
 import pastas from "./pastas";
 import prazos from "./prazos";
 import regras from "./regras";
@@ -22,4 +24,6 @@ export const modules: Array<[string, Router]> = [
   ["/regras", regras],
   ["/prazos", prazos],
   ["/colunas", colunas],
+  ["/operacoes", operacoes],
+  ["/operacaoStats", operacaoStats],
 ];

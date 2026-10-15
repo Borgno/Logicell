@@ -35,7 +35,7 @@ test("pasta: cria pela lista, edita, filtra e exclui", async ({ page }) => {
   await expect(page.getByRole("row", { name: new RegExp(`${nome} editada`) })).toBeVisible();
   await page.getByRole("row", { name: new RegExp(`${nome} editada`) }).click();
 
-  await page.getByRole("button", { name: "Excluir" }).click();
+  await page.getByRole("button", { name: "Excluir pasta" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Excluir pasta" }).click();
   await expect(page).toHaveURL("/pastas");
   await expect(page.getByRole("row", { name: new RegExp(`${nome} editada`) })).toHaveCount(0);

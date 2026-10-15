@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Folder, FolderPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { ColorFilter } from "~/components/pastas/ColorFilter";
@@ -13,35 +13,66 @@ import { useListParams } from "~/hooks/useListParams";
 import { meQuery } from "~/lib/auth";
 import { DEFAULT_PASTA_COLOR, pastasSearchQuery } from "~/lib/pastas";
 import type { Pasta } from "~/types/pasta";
+import { operacaoStatsQuery } from "../operacoes/_hooks/operacoes.queries";
 import type { Route } from "./+types/route";
 
 export const meta: Route.MetaFunction = () => [{ title: `Pastas | ${APP_NAME}` }];
 
-const columns: Column<Pasta>[] = [
-  {
-    key: "nome",
-    header: "Nome",
-    cell: (pasta) => (
-      <span className="flex items-center gap-2 font-bold">
-        <Folder
-          size={16}
-          className="shrink-0"
-          style={{ color: pasta.cor ?? DEFAULT_PASTA_COLOR }}
-          fill={`${pasta.cor ?? DEFAULT_PASTA_COLOR}33`}
-        />
-        {pasta.nome}
-      </span>
-    ),
-  },
-  {
-    key: "faturista",
-    header: "Faturista",
-    cell: (pasta) =>
-      pasta.faturista?.fullName ?? <span className="text-muted-foreground">Sem faturista</span>,
-  },
-];
+// Contagem de operações de cada pasta, que vem do /operacaoStats e não da lista de pastas.
+type Contagem = { total: number; emissoesAntigas: number };
 
-// Todas as pastas numa tabela: é por aqui que o celular, sem a sidebar, chega a uma pasta.
+function columnsWith(contagem: Map<number, Contagem>): Column<Pasta>[] {
+  return [
+    {
+      key: "nome",
+      header: "Nome",
+      cell: (pasta) => (
+        <span className="flex items-center gap-2 font-bold">
+          <Folder
+            size={16}
+            className="shrink-0"
+            style={{ color: pasta.cor ?? DEFAULT_PASTA_COLOR }}
+            fill={`${pasta.cor ?? DEFAULT_PASTA_COLOR}33`}
+          />
+          {pasta.nome}
+        </span>
+      ),
+    },
+    {
+      key: "faturista",
+      header: "Faturista",
+      cell: (pasta) =>
+        pasta.faturista?.fullName ?? <span className="text-muted-foreground">Sem faturista</span>,
+    },
+    {
+      key: "operacoes",
+      header: "Operações",
+      className: "text-right",
+      cell: (pasta) => (
+        <span className="font-mono">
+          {(contagem.get(pasta.id)?.total ?? 0).toLocaleString("pt-BR")}
+        </span>
+      ),
+    },
+    {
+      key: "antigas",
+      header: "Emissões antigas",
+      className: "text-right",
+      cell: (pasta) => {
+        const antigas = contagem.get(pasta.id)?.emissoesAntigas ?? 0;
+        return antigas > 0 ? (
+          <span className="font-mono font-bold text-destructive">
+            {antigas.toLocaleString("pt-BR")}
+          </span>
+        ) : (
+          <span className="font-mono text-muted-foreground">0</span>
+        );
+      },
+    },
+  ];
+}
+
+// Todas as pastas numa tabela, com quantas operações e emissões antigas cada uma tem.
 export default function PastasPage() {
   const navigate = useNavigate();
   const { searchParams, set } = useListParams();
@@ -51,6 +82,11 @@ export default function PastasPage() {
   const [creating, setCreating] = useState(false);
 
   const list = useQuery(pastasSearchQuery(search, cor));
+  const { data: stats } = useQuery(operacaoStatsQuery);
+  const columns = useMemo(
+    () => columnsWith(new Map(stats?.pastas.map((item) => [item.pastaId, item]) ?? [])),
+    [stats],
+  );
 
   const [searchInput, setSearchInput] = useState(search);
   const debounced = useDebouncedValue(searchInput.trim());

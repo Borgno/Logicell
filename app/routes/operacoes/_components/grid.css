@@ -1,0 +1,29 @@
+/* A grid usa as cores do design system nos dois temas, em vez dos temas próprios do react-data-grid. */
+.rdg.grid-operacoes {
+  --rdg-color: var(--foreground);
+  --rdg-border-color: var(--border);
+  --rdg-background-color: var(--card);
+  --rdg-header-background-color: var(--card);
+  --rdg-header-draggable-background-color: var(--accent);
+  --rdg-row-hover-background-color: var(--accent);
+  --rdg-row-selected-background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  --rdg-row-selected-hover-background-color: color-mix(in srgb, var(--primary) 16%, transparent);
+  --rdg-checkbox-focus-color: var(--primary);
+  --rdg-selection-color: var(--primary);
+  --rdg-font-size: 12px;
+  color-scheme: light;
+  border: 0;
+  font-family: inherit;
+}
+
+.dark .rdg.grid-operacoes {
+  color-scheme: dark;
+}
+
+.rdg.grid-operacoes [role="columnheader"] {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}

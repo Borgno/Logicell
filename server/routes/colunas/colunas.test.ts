@@ -23,4 +23,13 @@ describe("ordem das colunas", () => {
       (await app.request("/api/v1/colunas", jsonRequest("PUT", { ordem: [] }, user))).status,
     ).toBe(422);
   });
+
+  it("traduz a ordem salva pelo sistema antigo, com o nome do banco", async () => {
+    const { prisma } = await import("../../db/client");
+    await prisma.ordemColunas.create({
+      data: { id: 1, ordem: JSON.stringify(["dt_emissao_", "nr_ctrc", "removida", "placa"]) },
+    });
+    const res = await app.request("/api/v1/colunas", { headers: { Cookie: user } });
+    expect(await res.json()).toEqual({ ordem: ["dataEmissao", "cte", "placa"] });
+  });
 });

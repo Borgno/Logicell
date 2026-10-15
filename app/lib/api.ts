@@ -97,5 +97,6 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, { body }),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, { body }),
-  delete: <T>(path: string) => request<T>("DELETE", path),
+  // Corpo só no DELETE em lote (a seleção de linhas); o DELETE de um recurso vai sem.
+  delete: <T>(path: string, body?: unknown) => request<T>("DELETE", path, { body }),
 };

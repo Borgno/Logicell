@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Folder, Pencil, Table2, Trash2 } from "lucide-react";
+import { Folder, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { ApiError } from "~/lib/api";
 import { meQuery } from "~/lib/auth";
 import { pastasQuery, useDeletePasta } from "~/lib/pastas";
 import type { Pasta } from "~/types/pasta";
+import { OperacoesGrid } from "../operacoes/_components/OperacoesGrid";
 import type { Route } from "./+types/pasta";
 
 export const meta: Route.MetaFunction = () => [{ title: `Pasta | ${APP_NAME}` }];
@@ -49,7 +50,7 @@ function PastaActions({ pasta, canSetFaturista }: { pasta: Pasta; canSetFaturist
       </Button>
       <Button variant="destructive" onClick={handleDelete} disabled={remove.isPending}>
         <Trash2 />
-        Excluir
+        Excluir pasta
       </Button>
       <PastaFormDialog
         open={editing}
@@ -61,7 +62,7 @@ function PastaActions({ pasta, canSetFaturista }: { pasta: Pasta; canSetFaturist
   );
 }
 
-// Cabeçalho da pasta com editar e excluir. A grid de operações entra aqui no E5.
+// Cabeçalho da pasta com editar e excluir, e a grid das operações dela.
 export default function PastaPage({ params }: Route.ComponentProps) {
   const { data: me } = useQuery(meQuery);
   const { data: pastas, isLoading } = useQuery(pastasQuery);
@@ -85,11 +86,7 @@ export default function PastaPage({ params }: Route.ComponentProps) {
         description={pasta.faturista ? `Faturista: ${pasta.faturista.fullName}` : "Sem faturista"}
         actions={<PastaActions pasta={pasta} canSetFaturista={me?.role !== "user"} />}
       />
-      <EmptyState
-        icon={Table2}
-        title="Operações da pasta"
-        description="A grid de operações entra na próxima etapa da reconstrução."
-      />
+      <OperacoesGrid escopo={pasta.id} nome={pasta.nome} />
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { prisma } from "../../db/client";
+import { traduzirOrdem } from "../operacoes/colunas";
 
 // Ordem das colunas da grid de operações, global para todos os usuários (OrdemColunas, id 1). O
 // banco guarda o JSON como texto.
@@ -12,7 +13,10 @@ export function invalidateColunas() {
 function parse(ordem: string): string[] | null {
   try {
     const value: unknown = JSON.parse(ordem);
-    return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : null;
+    // A ordem salva pelo sistema antigo usa o nome da coluna no banco: sai traduzida para a API.
+    return Array.isArray(value) && value.every((item) => typeof item === "string")
+      ? traduzirOrdem(value)
+      : null;
   } catch {
     return null;
   }
