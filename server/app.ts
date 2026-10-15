@@ -64,6 +64,7 @@ export function createApp({
       { name: "Prazos", description: "Prazo de emissão padrão e por cliente" },
       { name: "Operações", description: "Grid de operações" },
       { name: "Importações", description: "Planilha do ERP, histórico e desfazer" },
+      { name: "Dashboard", description: "Operações por faturista, com filtros" },
     ],
   });
   v1.get("/docs", swaggerUI({ url: `${API_V1}/openapi.json` }));

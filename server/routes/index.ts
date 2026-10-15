@@ -1,6 +1,7 @@
 import type { Router } from "../lib/router";
 import auditEvents from "./auditEvents";
 import colunas from "./colunas";
+import dashboard from "./dashboard";
 import faturistas from "./faturistas";
 import importacoes from "./importacoes";
 import me from "./me";
@@ -28,4 +29,5 @@ export const modules: Array<[string, Router]> = [
   ["/operacoes", operacoes],
   ["/operacaoStats", operacaoStats],
   ["/importacoes", importacoes],
+  ["/dashboard", dashboard],
 ];

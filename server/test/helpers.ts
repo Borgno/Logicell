@@ -3,6 +3,7 @@ import { prisma } from "../db/client";
 import type { Prisma } from "../db/generated/client";
 import { resetLoginThrottle } from "../services/auth/loginThrottle.service";
 import { invalidateColunas } from "../services/colunas/colunas.service";
+import { clearDashboardCache } from "../services/dashboard/dashboard.service";
 import { invalidatePastas } from "../services/pastas/pastas.service";
 import { invalidatePrazos } from "../services/prazos/prazos.service";
 import { invalidateRegras } from "../services/regras/regras.service";
@@ -26,6 +27,7 @@ export async function setupApp() {
   invalidateRegras();
   invalidatePrazos();
   invalidateColunas();
+  clearDashboardCache();
   resetLoginThrottle();
   seedHash ??= hashPassword(SEED_PASSWORD);
   const passwordHash = await seedHash;

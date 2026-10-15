@@ -3,6 +3,7 @@ import type { Prisma } from "../../db/generated/client";
 import { ApiProblem } from "../../lib/problem";
 import { recordAudit } from "../audit/audit.service";
 import { guard, KINDS, notFound } from "../cadastros/guard";
+import { invalidateOpcoes } from "../dashboard/dashboard.service";
 import { invalidateRegras } from "../regras/regras.service";
 import { findUserById, type RoleCode } from "../users/users.service";
 
@@ -38,6 +39,8 @@ let cache: Promise<PublicPasta[]> | null = null;
 
 export function invalidatePastas() {
   cache = null;
+  // As opções do dashboard trazem as pastas e os faturistas delas.
+  invalidateOpcoes();
 }
 
 function allPastas() {

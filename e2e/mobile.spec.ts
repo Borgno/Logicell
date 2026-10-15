@@ -11,7 +11,7 @@ test("no celular, a sidebar vira barra inferior", async ({ page }) => {
 
   await bottomNav.getByRole("link", { name: "Usuários" }).click();
   await expect(page).toHaveURL("/users");
-  await expect(page.getByRole("heading", { name: "Usuários" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Usuários", level: 1 })).toBeVisible();
 
   await bottomNav.getByRole("button", { name: /Menu do perfil/ }).click();
   await page.getByRole("menuitem", { name: "Sair" }).click();
