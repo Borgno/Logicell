@@ -62,8 +62,12 @@ async function send<T>(method: string, path: string, { body, signal }: RequestOp
     res = await fetch(`/api/v1${path}`, {
       method,
       credentials: "same-origin",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // FormData (upload de arquivo) vai como está: o navegador monta o multipart e o boundary.
+      headers:
+        body === undefined || body instanceof FormData
+          ? undefined
+          : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
       signal,
     });
   } catch (error) {

@@ -63,6 +63,7 @@ export function createApp({
       { name: "Automações", description: "Regras que mandam a operação importada para uma pasta" },
       { name: "Prazos", description: "Prazo de emissão padrão e por cliente" },
       { name: "Operações", description: "Grid de operações" },
+      { name: "Importações", description: "Planilha do ERP, histórico e desfazer" },
     ],
   });
   v1.get("/docs", swaggerUI({ url: `${API_V1}/openapi.json` }));

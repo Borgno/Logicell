@@ -40,6 +40,7 @@
     "isbot": "^5",
     "pg": "^8.20.0",
     "prisma": "^7.10.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.6.5"
   },
   "devDependencies": {

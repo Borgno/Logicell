@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  FileSpreadsheet,
   Folders,
   Inbox,
   LayoutDashboard,
@@ -29,6 +30,7 @@ export const NAVIGATION: NavSection[] = [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
       { to: "/caixa-de-entrada", label: "Caixa de Entrada", icon: Inbox },
       { to: "/pastas", label: "Pastas", icon: Folders, end: true },
+      { to: "/importacoes", label: "Importações", icon: FileSpreadsheet },
     ],
   },
   {

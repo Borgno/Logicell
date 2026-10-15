@@ -8,6 +8,7 @@ export default [
   layout("routes/app-layout.tsx", [
     index("routes/dashboard/route.tsx"),
     route("caixa-de-entrada", "routes/operacoes/route.tsx"),
+    route("importacoes", "routes/importacoes/route.tsx"),
     route("pastas", "routes/pastas/route.tsx"),
     route("pastas/:id", "routes/pastas/pasta.tsx"),
     route("automacoes", "routes/automacoes/route.tsx"),

@@ -27,7 +27,9 @@ test("filtra a Caixa de Entrada e move as operações para uma pasta", async ({ 
   await expect(page.getByText("Nenhuma operação com esses filtros.")).toBeVisible();
 
   await page.getByRole("button", { name: "Limpar filtros" }).click();
-  await expect(page.getByText("1 operação", { exact: true })).toBeVisible();
+  // Sem filtro, a 9003 continua na Caixa de Entrada e as movidas não.
+  await expect(page.getByRole("gridcell", { name: "9003" })).toBeVisible();
+  await expect(page.getByRole("gridcell", { name: "9001" })).toHaveCount(0);
 
   // Placa duplicada pelo filtro na URL: o link guarda a visão.
   await page.goto("/caixa-de-entrada?filtro=placa:duplicados:");

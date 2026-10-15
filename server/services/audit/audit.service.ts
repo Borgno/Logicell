@@ -14,9 +14,11 @@ export type AuditAction =
   | "pasta.updated"
   | "pasta.deleted"
   | "regra.created"
-  | "regra.deleted";
+  | "regra.deleted"
+  | "importacao.created"
+  | "importacao.restored";
 
-export type AuditTargetType = "user" | "pasta";
+export type AuditTargetType = "user" | "pasta" | "importacao";
 
 type AuditInput = {
   actorId: string | null;
