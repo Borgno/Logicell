@@ -57,6 +57,8 @@ bun run format:check  # prettier --check (roda no CI)
 bun run test          # vitest em watch
 bun run test:run      # vitest uma vez (roda no CI)
 bun run test:e2e      # playwright contra o build de produção, porta 4173 (roda no CI)
+bun run db:exportar-supabase -- <pasta>  # lê do Supabase (SUPABASE_URL); roda por uma pessoa
+bun run db:importar-supabase -- <pasta>  # grava no Postgres próprio vazio (DATABASE_URL) e confere
 ```
 
 Gates antes de dar uma tarefa por concluída: `lint`, `lint:api`, `format:check`, `typecheck`,
@@ -89,8 +91,8 @@ Gates antes de dar uma tarefa por concluída: `lint`, `lint:api`, `format:check`
 
 ### Dados e sessão
 
-- Banco: o Postgres do Supabase (Brasil), acessado pelo Prisma 7 com `@prisma/adapter-pg`, client
-  em `server/db/`. Só `server/services/` importa o client. Em dev, o Postgres local do
+- Banco: Postgres 17 próprio, no serviço `db` do `docker-compose.yml`, na mesma VPS do app, acessado
+  pelo Prisma 7 com `@prisma/adapter-pg`, client em `server/db/`. Só `server/services/` importa o client. Em dev, o Postgres local do
   `docker-compose.dev.yml`; usuários de teste com `bun run db:seed`.
 - Usuários na tabela `users`, fora do GoTrue, com o mesmo id e o mesmo hash bcrypt de `auth.users`.
   Usuário não é apagado, só desativado. Audit em `audit_events`.
@@ -160,27 +162,32 @@ Gates antes de dar uma tarefa por concluída: `lint`, `lint:api`, `format:check`
 Uma violação aparece no lint como `ARCHITECTURE_VIOLATION`. Não contorne com `eslint-disable`: mova o
 código para a camada certa.
 
-## Latência
+## Idas ao banco
 
-A VPS fica na Europa e o banco no Brasil: cada ida ao banco custa uns 200 ms. Antes de escrever ou
-mudar uma rota, conte as idas. Consulta independente sai em `Promise.all`. O que muda pouco
-(usuários, pastas, regras, prazos, ordem de colunas) fica em cache no processo e é invalidado na
-escrita. Nenhuma tela pode ficar mais lenta que no sistema antigo.
+O banco fica no mesmo compose do app, mas a regra continua: conte as idas antes de escrever ou mudar
+uma rota. Consulta independente sai em `Promise.all`. O que muda pouco (usuários, pastas, regras,
+prazos, status, ordem de colunas) fica em cache no processo e é invalidado na escrita. Os caches e o
+retry de leitura nasceram quando o banco estava no Brasil e a VPS na Europa; saem só depois de medir.
+Nenhuma tela pode ficar mais lenta que no sistema antigo.
 
 ## Banco de produção
 
-- Nunca rode `prisma migrate dev`, `prisma migrate reset` ou `prisma db push` com uma URL do
-  Supabase. Eles pedem reset por divergência, e o banco é o de produção.
-- O `.env` de dev nunca aponta para o Supabase.
+- Até o corte do E9, produção é o Postgres do Supabase, com o sistema antigo. Dele só se lê, pelo
+  `db:exportar-supabase`. O `server/env.ts` recusa URL do Supabase fora de produção.
+- Nunca rode `prisma migrate dev`, `prisma migrate reset` ou `prisma db push` contra produção. Em
+  produção só roda `prisma migrate deploy`.
+- O `.env` de dev nunca aponta para produção.
 - SQL contra produção, mesmo de leitura, é rodado por uma pessoa, com a query escrita antes.
-- Migration aplicada em produção não é editada. Migration nova é aditiva.
+- Migration aplicada em produção não é editada. Migration nova é aditiva, e não pode falhar no banco
+  que vem do Supabase (ver `20261019120000_status_operacao`).
 
 ## Ler o código do sistema antigo
 
 Os arquivos do sistema antigo não estão no working tree da branch `rebuild`. Leia com
 `git show main:<caminho>` (por exemplo `git show main:server/services/operacao-import.server.ts`) e
 liste com `git ls-tree -r --name-only main`. Correção que entrar em `main` durante o rebuild
-aparece em `git log d581bb1..main`.
+aparece em `git log d581bb1..main`. Produção roda a `origin/temp` desde 2026-10-13, com
+commits que não estão na `main`: confira também `git log d581bb1..origin/temp`.
 
 ## Como trabalhar
 

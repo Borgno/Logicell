@@ -16,6 +16,7 @@ import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useDebouncedValue } from "~/hooks/useDebouncedValue";
 import { ApiError } from "~/lib/api";
+import { statusQuery } from "~/lib/status";
 import { cn } from "~/lib/utils";
 import { CAMPOS_EM_LOTE, formatarCelula, formatarMoeda, ordenarColunas } from "../_lib/colunas";
 import {
@@ -34,6 +35,7 @@ import { useCellSelection } from "../_hooks/useCellSelection";
 import { filtrosParaApi, useGridParams } from "../_hooks/useGridParams";
 import { ColumnFilter } from "./ColumnFilter";
 import { MoverMenu } from "./MoverMenu";
+import { StatusEditor } from "./StatusEditor";
 import "./grid.css";
 
 const WIDTHS_KEY = "operacoes-column-widths";
@@ -87,6 +89,12 @@ export function OperacoesGrid({ escopo, nome }: OperacoesGridProps) {
   const { params, setSort, setSearch, setFiltro, clearFiltros } = useGridParams();
   const list = useInfiniteQuery(operacoesQuery(escopo, params));
   const { data: ordem } = useQuery(ordemColunasQuery);
+  const { data: statusLista } = useQuery(statusQuery);
+  // Opções do editor de status. undefined até a lista chegar: a marca de fora da lista espera por ela.
+  const statusOpcoes = useMemo(
+    () => statusLista?.filter((status) => status.ativo).map((status) => status.nome),
+    [statusLista],
+  );
   const salvarOrdem = useSalvarOrdemColunas();
   const editar = useEditarCelula();
   const atualizar = useAtualizarEmLote();
@@ -254,23 +262,37 @@ export function OperacoesGrid({ escopo, nome }: OperacoesGridProps) {
           />
         </div>
       ),
-      renderEditCell: ({ row, onRowChange, onClose }) => (
-        <input
-          autoFocus
-          aria-label={coluna.label}
-          className="h-full w-full border-2 border-primary bg-card px-2 text-xs outline-none"
-          defaultValue={formatarCelula(coluna, row[coluna.key])}
-          onChange={(event) => onRowChange({ ...row, [coluna.key]: event.target.value })}
-          onBlur={() => onClose(true)}
-        />
-      ),
+      renderEditCell: ({ row, onRowChange, onClose }) =>
+        coluna.key === "status" ? (
+          <StatusEditor
+            value={typeof row.status === "string" ? row.status : ""}
+            opcoes={statusOpcoes ?? []}
+            onSelect={(status) => onRowChange({ ...row, [coluna.key]: status }, true)}
+            onClose={() => onClose(false)}
+          />
+        ) : (
+          <input
+            autoFocus
+            aria-label={coluna.label}
+            className="h-full w-full border-2 border-primary bg-card px-2 text-xs outline-none"
+            defaultValue={formatarCelula(coluna, row[coluna.key])}
+            onChange={(event) => onRowChange({ ...row, [coluna.key]: event.target.value })}
+            onBlur={() => onClose(true)}
+          />
+        ),
       renderCell: ({ row, rowIdx }) => {
         const marca =
           coluna.key === "placa" && row.placaDuplicada
             ? { className: "bg-warning/20", title: "Placa duplicada nesta pasta" }
             : coluna.key === "dataEmissao" && row.emissaoAntiga
               ? { className: "bg-destructive/15", title: "Emissão antiga (fora do prazo)" }
-              : null;
+              : coluna.key === "status" &&
+                  statusOpcoes &&
+                  typeof row.status === "string" &&
+                  row.status !== "" &&
+                  !statusOpcoes.includes(row.status)
+                ? { className: "bg-warning/20", title: "Status fora da lista: escolha uma opção" }
+                : null;
         return (
           <div
             className="relative flex h-full w-full items-center select-none"
@@ -324,7 +346,7 @@ export function OperacoesGrid({ escopo, nome }: OperacoesGridProps) {
       },
       ...dataColumns,
     ];
-  }, [colunas, widths, meta, params.filtros, setFiltro, cells]);
+  }, [colunas, widths, meta, params.filtros, setFiltro, cells, statusOpcoes]);
 
   function onColumnsReorder(sourceKey: string, targetKey: string) {
     const keys = colunas.map((coluna) => coluna.key);

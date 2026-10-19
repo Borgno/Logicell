@@ -26,7 +26,9 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:new": "prisma migrate dev --create-only",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:exportar-supabase": "bash server/scripts/copiarSupabase/exportar.sh",
+    "db:importar-supabase": "bash server/scripts/copiarSupabase/importar.sh"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",

@@ -7,6 +7,7 @@ import { clearDashboardCache } from "../services/dashboard/dashboard.service";
 import { invalidatePastas } from "../services/pastas/pastas.service";
 import { invalidatePrazos } from "../services/prazos/prazos.service";
 import { invalidateRegras } from "../services/regras/regras.service";
+import { invalidateStatus } from "../services/status/status.service";
 import { hashPassword } from "../services/auth/password.service";
 import { clearUserCache, forgetCachedUser } from "../services/users/users.service";
 import { resetDatabase } from "./db";
@@ -26,6 +27,7 @@ export async function setupApp() {
   invalidatePastas();
   invalidateRegras();
   invalidatePrazos();
+  invalidateStatus();
   invalidateColunas();
   clearDashboardCache();
   resetLoginThrottle();

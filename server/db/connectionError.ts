@@ -17,7 +17,7 @@ function postgresCode(meta: unknown): string | undefined {
   return typeof cause.originalCode === "string" ? cause.originalCode : undefined;
 }
 
-// O pooler do Supabase derruba conexão sem avisar. Com o adapter do pg a queda chega de três jeitos:
+// Conexão que cai (restart do db, rede) chega de três jeitos com o adapter do pg:
 // código P de conexão; P2010 (query crua) ou P2039 (operação de modelo) com 57P0x no meta; ou um
 // Error puro do pg quando o socket fecha no meio da query, sem código nenhum.
 export function isConnectionError(error: unknown): boolean {

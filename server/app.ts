@@ -62,6 +62,7 @@ export function createApp({
       { name: "Pastas", description: "Pastas de operações e o faturista de cada uma" },
       { name: "Automações", description: "Regras que mandam a operação importada para uma pasta" },
       { name: "Prazos", description: "Prazo de emissão padrão e por cliente" },
+      { name: "Status", description: "Lista fechada de status das operações" },
       { name: "Operações", description: "Grid de operações" },
       { name: "Importações", description: "Planilha do ERP, histórico e desfazer" },
       { name: "Dashboard", description: "Operações por faturista, com filtros" },

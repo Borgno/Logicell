@@ -167,6 +167,17 @@ model PrazoCliente {
   updatedAt DateTime @updatedAt
 }
 
+// Lista fechada do campo status de Operacao. Operacao.status continua texto, sem FK: a trava é do
+// service, e status gravado antes da lista (ou de opção desativada) segue como veio.
+model StatusOperacao {
+  id        Int      @id @default(autoincrement())
+  nome      String   @unique
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Configurações globais singleton (id = 1, padrão usado por OrdemColunas).
 model Configuracao {
   id               Int      @id @default(1)

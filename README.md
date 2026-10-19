@@ -8,9 +8,9 @@ faturista tem na mão.
 ## Estado atual
 
 O app está sendo reconstruído sobre o template da organização (`Borgno/ModuloDefault`). A versão em
-produção é a da branch `main`; nesta branch, a regra de negócio volta em etapas, no formato do
-template. O banco de produção continua o mesmo. Por enquanto o app roda com os domínios do template
-e os dados em memória.
+produção é a da branch `main`, sobre o Postgres do Supabase; nesta branch, a regra de negócio volta
+em etapas, no formato do template, sobre um Postgres próprio que sobe no mesmo compose do app. No
+corte, o dado sai do Supabase pelo `db:exportar-supabase` e entra pelo `db:importar-supabase`.
 
 ## Stack
 
@@ -90,8 +90,8 @@ docs/                 # patterns e design system
 A arquitetura em uma frase de cada lado: no servidor, **só `services/` acessa dados**; no front, **só
 `app/lib/api.ts` fala com o servidor**. O ESLint barra as duas violações com `ARCHITECTURE_VIOLATION`.
 
-A VPS fica na Europa e o banco no Brasil, a uns 200 ms por ida. Toda rota tem as idas ao banco
-contadas, e o que muda pouco fica em cache no processo.
+O Postgres de produção sobe no mesmo compose do app, na mesma VPS. O que muda pouco fica em cache no
+processo, e consulta independente sai em paralelo.
 
 ## Documentação
 

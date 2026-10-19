@@ -34,13 +34,20 @@ export default function AutomacoesPage() {
   const [search, setSearch] = useState("");
   const [color, setColor] = useState<string | null>(null);
 
+  // A pasta entra pelo nome ou pelo valor de qualquer regra; as regras que bateram aparecem no card,
+  // para mostrar por que ela está na lista.
   const filtered = useMemo(() => {
     const query = normalizeSearch(search);
-    return (pastas ?? []).filter(
-      (pasta) =>
-        (!query || normalizeSearch(pasta.nome).includes(query)) &&
-        (!color || (pasta.cor ?? DEFAULT_PASTA_COLOR) === color),
-    );
+    return (pastas ?? []).flatMap((pasta) => {
+      if (color && (pasta.cor ?? DEFAULT_PASTA_COLOR) !== color) return [];
+      if (!query || normalizeSearch(pasta.nome).includes(query)) {
+        return [{ pasta, regrasEncontradas: [] as string[] }];
+      }
+      const regrasEncontradas = pasta.regras
+        .map((regra) => regra.valor)
+        .filter((valor) => normalizeSearch(valor).includes(query));
+      return regrasEncontradas.length > 0 ? [{ pasta, regrasEncontradas }] : [];
+    });
   }, [pastas, search, color]);
   const selected = pastas?.find((pasta) => String(pasta.id) === searchParams.get("pastaId"));
 
@@ -59,8 +66,8 @@ export default function AutomacoesPage() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar pasta"
-            aria-label="Buscar pasta"
+            placeholder="Buscar pasta, agência, cliente ou produto"
+            aria-label="Buscar pasta, agência, cliente ou produto"
             className="pl-9"
           />
         </div>
@@ -85,7 +92,7 @@ export default function AutomacoesPage() {
         />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Pastas">
-          {filtered.map((pasta) => {
+          {filtered.map(({ pasta, regrasEncontradas }) => {
             const color = pasta.cor ?? DEFAULT_PASTA_COLOR;
             const conflitos = pasta.regras.filter((regra) => regra.conflito).length;
             return (
@@ -110,6 +117,15 @@ export default function AutomacoesPage() {
                       </span>
                     )}
                   </span>
+                  {regrasEncontradas.length > 0 && (
+                    <span
+                      className="truncate text-xs text-muted-foreground"
+                      title={regrasEncontradas.join(", ")}
+                    >
+                      {regrasEncontradas.slice(0, 2).join(", ")}
+                      {regrasEncontradas.length > 2 && ` +${regrasEncontradas.length - 2}`}
+                    </span>
+                  )}
                 </button>
               </li>
             );

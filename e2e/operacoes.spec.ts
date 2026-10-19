@@ -55,14 +55,15 @@ test("edita uma célula e a planilha sai com as linhas filtradas", async ({ page
       (els) => els.findIndex((el) => el.textContent?.trim().toUpperCase().startsWith("STATUS")) + 1,
     );
   const status = page.getByRole("row", { name: /9003/ }).locator(`[aria-colindex="${statusCol}"]`);
+  // Status é lista fechada: o editor abre com busca, e a opção escolhida grava.
   await status.dblclick();
-  await page.keyboard.type("CONFERIDO");
-  await page.keyboard.press("Enter");
-  await expect(status).toHaveText("CONFERIDO");
+  await page.getByLabel("Buscar status").fill("encerr");
+  await page.getByRole("option", { name: "ENCERRADO" }).click();
+  await expect(status).toHaveText("ENCERRADO");
   await page.reload();
   await expect(
     page.getByRole("row", { name: /9003/ }).locator(`[aria-colindex="${statusCol}"]`),
-  ).toHaveText("CONFERIDO");
+  ).toHaveText("ENCERRADO");
 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Exportar" }).click();
@@ -88,9 +89,9 @@ test("arrastar a alça preenche o status nas linhas de baixo, e Ctrl+C copia as 
     page.locator(`[aria-rowindex="${row + 1}"] [aria-colindex="${statusCol}"]`);
 
   await cell(1).dblclick();
-  await page.keyboard.type("EM ANÁLISE");
-  await page.keyboard.press("Enter");
-  await expect(cell(1)).toHaveText("EM ANÁLISE");
+  await page.getByLabel("Buscar status").fill("tratativa");
+  await page.getByRole("option", { name: "EM TRATATIVA" }).click();
+  await expect(cell(1)).toHaveText("EM TRATATIVA");
 
   // Seleciona a célula e arrasta a alça do canto até a linha de baixo.
   await cell(1).click();
@@ -101,9 +102,9 @@ test("arrastar a alça preenche o status nas linhas de baixo, e Ctrl+C copia as 
   await page.mouse.down();
   await page.mouse.move(target.x + 20, target.y + target.height / 2, { steps: 5 });
   await page.mouse.up();
-  await expect(cell(2)).toHaveText("EM ANÁLISE");
+  await expect(cell(2)).toHaveText("EM TRATATIVA");
   await page.reload();
-  await expect(cell(2)).toHaveText("EM ANÁLISE");
+  await expect(cell(2)).toHaveText("EM TRATATIVA");
 
   // Arrastar de uma célula a outra seleciona o retângulo; Ctrl+C copia separado por tabulação.
   await cell(1).hover();
@@ -111,5 +112,7 @@ test("arrastar a alça preenche o status nas linhas de baixo, e Ctrl+C copia as 
   await cell(2).hover();
   await page.mouse.up();
   await page.keyboard.press("ControlOrMeta+c");
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("EM ANÁLISE\nEM ANÁLISE");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "EM TRATATIVA\nEM TRATATIVA",
+  );
 });

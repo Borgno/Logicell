@@ -16,10 +16,10 @@ const schema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3001),
   // Chave do HMAC que assina o cookie de sessão. Trocar invalida todas as sessões abertas.
   SESSION_SECRET: z.string().min(32, "use ao menos 32 caracteres"),
-  // Postgres. Em dev, o do docker-compose.dev.yml; em produção, o pooler do Supabase em modo sessão.
+  // Postgres. Em dev, o do docker-compose.dev.yml; em produção, o serviço db do docker-compose.yml.
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
-  // Conexões do pool por processo. O pooler em modo sessão limita o total de clientes (15 no plano
-  // atual): produção fica com 10, e fora dela 2, para não disputar slot com o container.
+  // Conexões do pool por processo: 10 em produção, 2 fora dela (dev, teste e E2E rodam juntos no
+  // mesmo Postgres local).
   DB_CONNECTION_LIMIT: z.coerce.number().int().positive().optional(),
 });
 
@@ -31,7 +31,7 @@ if (!parsed.success) {
 }
 
 // Dev e teste nunca falam com o banco de produção: um `bun run dev` escreveria nele, e um
-// `prisma migrate dev` pediria para resetá-lo.
+// `prisma migrate dev` pediria para resetá-lo. O Supabase é produção até o corte do E9.
 if (
   parsed.data.NODE_ENV !== "production" &&
   /\.supabase\.(com|co)$/.test(new URL(parsed.data.DATABASE_URL).hostname)

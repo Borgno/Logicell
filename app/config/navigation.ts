@@ -4,6 +4,7 @@ import {
   Folders,
   Inbox,
   LayoutDashboard,
+  ListChecks,
   Users,
   Zap,
   type LucideIcon,
@@ -43,6 +44,7 @@ export const NAVIGATION: NavSection[] = [
         icon: CalendarClock,
         roles: ["admin", "gestor"],
       },
+      { to: "/status", label: "Status", icon: ListChecks, roles: ["admin", "gestor"] },
     ],
   },
   {

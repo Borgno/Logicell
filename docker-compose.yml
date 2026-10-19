@@ -1,4 +1,5 @@
-# Deploy no Dokploy: serviço do tipo Docker Compose apontando para este arquivo.
+# Deploy no Dokploy: serviço do tipo Docker Compose apontando para este arquivo. App e Postgres sobem
+# juntos. Na aba Environment do Dokploy vão só POSTGRES_PASSWORD e SESSION_SECRET.
 #
 # Sem labels de Traefik: o domínio é cadastrado na aba Domains do Dokploy, que injeta os labels no
 # deploy. Sem `ports:` publicadas: o proxy alcança o container pela rede compartilhada, e publicar a
@@ -12,10 +13,83 @@ services:
     environment:
       - PORT=${PORT:-3000}
       - NODE_ENV=production
-      - SESSION_SECRET=${SESSION_SECRET}
+      # Assina o cookie de sessão. Trocar derruba todas as sessões abertas.
+      - SESSION_SECRET=${SESSION_SECRET:?defina SESSION_SECRET}
+      # O banco é o serviço db abaixo, pela rede interna do compose.
+      - DATABASE_URL=postgresql://logicell:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@db:5432/logicell?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    # dokploy-network para o Traefik rotear o domínio; default para falar com o db.
+    networks:
+      - default
+      - dokploy-network
+
+  db:
+    # Mesma versão maior do Supabase de onde o dado vem (17.6) e do docker-compose.dev.yml.
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_USER=logicell
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      - POSTGRES_DB=logicell
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logicell -d logicell"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    # Só na rede do compose: nada fora dele alcança o banco.
+    networks:
+      - default
+
+  # Backup diário do banco, às 03:00 de Brasília, no volume postgres_backups, por 14 dias. Cada dump é
+  # conferido com pg_restore --list; dump ilegível sai e o erro fica no log. A cópia para fora da VPS
+  # ainda não existe: depende do destino escolhido.
+  # Restaurar: docker compose exec backup sh -c 'pg_restore -d "$$PGDATABASE" --clean --if-exists /backups/<arquivo>'
+  backup:
+    image: postgres:17-alpine
+    environment:
+      - PGHOST=db
+      - PGUSER=logicell
+      - PGPASSWORD=${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      - PGDATABASE=logicell
+      - TZ=America/Sao_Paulo
+      - BACKUP_HORA=03:00
+      - BACKUP_DIAS=14
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          agora=$$(date +%s)
+          alvo=$$(date -d "$$(date +%Y-%m-%d) $$BACKUP_HORA" +%s)
+          [ "$$alvo" -le "$$agora" ] && alvo=$$((alvo + 86400))
+          sleep $$((alvo - agora))
+          arquivo=/backups/logicell-$$(date +%Y-%m-%d-%H%M).dump
+          if pg_dump --format=custom --file="$$arquivo.tmp" && pg_restore --list "$$arquivo.tmp" > /dev/null; then
+            mv "$$arquivo.tmp" "$$arquivo"
+            echo "[backup] $$arquivo $$(du -h "$$arquivo" | cut -f1)"
+          else
+            rm -f "$$arquivo.tmp"
+            echo "[backup] ERRO: dump de $$(date) falhou" >&2
+          fi
+          find /backups -name 'logicell-*.dump' -mtime +$$BACKUP_DIAS -delete
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - postgres_backups:/backups
     restart: unless-stopped
     networks:
-      - dokploy-network
+      - default
+
+volumes:
+  postgres_data:
+  postgres_backups:
 
 networks:
   dokploy-network:

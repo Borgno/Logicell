@@ -11,6 +11,7 @@ import pastas from "./pastas";
 import prazos from "./prazos";
 import regras from "./regras";
 import sessions from "./sessions";
+import status from "./status";
 import users from "./users";
 import userStats from "./userStats";
 
@@ -25,6 +26,7 @@ export const modules: Array<[string, Router]> = [
   ["/faturistas", faturistas],
   ["/regras", regras],
   ["/prazos", prazos],
+  ["/status", status],
   ["/colunas", colunas],
   ["/operacoes", operacoes],
   ["/operacaoStats", operacaoStats],

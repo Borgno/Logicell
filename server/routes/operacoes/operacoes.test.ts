@@ -149,6 +149,7 @@ describe("GET /operacoes", () => {
 
 describe("PATCH /operacoes/{id}", () => {
   it("grava texto, data e número convertidos, e status grava a data do status", async () => {
+    await prisma.statusOperacao.create({ data: { nome: "FATURADO" } });
     const { id } = await prisma.operacao.create({ data: op() });
     const patch = (campo: string, valor: string | null) =>
       send("PATCH", `/${id}`, { campo, valor });
@@ -166,7 +167,24 @@ describe("PATCH /operacoes/{id}", () => {
     expect((await patch("total", "muito")).status).toBe(422);
     expect((await patch("cte", " ")).status).toBe(422);
     expect((await patch("pastaId", "1")).status).toBe(422);
-    expect((await send("PATCH", "/999999", { campo: "status", valor: "X" })).status).toBe(404);
+    expect((await send("PATCH", "/999999", { campo: "status", valor: "FATURADO" })).status).toBe(
+      404,
+    );
+  });
+
+  it("status só aceita opção ativa da lista, grava o nome cadastrado e vazio limpa", async () => {
+    await prisma.statusOperacao.createMany({
+      data: [{ nome: "EM TRATATIVA" }, { nome: "ANTIGO", ativo: false }],
+    });
+    const { id } = await prisma.operacao.create({ data: op() });
+    const patch = (valor: string | null) => send("PATCH", `/${id}`, { campo: "status", valor });
+
+    expect(await (await patch(" em tratativa ")).json()).toMatchObject({ status: "EM TRATATIVA" });
+    const fora = await patch("QUALQUER");
+    expect(fora.status).toBe(422);
+    expect(await fora.json()).toMatchObject({ errors: [{ field: "valor" }] });
+    expect((await patch("ANTIGO")).status).toBe(422);
+    expect(await (await patch("")).json()).toMatchObject({ status: null });
   });
 });
 
@@ -209,6 +227,7 @@ describe("lote", () => {
   });
 
   it("troca o status em lote só onde muda, e exclui", async () => {
+    await prisma.statusOperacao.create({ data: { nome: "OK" } });
     const ids = await idsDe("1", "2");
     await send("PATCH", "", { selecao: { ids }, campo: "status", valor: "OK" });
     const rows = await prisma.operacao.findMany({ where: { id: { in: ids } } });
@@ -216,6 +235,9 @@ describe("lote", () => {
     expect((await send("PATCH", "", { selecao: { ids }, campo: "cte", valor: "X" })).status).toBe(
       422,
     );
+    const fora = await send("PATCH", "", { selecao: { ids }, campo: "status", valor: "OUTRO" });
+    expect(fora.status).toBe(422);
+    expect(await prisma.operacao.count({ where: { status: "OK" } })).toBe(2);
 
     const del = await send("DELETE", "", { selecao: { ids } });
     expect(await del.json()).toEqual({ afetadas: 2 });

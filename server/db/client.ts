@@ -19,12 +19,12 @@ const READ_OPERATIONS = new Set([
 ]);
 
 // O pool é do pg, não do Prisma: o Prisma 7 não aplica connection_limit nem pool_timeout da URL.
-// - max: o limite de clientes do pooler do Supabase vale por processo (ver DB_CONNECTION_LIMIT).
+// - max: conexões por processo (ver DB_CONNECTION_LIMIT).
 // - connectionTimeoutMillis: o padrão do pg é esperar para sempre por uma conexão livre.
-// - idleTimeoutMillis: o padrão de 10 s fecha a conexão a cada pausa, e a próxima request paga o
-//   handshake TLS até o Brasil (~200 ms por ida). 240 s fica abaixo dos 350 s de idle do balanceador
-//   TCP da AWS, que derruba sem avisar.
-// - keepAlive: keepalive TCP a cada minuto (o padrão do Linux é 2 h).
+// - idleTimeoutMillis: o padrão de 10 s fecha a conexão a cada pausa; 240 s mantém o pool aberto entre
+//   uma tela e outra.
+// - keepAlive: keepalive TCP a cada minuto (o padrão do Linux é 2 h), para conexão morta aparecer
+//   antes da próxima query.
 const adapter = new PrismaPg({
   connectionString: env.DATABASE_URL,
   max: env.DB_CONNECTION_LIMIT,
@@ -40,8 +40,8 @@ const base = new PrismaClient({
 });
 
 // Client único do processo. Só server/services/ importa este arquivo (regra do ESLint).
-// A primeira leitura depois de o pooler derrubar a conexão falha; ela é refeita uma vez, 250 ms
-// depois, já numa conexão nova do pool.
+// A primeira leitura depois de uma conexão cair (o db reiniciou, por exemplo) falha; ela é refeita
+// uma vez, 250 ms depois, já numa conexão nova do pool.
 export const prisma = base.$extends({
   query: {
     async $allOperations({ model, operation, args, query }) {
@@ -60,13 +60,3 @@ export const prisma = base.$extends({
 // Client de dentro de um $transaction. O Prisma.TransactionClient do gerado é o do client sem a
 // extensão de retry, e não aceita o tx deste.
 export type TransactionClient = Omit<typeof prisma, ITXClientDenyList>;
-
-// Em produção, um SELECT 1 por minuto mantém uma conexão quente. O keepalive TCP reinicia o idle do
-// balanceador, mas não está provado que o Supavisor mantém a sessão ociosa; fica até alguém medir.
-if (env.NODE_ENV === "production") {
-  setInterval(() => {
-    base.$queryRaw`SELECT 1`.catch((error: unknown) => {
-      console.warn("[db] keep-alive falhou", error);
-    });
-  }, 60_000).unref();
-}

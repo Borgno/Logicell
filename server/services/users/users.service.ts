@@ -48,7 +48,7 @@ export function normalizeEmail(email: string) {
 
 // --- Cache por id ------------------------------------------------------------------------------
 
-// O requireAuth lê o usuário em toda request, e o banco fica a ~200 ms do servidor. O cache guarda o
+// O requireAuth lê o usuário em toda request: o cache poupa essa ida ao banco. Ele guarda o
 // registro por id; toda escrita em usuário passa por este arquivo e troca a entrada. O TTL só cobre
 // mudança feita fora do app (SQL direto no banco). Vale para um processo só, que é o deploy de hoje.
 const CACHE_TTL_MS = 10 * 60 * 1000;

@@ -16,8 +16,7 @@ export default defineConfig({
   },
   datasource: {
     // process.env e não env(): o env() lança erro sem a variável em todo comando, inclusive no
-    // `prisma generate` do build, que não conecta no banco. Em produção é o pooler do Supabase em
-    // modo sessão (porta 5432), que aceita migration; o modo transação (6543) não serve.
+    // `prisma generate` do build, que não conecta no banco. Em produção é o serviço db do compose.
     url: process.env.DATABASE_URL ?? "",
   },
 });

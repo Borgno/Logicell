@@ -6,6 +6,7 @@ import { recordAudit } from "../audit/audit.service";
 import { invalidatePastas } from "../pastas/pastas.service";
 import { invalidateRegras, mapasRoteamento } from "../regras/regras.service";
 import { rotear } from "../regras/roteamento";
+import { normalizadorDeStatus } from "../status/status.service";
 import { lerPlanilha, type OperacaoImportada } from "./planilha";
 
 // Importação da planilha do ERP. Antes de cada importação, o estado inteiro (pastas, regras e
@@ -83,8 +84,17 @@ export async function importarPlanilha(input: {
   const { operacoes, totalLido } = await lerPlanilha(input.buffer);
   const hashArquivo = createHash("sha256").update(input.buffer).digest("hex");
 
-  const [mapas] = await Promise.all([mapasRoteamento(), fotografar()]);
-  const linhas = operacoes.map((op) => ({ ...op, pastaId: rotear(op, mapas) }));
+  const [mapas, , statusDaLista] = await Promise.all([
+    mapasRoteamento(),
+    fotografar(),
+    normalizadorDeStatus(),
+  ]);
+  // Status que bate com a lista vira o nome cadastrado; o que não bate fica como veio, e a grid marca.
+  const linhas = operacoes.map((op) => ({
+    ...op,
+    status: statusDaLista(op.status),
+    pastaId: rotear(op, mapas),
+  }));
 
   // Criar a importação, apagar e inserir valem juntos: uma falha no meio não deixa o sistema sem as
   // operações apagadas e sem as novas.

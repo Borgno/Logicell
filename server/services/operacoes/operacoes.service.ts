@@ -2,6 +2,7 @@ import { prisma } from "../../db/client";
 import { Prisma } from "../../db/generated/client";
 import { ApiProblem } from "../../lib/problem";
 import { KINDS, notFound } from "../cadastros/guard";
+import { validarStatus } from "../status/status.service";
 import { CAMPOS_EM_LOTE, COLUNAS, colunaPorKey } from "./colunas";
 import {
   EMISSAO_ANTIGA,
@@ -179,7 +180,11 @@ function converter(key: string, valor: string | null) {
 
 export async function updateOperacao(id: number, input: { campo: string; valor: string | null }) {
   const coluna = colunaPorKey(input.campo)!;
-  const valor = converter(input.campo, input.valor);
+  // Status só aceita uma opção ativa da lista, gravada com o nome cadastrado.
+  const valor =
+    coluna.key === "status"
+      ? await validarStatus(input.valor)
+      : converter(input.campo, input.valor);
   // Status grava a data do status só quando muda de fato.
   const set =
     coluna.key === "status"
@@ -219,7 +224,7 @@ export async function updateOperacoes(selecao: Selecao, alteracao: Alteracao) {
     if (alteracao.pastaId !== null) await assertEscopo(alteracao.pastaId);
     set = Prisma.sql`"pastaId" = ${alteracao.pastaId}`;
   } else if (alteracao.campo === "status") {
-    const valor = alteracao.valor?.trim() || null;
+    const valor = await validarStatus(alteracao.valor);
     set = Prisma.sql`status = ${valor}, data_status = CASE WHEN status IS DISTINCT FROM ${valor} THEN now() ELSE data_status END`;
   } else {
     const coluna = colunaPorKey(alteracao.campo)!;

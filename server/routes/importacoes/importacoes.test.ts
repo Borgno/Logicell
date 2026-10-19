@@ -68,6 +68,20 @@ describe("POST /importacoes", () => {
     });
   });
 
+  it("status da planilha vira o nome cadastrado; o que não está na lista fica como veio", async () => {
+    await prisma.statusOperacao.createMany({
+      data: [{ nome: "ANEXADO PORTAL" }, { nome: "ENCERRADO", ativo: false }],
+    });
+    await importar([
+      [...CABECALHO, "status"],
+      [...linha({ ctrc: 1 }), "anexado portal "],
+      [...linha({ ctrc: 2 }), "encerrado"],
+      [...linha({ ctrc: 3 }), "texto livre"],
+    ]);
+    const ops = await prisma.operacao.findMany({ orderBy: { nr_ctrc: "asc" } });
+    expect(ops.map((op) => op.status)).toEqual(["ANEXADO PORTAL", "ENCERRADO", "TEXTO LIVRE"]);
+  });
+
   it("a mesma planilha de novo não duplica nada", async () => {
     const planilha = [CABECALHO, linha({ ctrc: 1 }), linha({ ctrc: 2 })];
     await importar(planilha, "ADICIONAR");

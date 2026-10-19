@@ -14,6 +14,7 @@ export const KINDS = {
     o: "o",
     duplicateField: "cliente",
   },
+  status: { name: "Status", code: "STATUS", o: "o", duplicateField: "nome" },
 } as const satisfies Record<string, Kind>;
 
 export function notFound(kind: Kind) {

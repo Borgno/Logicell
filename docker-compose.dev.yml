@@ -1,10 +1,10 @@
-# Postgres local para desenvolvimento e testes. Não usar em produção: lá o banco é o Supabase.
+# Postgres local para desenvolvimento e testes. Produção sobe o seu pelo docker-compose.yml.
 # Uso: bun run infra:up
 name: logicell-dev
 
 services:
   db:
-    # Mesma versão maior de produção (Supabase, Postgres 17).
+    # Mesma versão maior de produção (Postgres 17).
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: dev

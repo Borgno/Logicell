@@ -77,6 +77,12 @@ test("automações: regra repetida em duas pastas genéricas aparece em conflito
     await expect(drawer).toBeHidden();
   }
 
+  // A busca acha a pasta também pelo valor de uma regra, e o card diz qual regra bateu.
+  await page.getByLabel("Buscar pasta").fill(cliente.toLowerCase());
+  for (const nome of [alfa, beta]) {
+    await expect(page.getByRole("button", { name: new RegExp(nome) })).toContainText(cliente);
+  }
+
   // A pasta foi criada verde: o filtro azul esconde, o verde mostra.
   const main = page.getByRole("main");
   await page.getByLabel("Buscar pasta").fill(alfa);

@@ -16,9 +16,12 @@ export type AuditAction =
   | "regra.created"
   | "regra.deleted"
   | "importacao.created"
-  | "importacao.restored";
+  | "importacao.restored"
+  | "status.created"
+  | "status.updated"
+  | "status.deleted";
 
-export type AuditTargetType = "user" | "pasta" | "importacao";
+export type AuditTargetType = "user" | "pasta" | "importacao" | "status";
 
 type AuditInput = {
   actorId: string | null;
