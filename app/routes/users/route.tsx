@@ -3,8 +3,9 @@ import { UserPlus, Users as UsersIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { DataTable, type Column } from "~/components/patterns/DataTable";
-import { Button } from "~/components/ui/button";
+import { FilterButton, FilterField } from "~/components/patterns/FilterButton";
 import { SearchableSelect } from "~/components/patterns/SearchableSelect";
+import { Button } from "~/components/ui/button";
 import { APP_NAME } from "~/config/app";
 import { useDebouncedValue } from "~/hooks/useDebouncedValue";
 import { useListParams } from "~/hooks/useListParams";
@@ -68,6 +69,9 @@ const columns: Column<User>[] = [
   },
 ];
 
+// Chaves da URL que são filtro da lista: dão o contador e o "Limpar filtros" do FilterButton.
+const FILTERS = ["role", "active"] as const;
+
 export default function UsersPage() {
   const { searchParams, set } = useListParams();
   const params = usersParamsFrom(searchParams);
@@ -83,7 +87,7 @@ export default function UsersPage() {
   }, [debouncedSearch, params.search, set]);
 
   const selectedId = searchParams.get("userId");
-  const filtered = Boolean(params.search || params.role || params.active);
+  const filtered = Boolean(params.search) || FILTERS.some((key) => searchParams.has(key));
 
   return (
     <>
@@ -105,33 +109,35 @@ export default function UsersPage() {
           placeholder: "Buscar por nome ou e-mail",
         }}
         filters={
-          <>
-            <SearchableSelect
-              aria-label="Filtrar por cargo"
-              className="w-48"
-              value={params.role ?? "all"}
-              onChange={(value) => set({ role: value === "all" ? null : value })}
-              options={[
-                { value: "all", label: "Todos os cargos" },
-                { value: "admin", label: ROLE_LABELS.admin },
-                { value: "gestor", label: ROLE_LABELS.gestor },
-                { value: "user", label: ROLE_LABELS.user },
-              ]}
-              searchPlaceholder="Buscar cargo..."
-            />
-            <SearchableSelect
-              aria-label="Filtrar por status"
-              className="w-44"
-              value={params.active ?? "all"}
-              onChange={(value) => set({ active: value === "all" ? null : value })}
-              options={[
-                { value: "all", label: "Todos os status" },
-                { value: "true", label: "Ativos" },
-                { value: "false", label: "Inativos" },
-              ]}
-              searchPlaceholder="Buscar status..."
-            />
-          </>
+          <FilterButton keys={FILTERS}>
+            <FilterField label="Cargo" htmlFor="filtro-cargo">
+              <SearchableSelect
+                id="filtro-cargo"
+                value={params.role ?? "all"}
+                onChange={(value) => set({ role: value === "all" ? null : value })}
+                options={[
+                  { value: "all", label: "Todos os cargos" },
+                  { value: "admin", label: ROLE_LABELS.admin },
+                  { value: "gestor", label: ROLE_LABELS.gestor },
+                  { value: "user", label: ROLE_LABELS.user },
+                ]}
+                searchPlaceholder="Buscar cargo..."
+              />
+            </FilterField>
+            <FilterField label="Status" htmlFor="filtro-status">
+              <SearchableSelect
+                id="filtro-status"
+                value={params.active ?? "all"}
+                onChange={(value) => set({ active: value === "all" ? null : value })}
+                options={[
+                  { value: "all", label: "Todos os status" },
+                  { value: "true", label: "Ativos" },
+                  { value: "false", label: "Inativos" },
+                ]}
+                searchPlaceholder="Buscar status..."
+              />
+            </FilterField>
+          </FilterButton>
         }
         columns={columns}
         rows={list.data?.data}

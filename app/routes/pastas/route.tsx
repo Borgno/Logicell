@@ -6,6 +6,7 @@ import { PageHeader } from "~/components/layout/PageHeader";
 import { ColorFilter } from "~/components/pastas/ColorFilter";
 import { PastaFormDialog } from "~/components/pastas/PastaFormDialog";
 import { DataTable, type Column } from "~/components/patterns/DataTable";
+import { FilterButton, FilterField } from "~/components/patterns/FilterButton";
 import { Button } from "~/components/ui/button";
 import { APP_NAME } from "~/config/app";
 import { useDebouncedValue } from "~/hooks/useDebouncedValue";
@@ -108,7 +109,13 @@ export default function PastasPage() {
       />
       <DataTable
         search={{ value: searchInput, onChange: setSearchInput, placeholder: "Buscar por nome" }}
-        filters={<ColorFilter value={cor} onChange={(value) => set({ cor: value })} />}
+        filters={
+          <FilterButton keys={["cor"]}>
+            <FilterField label="Cor" htmlFor="filtro-cor">
+              <ColorFilter id="filtro-cor" value={cor} onChange={(value) => set({ cor: value })} />
+            </FilterField>
+          </FilterButton>
+        }
         columns={columns}
         rows={list.data?.data}
         rowKey={(pasta) => String(pasta.id)}

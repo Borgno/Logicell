@@ -31,7 +31,15 @@ test("pasta: cria pela lista, edita, filtra e exclui", async ({ page }) => {
   // Na lista, busca e cor vão para a URL e para a API.
   await page.goto(`/pastas?search=${encodeURIComponent("editada")}&cor=%233b82f6`);
   await expect(page.getByText("Nenhuma pasta encontrada")).toBeVisible();
-  await page.getByRole("main").getByRole("button", { name: "Azul" }).click();
+  const botaoFiltros = page.getByRole("button", { name: /^Filtros/ });
+  await expect(botaoFiltros).toHaveText(/^Filtros\s*1$/);
+  await botaoFiltros.click();
+  await page
+    .getByRole("dialog", { name: "Filtros de pesquisa" })
+    .getByRole("button", { name: "Azul" })
+    .click();
+  await expect(botaoFiltros).toHaveText("Filtros");
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("row", { name: new RegExp(`${nome} editada`) })).toBeVisible();
   await page.getByRole("row", { name: new RegExp(`${nome} editada`) }).click();
 

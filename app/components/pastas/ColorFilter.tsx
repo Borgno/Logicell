@@ -2,15 +2,17 @@ import { PASTA_COLORS } from "~/lib/pastas";
 import { cn } from "~/lib/utils";
 
 type ColorFilterProps = {
+  id?: string;
   value: string | null;
   onChange: (color: string | null) => void;
   className?: string;
 };
 
 // Bolinhas das cores de pasta. Clicar filtra por aquela cor; clicar de novo desliga.
-export function ColorFilter({ value, onChange, className }: ColorFilterProps) {
+export function ColorFilter({ id, value, onChange, className }: ColorFilterProps) {
   return (
     <div
+      id={id}
       role="group"
       aria-label="Filtrar pastas por cor"
       className={cn("flex items-center gap-1.5", className)}
