@@ -6,7 +6,7 @@ import { ErrorState } from "~/components/patterns/EmptyState";
 import { Skeleton } from "~/components/ui/skeleton";
 import { useListParams } from "~/hooks/useListParams";
 import { cn } from "~/lib/utils";
-import { formatarMoeda } from "../../operacoes/_lib/colunas";
+import { formatMoney } from "~/lib/format";
 import {
   CAMPOS,
   cuboQuery,
@@ -78,7 +78,7 @@ export function OperacoesDashboard({ gestor }: { gestor: boolean }) {
             <Users size={16} className="text-primary" />
             <h2 className="text-sm font-bold">Por faturista</h2>
             <span className="ml-auto font-mono text-xs text-muted-foreground">
-              {total.quantidade.toLocaleString("pt-BR")} documentos · {formatarMoeda(total.valor)}
+              {total.quantidade.toLocaleString("pt-BR")} documentos · {formatMoney(total.valor)}
             </span>
           </header>
           {faturistas.length === 0 ? (
@@ -119,7 +119,7 @@ export function OperacoesDashboard({ gestor }: { gestor: boolean }) {
                         </span>
                         <span className="shrink-0 text-right">
                           <span className="block font-mono text-sm font-bold">
-                            {formatarMoeda(faturista.valor)}
+                            {formatMoney(faturista.valor)}
                           </span>
                           <span className="block font-mono text-[11px] text-dim">
                             {pct.toFixed(1)}%

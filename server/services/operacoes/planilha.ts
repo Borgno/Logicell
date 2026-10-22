@@ -1,4 +1,4 @@
-import ExcelJS from "exceljs";
+import { createSheet, toBuffer } from "../../lib/xlsx";
 import { COLUNAS } from "./colunas";
 import type { OperacaoRow } from "./operacoes.service";
 
@@ -12,21 +12,20 @@ export async function montarPlanilha(rows: OperacaoRow[], ordem: string[]) {
       ]
     : COLUNAS;
 
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Operações");
-  sheet.columns = colunas.map((coluna) => ({
-    header: coluna.label,
-    key: coluna.key,
-    width: coluna.tipo === "texto" ? 24 : 14,
-    style:
-      coluna.tipo === "data"
-        ? { numFmt: "dd/mm/yyyy" }
-        : coluna.tipo === "numero"
-          ? { numFmt: "#,##0.00" }
-          : {},
-  }));
-  sheet.getRow(1).font = { bold: true };
-  sheet.views = [{ state: "frozen", ySplit: 1 }];
+  const { workbook, sheet } = createSheet(
+    "Operações",
+    colunas.map((coluna) => ({
+      header: coluna.label,
+      key: coluna.key,
+      width: coluna.tipo === "texto" ? 24 : 14,
+      style:
+        coluna.tipo === "data"
+          ? { numFmt: "dd/mm/yyyy" }
+          : coluna.tipo === "numero"
+            ? { numFmt: "#,##0.00" }
+            : {},
+    })),
+  );
 
   for (const row of rows) {
     sheet.addRow(
@@ -41,5 +40,5 @@ export async function montarPlanilha(rows: OperacaoRow[], ordem: string[]) {
       ),
     );
   }
-  return Buffer.from(await workbook.xlsx.writeBuffer());
+  return toBuffer(workbook);
 }

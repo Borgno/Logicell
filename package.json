@@ -9,7 +9,7 @@
     "dev:ui": "react-router dev",
     "dev:api": "tsx watch server/index.ts",
     "build": "prisma generate && react-router build && bun run build:api",
-    "build:api": "esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=build/api/index.js",
+    "build:api": "esbuild server/index.ts server/scripts/createUser.ts --bundle --platform=node --format=esm --packages=external --outdir=build/api --entry-names=[name]",
     "start": "NODE_ENV=production node build/api/index.js",
     "typecheck": "react-router typegen && tsc",
     "typecheck:api": "tsc -p tsconfig.server.json",
@@ -27,6 +27,7 @@
     "db:migrate:new": "prisma migrate dev --create-only",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "user:create": "tsx server/scripts/createUser.ts",
     "db:exportar-supabase": "bash server/scripts/copiarSupabase/exportar.sh",
     "db:importar-supabase": "bash server/scripts/copiarSupabase/importar.sh"
   },

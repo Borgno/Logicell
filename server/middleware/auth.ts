@@ -26,7 +26,7 @@ export function requireAuth(options: RequireAuthOptions = {}) {
 }
 
 // Usar depois do requireAuth: middleware: [requireAuth(), requireRole("admin")]. Mais de uma role
-// libera qualquer uma delas: requireRole("admin", "gestor").
+// libera qualquer uma delas.
 export function requireRole(...roles: RoleCode[]) {
   return createMiddleware<HonoEnv>(async (c, next) => {
     if (!roles.includes(c.get("user").role)) {

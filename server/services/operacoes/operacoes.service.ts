@@ -1,6 +1,7 @@
 import { prisma } from "../../db/client";
 import { Prisma } from "../../db/generated/client";
 import { ApiProblem } from "../../lib/problem";
+import { parseSort } from "../../lib/sort";
 import { KINDS, notFound } from "../cadastros/guard";
 import { validarStatus } from "../status/status.service";
 import { CAMPOS_EM_LOTE, COLUNAS, colunaPorKey } from "./colunas";
@@ -61,16 +62,15 @@ export type ListQuery = {
 };
 
 function orderBy(sort?: string) {
-  const key = sort?.replace(/^-/, "");
-  const coluna = key ? colunaPorKey(key) : undefined;
+  const { field, direction } = parseSort(sort ?? "");
+  const coluna = field ? colunaPorKey(field) : undefined;
   if (!coluna?.ordenavel) return Prisma.sql`ORDER BY o.id DESC`;
-  const desc = sort!.startsWith("-");
   // CTe é texto no banco: ordena pelo número quando só tem dígitos.
   const expr =
     coluna.key === "cte"
       ? Prisma.sql`CASE WHEN o.nr_ctrc ~ '^[0-9]+$' THEN o.nr_ctrc::numeric END`
       : Prisma.raw(`o."${coluna.db}"`);
-  return desc
+  return direction === "desc"
     ? Prisma.sql`ORDER BY ${expr} DESC NULLS FIRST, o.id DESC`
     : Prisma.sql`ORDER BY ${expr} ASC NULLS LAST, o.id DESC`;
 }

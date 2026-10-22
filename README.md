@@ -41,6 +41,9 @@ bun run dev            # front em http://localhost:3000, API em :3001
 | `gestor@local.test` | gestor |
 | `user@local.test`   | user   |
 
+Em produção o seed é bloqueado. Um usuário novo pelo terminal, sem admin logado, sai de
+`bun run user:create -- --email <e-mail> --role admin`, que mostra uma senha temporária e obriga a troca no primeiro login.
+
 O `.env` de dev nunca aponta para o banco de produção.
 
 ## Comandos

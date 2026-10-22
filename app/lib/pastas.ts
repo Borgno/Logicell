@@ -1,5 +1,6 @@
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "~/lib/api";
+import { semAcento } from "~/lib/text";
 import type { Pasta } from "~/types/pasta";
 
 // Cores das pastas, as mesmas do sistema antigo.
@@ -17,11 +18,7 @@ export const DEFAULT_PASTA_COLOR = PASTA_COLORS[0].value;
 
 // Busca sem diferenciar caixa nem acento.
 export function normalizeSearch(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
+  return semAcento(value).toLowerCase().trim();
 }
 
 // A lista inteira: vai para a sidebar e para a tela de pastas.

@@ -1,5 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,8 @@ type FormDialogProps = {
   submitLabel: string;
   isPending: boolean;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  // lg para formulário com muitos campos: mais largo, e o corpo rola dentro da tela.
+  size?: "md" | "lg";
   children: React.ReactNode;
 };
 
@@ -29,12 +32,20 @@ export function FormDialog({
   submitLabel,
   isPending,
   onSubmit,
+  size = "md",
   children,
 }: FormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => !isPending && onOpenChange(next)}>
-      <DialogContent className="rounded-3xl p-8 sm:max-w-md">
-        <form onSubmit={onSubmit} noValidate className="space-y-6">
+      <DialogContent
+        className={cn(
+          "rounded-3xl p-8",
+          size === "md" ? "sm:max-w-md" : "max-h-[92vh] overflow-y-auto sm:max-w-2xl",
+        )}
+      >
+        {/* min-w-0: o DialogContent é grid, e sem isso um texto com truncate alarga o form além do
+            modal no celular. */}
+        <form onSubmit={onSubmit} noValidate className="min-w-0 space-y-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold tracking-tight">{title}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}

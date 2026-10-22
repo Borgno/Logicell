@@ -1,6 +1,7 @@
 import { prisma } from "../../db/client";
 import type { Prisma, User } from "../../db/generated/client";
 import { ApiProblem } from "../../lib/problem";
+import { parseSort } from "../../lib/sort";
 import { recordAudit } from "../audit/audit.service";
 import { generateTemporaryPassword, hashPassword, verifyPassword } from "../auth/password.service";
 import { invalidatePastas } from "../pastas/pastas.service";
@@ -118,8 +119,7 @@ export type ListUsersQuery = {
 };
 
 function userOrderBy(sort: string): Prisma.UserOrderByWithRelationInput[] {
-  const direction = sort.startsWith("-") ? "desc" : "asc";
-  const field = sort.replace(/^-/, "");
+  const { field, direction } = parseSort(sort);
   switch (field) {
     case "fullName":
       return [{ name: direction }, { email: "asc" }];
@@ -179,8 +179,9 @@ async function assertSupervisor(role: RoleCode, supervisorId: string, userId?: s
 }
 
 // O usuário criado entra com a senha definida pelo admin e troca no primeiro login.
+// actorId nulo: criado pelo terminal (`user:create`), sem um admin logado.
 export async function createUser(
-  actorId: string,
+  actorId: string | null,
   input: {
     email: string;
     fullName: string;

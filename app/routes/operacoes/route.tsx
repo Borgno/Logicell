@@ -9,7 +9,7 @@ import { ImportarDialog } from "../importacoes/_components/ImportarDialog";
 import type { Route } from "./+types/route";
 import { OperacoesGrid } from "./_components/OperacoesGrid";
 import { operacaoStatsQuery, ordemColunasQuery } from "./_hooks/operacoes.queries";
-import { formatarMoeda } from "./_lib/colunas";
+import { formatMoney } from "~/lib/format";
 
 export const meta: Route.MetaFunction = () => [{ title: `Caixa de Entrada | ${APP_NAME}` }];
 
@@ -35,7 +35,7 @@ export default function CaixaDeEntradaPage() {
         }
         description={
           antigas > 0
-            ? `${antigas.toLocaleString("pt-BR")} com emissão antiga, somando ${formatarMoeda(stats!.caixaDeEntrada.valorEmissoesAntigas)}.`
+            ? `${antigas.toLocaleString("pt-BR")} com emissão antiga, somando ${formatMoney(stats!.caixaDeEntrada.valorEmissoesAntigas)}.`
             : "Operações que ainda não têm pasta."
         }
       />

@@ -1,5 +1,6 @@
 import { prisma } from "../../db/client";
 import type { Prisma } from "../../db/generated/client";
+import { changedFields } from "../../lib/changes";
 import { ApiProblem } from "../../lib/problem";
 import { recordAudit } from "../audit/audit.service";
 import { guard, KINDS, notFound } from "../cadastros/guard";
@@ -145,13 +146,7 @@ export async function updatePasta(actor: Actor, id: number, patch: Partial<Pasta
   const before = await getRow(id);
   await checkFaturista(actor, patch.faturistaId);
 
-  const changes: Record<string, { from: string | null; to: string | null }> = {};
-  if (patch.nome !== undefined && patch.nome !== before.nome) {
-    changes.nome = { from: before.nome, to: patch.nome };
-  }
-  if (patch.cor !== undefined && patch.cor !== before.cor) {
-    changes.cor = { from: before.cor, to: patch.cor };
-  }
+  const changes = changedFields(before, { nome: patch.nome, cor: patch.cor });
   const faturistaChanged =
     patch.faturistaId !== undefined && patch.faturistaId !== (before.faturista?.id ?? null);
   if (Object.keys(changes).length === 0 && !faturistaChanged) return toPublic(before);
@@ -179,7 +174,7 @@ export async function updatePasta(actor: Actor, id: number, patch: Partial<Pasta
           action: "pasta.updated",
           targetType: "pasta",
           targetId: String(id),
-          data: changes,
+          data: changes as Prisma.InputJsonObject,
         },
         tx,
       );

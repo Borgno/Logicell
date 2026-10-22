@@ -1,6 +1,8 @@
 // Espelha server/services/operacoes/colunas.ts: chave da API, rótulo, largura e tipo de cada coluna
 // da grid. O frontend não importa o servidor (regra do ESLint).
 
+import { formatMoney } from "~/lib/format";
+
 export type TipoColuna = "texto" | "data" | "numero" | "moeda";
 
 export type ColunaGrid = {
@@ -58,10 +60,7 @@ export function ordenarColunas(ordem: string[] | null | undefined) {
   );
 }
 
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const NUMERO = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 });
-
-export const formatarMoeda = (value: number) => BRL.format(value);
 
 // Datas chegam em ISO à meia-noite UTC: o dia é o da parte UTC. Texto já em DD/MM fica como está
 // (a célula logo depois de editada, antes de o servidor responder).
@@ -73,7 +72,7 @@ export function formatarCelula(coluna: ColunaGrid, value: unknown): string {
     return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : texto;
   }
   if (typeof value === "number") {
-    return coluna.tipo === "moeda" ? BRL.format(value) : NUMERO.format(value);
+    return coluna.tipo === "moeda" ? formatMoney(value) : NUMERO.format(value);
   }
   return String(value);
 }

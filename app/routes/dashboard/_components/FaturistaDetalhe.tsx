@@ -6,7 +6,7 @@ import { ErrorState } from "~/components/patterns/EmptyState";
 import { Skeleton } from "~/components/ui/skeleton";
 import { DEFAULT_PASTA_COLOR } from "~/lib/pastas";
 import { cn } from "~/lib/utils";
-import { formatarMoeda } from "../../operacoes/_lib/colunas";
+import { formatMoney } from "~/lib/format";
 import { cuboQuery, type Filtros } from "../_hooks/dashboard.queries";
 import {
   agregarCubo,
@@ -113,7 +113,7 @@ function DimensaoCard({
                   <span className="flex items-baseline justify-between gap-3">
                     <span className="truncate text-xs font-bold">{item.label}</span>
                     <span className="shrink-0 font-mono text-xs font-bold">
-                      {formatarMoeda(item.valor)}
+                      {formatMoney(item.valor)}
                     </span>
                   </span>
                   <span className="mt-1 flex items-center gap-2">
@@ -216,12 +216,12 @@ export function FaturistaDetalhe({
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Numero label="Valor total" valor={formatarMoeda(detalhe.valor)} />
+        <Numero label="Valor total" valor={formatMoney(detalhe.valor)} />
         <Numero label="Documentos" valor={detalhe.quantidade.toLocaleString("pt-BR")} />
         <Numero
           label="Emissões antigas"
           valor={detalhe.antigas.toLocaleString("pt-BR")}
-          hint={formatarMoeda(detalhe.valorAntigas)}
+          hint={formatMoney(detalhe.valorAntigas)}
         />
         <Numero label="Pastas" valor={detalhe.pastas.length.toLocaleString("pt-BR")} />
       </div>
@@ -260,7 +260,7 @@ export function FaturistaDetalhe({
                     />
                   )}
                   <span className="min-w-0 flex-1 truncate font-bold">{pasta.nome}</span>
-                  <span className="font-mono">{formatarMoeda(pasta.valor)}</span>
+                  <span className="font-mono">{formatMoney(pasta.valor)}</span>
                 </Link>
               </li>
             ))}

@@ -18,7 +18,8 @@ import { useDebouncedValue } from "~/hooks/useDebouncedValue";
 import { ApiError } from "~/lib/api";
 import { statusQuery } from "~/lib/status";
 import { cn } from "~/lib/utils";
-import { CAMPOS_EM_LOTE, formatarCelula, formatarMoeda, ordenarColunas } from "../_lib/colunas";
+import { formatMoney } from "~/lib/format";
+import { CAMPOS_EM_LOTE, formatarCelula, ordenarColunas } from "../_lib/colunas";
 import {
   listQueryString,
   operacoesQuery,
@@ -251,7 +252,7 @@ export function OperacoesGrid({ escopo, nome }: OperacoesGridProps) {
             {sortDirection === "DESC" && <ArrowDown size={12} className="shrink-0" />}
             {coluna.key === "total" && meta && (
               <span className="font-mono normal-case text-primary">
-                = {formatarMoeda(meta.totalValor)}
+                = {formatMoney(meta.totalValor)}
               </span>
             )}
           </span>

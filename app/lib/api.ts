@@ -67,7 +67,7 @@ async function send<T>(method: string, path: string, { body, signal }: RequestOp
         body === undefined || body instanceof FormData
           ? undefined
           : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
+      body: body === undefined || body instanceof FormData ? body : JSON.stringify(body),
       signal,
     });
   } catch (error) {

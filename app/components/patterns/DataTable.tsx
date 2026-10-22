@@ -149,7 +149,7 @@ export function DataTable<T>({
               ? Array.from({ length: 5 }, (_, index) => (
                   <TableRow key={index}>
                     {columns.map((column) => (
-                      <TableCell key={column.key} className={cellPadding}>
+                      <TableCell key={column.key} className={cn(cellPadding, column.className)}>
                         <Skeleton className="h-4 w-3/4" />
                       </TableCell>
                     ))}
