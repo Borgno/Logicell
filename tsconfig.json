@@ -1,24 +1,31 @@
 {
   "include": [
-    "app/**/*"
+    "app/**/*",
+    "**/.server/**/*",
+    "**/.client/**/*",
+    ".react-router/types/**/*",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "react-router.config.ts",
+    "e2e/**/*",
+    "playwright.config.ts"
   ],
   "compilerOptions": {
-    "target": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "types": ["vite/client", "node"],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["node", "vite/client"],
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "rootDirs": [".", "./.react-router/types"],
     "paths": {
       "~/*": ["./app/*"]
     },
-    "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
-    "allowJs": true,
-    "checkJs": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
-    "strict": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx"
+    "strict": true
   }
 }

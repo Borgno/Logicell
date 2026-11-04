@@ -1,0 +1,6 @@
+build/
+.react-router/
+coverage/
+bun.lock
+.agents/
+server/db/generated/

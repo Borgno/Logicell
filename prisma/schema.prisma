@@ -1,12 +1,17 @@
+// Client sem engine binária, gerado como TypeScript e empacotado pelo esbuild junto com o servidor.
+// postgresqlExtensions ainda é preview no Prisma 7 e é o que permite declarar o pg_trgm.
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
+  output          = "../server/db/generated"
+  runtime         = "nodejs"
+  moduleFormat    = "esm"
   previewFeatures = ["postgresqlExtensions"]
 }
 
+// A URL fica no prisma.config.ts. Os índices em upper(<coluna>) de produção não cabem no schema:
+// existem só no SQL do 0_baseline, e o Prisma não os apaga.
 datasource db {
   provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
   extensions = [pg_trgm]
 }
 
@@ -70,6 +75,29 @@ model Operacao {
   @@index([nm_pessoa_pagador(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([ds_placa(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([nr_ctrc(ops: raw("gin_trgm_ops"))], type: Gin)
+
+  // Índices criados em produção por migrations que não estão no git.
+  @@index([comentarios(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_comentarios_gin_idx")
+  @@index([id_solicitacao(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_id_solicitacao_gin_idx")
+  @@index([nm_agencia(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_agencia_gin_idx")
+  @@index([nm_cidade_destino(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_cidade_destino_gin_idx")
+  @@index([nm_cidade_origem(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_cidade_origem_gin_idx")
+  @@index([nm_motorista(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_motorista_gin_idx")
+  @@index([nm_pessoa_destinatario(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_destinatario_gin_idx")
+  @@index([nm_pessoa_matriz(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_matriz_gin_idx")
+  @@index([nm_pessoa_remetente(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_remetente_gin_idx")
+  @@index([nm_pessoa_usuario_lancamento(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_pessoa_usuario_lancamento_gin_idx")
+  @@index([nm_proprietario_posse_cavalo(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nm_proprietario_posse_cavalo_gin_idx")
+  @@index([nr_chave_acesso(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nr_chave_acesso_gin_idx")
+  @@index([nr_contrato(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nr_contrato_gin_idx")
+  @@index([nr_nf(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_nr_nf_gin_idx")
+  @@index([status(ops: raw("gin_trgm_ops"))], type: Gin, map: "Operacao_status_gin_idx")
+  @@index([pastaId, data_status(sort: Desc)], map: "Operacao_pastaId_data_status_idx")
+  @@index([pastaId, dt_emissao_(sort: Desc)], map: "Operacao_pastaId_dt_emissao__idx")
+  @@index([pastaId, dt_quitacao_saldo(sort: Desc)], map: "Operacao_pastaId_dt_quitacao_saldo_idx")
+  @@index([pastaId, vl_peso(sort: Desc)], map: "Operacao_pastaId_vl_peso_idx")
+  @@index([pastaId, vl_tarifa(sort: Desc)], map: "Operacao_pastaId_vl_tarifa_idx")
+  @@index([pastaId, vl_total(sort: Desc)], map: "Operacao_pastaId_vl_total_idx")
 }
 
 model Importacao {
@@ -81,6 +109,8 @@ model Importacao {
   createdAt    DateTime   @default(now())
   operacoes    Operacao[]
   snapshot     SnapshotImportacao?
+
+  @@index([createdAt(sort: Desc)])
 }
 
 model SnapshotImportacao {
@@ -100,6 +130,7 @@ model Pasta {
   nome        String     @unique
   cor         String?
   faturistaId String?
+  faturista   User?      @relation(fields: [faturistaId], references: [id], onDelete: Restrict)
   operacoes   Operacao[]
   regras      RegraAutomacao[]
   createdAt   DateTime   @default(now())
@@ -136,10 +167,71 @@ model PrazoCliente {
   updatedAt DateTime @updatedAt
 }
 
+// Lista fechada do campo status de Operacao. Operacao.status continua texto, sem FK: a trava é do
+// service, e status gravado antes da lista (ou de opção desativada) segue como veio.
+model StatusOperacao {
+  id        Int      @id @default(autoincrement())
+  nome      String   @unique
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Configurações globais singleton (id = 1, padrão usado por OrdemColunas).
 model Configuracao {
   id               Int      @id @default(1)
   prazoPadraoDias  Int      @default(10)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+// Cargo comum é `user`, como no template. No GoTrue ele era `usuario`; `gestor` aparece como
+// "Supervisor" na tela.
+enum Role {
+  admin
+  gestor
+  user
+}
+
+// Usuários que moravam em auth.users do Supabase. O id é o mesmo do GoTrue, em text, porque
+// Pasta.faturistaId já guardava esse valor. Usuário nunca é apagado, só desativado.
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  name               String
+  passwordHash       String
+  role               Role      @default(user)
+  // Supervisor do atendente: um usuário `gestor`, quando houver.
+  supervisorId       String?
+  supervisor         User?     @relation("Supervisor", fields: [supervisorId], references: [id], onDelete: Restrict)
+  atendentes         User[]    @relation("Supervisor")
+  active             Boolean   @default(true)
+  // Vai dentro do token de sessão. Incrementar derruba todas as sessões abertas do usuário.
+  sessionVersion     Int       @default(0)
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  pastas             Pasta[]
+  auditEvents        AuditEvent[]
+
+  @@index([supervisorId])
+  @@map("users")
+}
+
+// Audit de usuários e sessão, no formato do template.
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action     String
+  targetType String
+  targetId   String
+  data       Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_events")
 }
