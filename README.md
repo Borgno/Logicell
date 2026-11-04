@@ -31,15 +31,9 @@ cp .env.example .env   # preencha SESSION_SECRET (openssl rand -base64 48)
 bun run infra:up       # Postgres local na porta 5433
 bun run db:generate    # client do Prisma em server/db/generated (não versionado)
 bun run db:migrate
-bun run db:seed        # usuários de teste, todos com a senha 123456
+bun run db:seed        # admin de desenvolvimento: admin@local.test / 12345678
 bun run dev            # front em http://localhost:3000, API em :3001
 ```
-
-| E-mail              | Role   |
-| :------------------ | :----- |
-| `admin@local.test`  | admin  |
-| `gestor@local.test` | gestor |
-| `user@local.test`   | user   |
 
 Em produção o seed é bloqueado. Um usuário novo pelo terminal, sem admin logado, sai de
 `bun run user:create -- --email <e-mail> --role admin`, que mostra uma senha temporária e obriga a troca no primeiro login.

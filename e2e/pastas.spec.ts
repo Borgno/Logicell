@@ -102,9 +102,9 @@ test("automações: regra repetida em duas pastas genéricas aparece em conflito
   // As duas pastas ficam marcadas, não só a da última regra.
   for (const nome of [alfa, beta]) {
     await page.getByLabel("Buscar pasta").fill(nome);
-    await expect(page.getByRole("button", { name: new RegExp(nome) })).toContainText(
-      "1 em conflito",
-    );
+    await expect(
+      page.getByRole("button", { name: new RegExp(nome) }).getByTitle("1 regra em conflito"),
+    ).toBeVisible();
   }
 });
 

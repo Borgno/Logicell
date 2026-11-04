@@ -20,11 +20,13 @@ test("admin vê as operações por faturista, abre o detalhe e filtra; embaixo, 
   await expect(porFaturista.getByText("R$ 1.500,00").first()).toBeVisible();
 
   // Filtro global na URL: o link guarda a visão.
-  await page.getByRole("combobox", { name: "Cliente" }).click();
+  await page.getByRole("button", { name: "Adicionar filtro" }).click();
+  await page.getByRole("button", { name: "Cliente", exact: true }).click();
   await page.getByRole("option", { name: "ACME E2E" }).click();
   await expect(page).toHaveURL(/cliente=ACME\+E2E/);
   await expect(sem).toContainText("2 documentos");
-  await page.getByRole("button", { name: "Limpar filtros" }).click();
+  await expect(page.getByRole("button", { name: "Cliente: ACME E2E" })).toBeVisible();
+  await page.getByRole("button", { name: "Limpar", exact: true }).click();
   await expect(sem).toContainText("3 documentos");
 
   const usuarios = page.getByRole("region", { name: "Usuários" });
@@ -41,6 +43,9 @@ test("usuário comum vê só as pastas dele, sem filtro de faturista nem os núm
   await expect(page.getByText("As operações das suas pastas.")).toBeVisible();
   // Ele não é faturista de nenhuma pasta no banco do E2E.
   await expect(page.getByText("Nenhuma operação com esses filtros.")).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Faturista" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Adicionar filtro" }).click();
+  await expect(page.getByRole("button", { name: "Cliente", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Faturista", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await expect(page.getByRole("region", { name: "Usuários" })).toHaveCount(0);
 });

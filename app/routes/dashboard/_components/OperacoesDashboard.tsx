@@ -13,10 +13,9 @@ import {
   filtrosDaUrl,
   opcoesQuery,
   resumoQuery,
-  type Filtros,
 } from "../_hooks/dashboard.queries";
 import { FaturistaDetalhe } from "./FaturistaDetalhe";
-import { FiltrosBar } from "./FiltrosBar";
+import { FiltrosBar, type FiltrosPatch } from "./FiltrosBar";
 
 const PALETA = [
   "var(--chart-1)",
@@ -47,7 +46,7 @@ export function OperacoesDashboard({ gestor }: { gestor: boolean }) {
     );
   };
 
-  const onChange = (campo: keyof Filtros, valor: string | null) => set({ [campo]: valor });
+  const onChange = (patch: FiltrosPatch) => set(patch);
   const onLimpar = () => set(Object.fromEntries(CAMPOS.map((campo) => [campo, null])));
 
   const faturistas = resumo.data?.faturistas ?? [];

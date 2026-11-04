@@ -75,9 +75,9 @@ export default function AutomacoesPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
           {Array.from({ length: 8 }, (_, index) => (
-            <Skeleton key={index} className="h-24" />
+            <Skeleton key={index} className="h-28 rounded-2xl" />
           ))}
         </div>
       ) : error ? (
@@ -91,35 +91,55 @@ export default function AutomacoesPage() {
           }
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Pastas">
+        <ul
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 md:gap-6 lg:grid-cols-4"
+          aria-label="Pastas"
+        >
           {filtered.map(({ pasta, regrasEncontradas }) => {
             const color = pasta.cor ?? DEFAULT_PASTA_COLOR;
             const conflitos = pasta.regras.filter((regra) => regra.conflito).length;
+            // Card no visual do sistema antigo: fundo e borda no tom da pasta, ícone no centro e o
+            // número de regras no canto.
             return (
               <li key={pasta.id} className="min-w-0">
                 <button
                   type="button"
                   onClick={() => set({ pastaId: String(pasta.id) }, { resetPage: false })}
-                  className="flex h-full w-full flex-col gap-2 rounded-2xl border bg-card p-4 text-left transition-colors duration-200 ease-ui hover:border-primary/50"
+                  className="group relative flex h-28 w-full flex-col items-center justify-center gap-2 rounded-2xl border shadow-card transition-shadow duration-300 hover:shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
+                  style={{ backgroundColor: `${color}0A`, borderColor: `${color}33` }}
                 >
-                  <span className="flex items-center gap-2 text-sm font-bold">
-                    <Folder size={16} className="shrink-0" style={{ color }} fill={`${color}33`} />
-                    <span className="truncate">{pasta.nome}</span>
-                  </span>
-                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {pasta.regras.length === 0
-                      ? "Sem regras"
-                      : `${pasta.regras.length} ${pasta.regras.length === 1 ? "regra" : "regras"}`}
-                    {conflitos > 0 && (
-                      <span className="flex items-center gap-1 font-bold text-warning">
-                        <AlertTriangle size={12} />
-                        {conflitos} em conflito
-                      </span>
-                    )}
+                  <span
+                    className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ border: `1px solid ${color}` }}
+                  />
+                  {conflitos > 0 && (
+                    <span
+                      className="absolute top-2 left-2 text-warning"
+                      title={`${conflitos} ${conflitos === 1 ? "regra" : "regras"} em conflito`}
+                    >
+                      <AlertTriangle size={14} />
+                    </span>
+                  )}
+                  {pasta.regras.length > 0 && (
+                    <span
+                      className="absolute top-2 right-2 flex size-[18px] items-center justify-center rounded-sm text-[9px] font-bold"
+                      style={{ backgroundColor: `${color}20`, color }}
+                      title={`${pasta.regras.length} ${pasta.regras.length === 1 ? "regra" : "regras"}`}
+                    >
+                      {pasta.regras.length}
+                    </span>
+                  )}
+                  <Folder
+                    size={24}
+                    className="transition-transform group-hover:-translate-y-0.5"
+                    style={{ color }}
+                  />
+                  <span className="w-full truncate px-3 text-center text-xs font-semibold">
+                    {pasta.nome}
                   </span>
                   {regrasEncontradas.length > 0 && (
                     <span
-                      className="truncate text-xs text-muted-foreground"
+                      className="w-full truncate px-3 text-center text-[11px] text-muted-foreground"
                       title={regrasEncontradas.join(", ")}
                     >
                       {regrasEncontradas.slice(0, 2).join(", ")}
