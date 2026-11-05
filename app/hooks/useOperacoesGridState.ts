@@ -4,6 +4,9 @@ import { useLocation, useSearchParams } from "react-router";
 export const COLUNAS_OPERACAO = [
   { key: 'nm_agencia', label: 'Agência', width: '180px' },
   { key: 'dt_emissao_', label: 'Emissão', width: '120px' },
+  // Calculadas no navegador a partir da Emissão: não existem no banco, então não editam nem filtram.
+  { key: 'dias_em_aberto', label: 'Dias em Aberto', width: '165px', calculada: true },
+  { key: 'dias_vencida', label: 'Vencida', width: '120px', calculada: true },
   { key: 'nm_proprietario_posse_cavalo', label: 'Proprietário', width: '200px' },
   { key: 'nm_pessoa_pagador', label: 'Cliente', width: '250px' },
   { key: 'nr_cpf_cnpj_raiz', label: 'CNPJ Raiz', width: '140px' },
@@ -112,9 +115,16 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null) {
 
   const orderedColumns = useMemo(() => {
     if (!initialColumnOrder) return COLUNAS_OPERACAO;
+    // Ordem salva antes de as colunas calculadas existirem: elas entram ao lado da
+    // Emissão, e não no fim da grid.
+    const ordem = [...initialColumnOrder];
+    for (const [coluna, vizinha] of [["dias_em_aberto", "dt_emissao_"], ["dias_vencida", "dias_em_aberto"]]) {
+      const posicao = ordem.indexOf(vizinha);
+      if (posicao !== -1 && !ordem.includes(coluna)) ordem.splice(posicao + 1, 0, coluna);
+    }
     return [...COLUNAS_OPERACAO].sort((a, b) => {
-      const idxA = initialColumnOrder.indexOf(a.key);
-      const idxB = initialColumnOrder.indexOf(b.key);
+      const idxA = ordem.indexOf(a.key);
+      const idxB = ordem.indexOf(b.key);
       if (idxA === -1 && idxB === -1) return 0;
       if (idxA === -1) return 1;
       if (idxB === -1) return -1;

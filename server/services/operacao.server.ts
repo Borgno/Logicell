@@ -60,6 +60,10 @@ export class OperacaoService {
     // nr_ctrc é texto no banco: ordena numericamente quando só tem dígitos
     nr_ctrc: `CASE WHEN o.nr_ctrc ~ '^[0-9]+$' THEN o.nr_ctrc::numeric END`,
     dt_emissao_: "o.dt_emissao_",
+    // Calculadas no navegador: aqui só a ordem importa, e ela não depende do fuso.
+    // Vencida segue a mesma ordem: a grid mostra uma pasta só, e o prazo é o mesmo nela toda.
+    dias_em_aberto: "(CURRENT_DATE - o.dt_emissao_::date)",
+    dias_vencida: "(CURRENT_DATE - o.dt_emissao_::date)",
     data_status: "o.data_status",
     dt_quitacao_saldo: "o.dt_quitacao_saldo",
     vl_peso: "o.vl_peso",
@@ -136,8 +140,9 @@ export class OperacaoService {
 
       // Emissão antiga: data de emissão anterior ao prazo da pasta (ou padrão)
       const prazoDias = regras.porPasta[_pasta_id] ?? regras.padraoDias;
-      const dt =rest.dt_emissao_ ? new Date(rest.dt_emissao_).getTime() : null;
+      const dt = rest.dt_emissao_ ? new Date(rest.dt_emissao_).getTime() : null;
       rest.emissaoAntiga = dt !== null && dt < agora - prazoDias * MILIS_DIA;
+      rest.prazoDias = prazoDias;
 
       return {
         ...rest,

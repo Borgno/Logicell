@@ -6,10 +6,10 @@ import { twMerge } from "tailwind-merge";
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
-const SORTABLE_COLUMNS = ["nr_ctrc", "dt_emissao_", "data_status", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"];
+const SORTABLE_COLUMNS = ["nr_ctrc", "dt_emissao_", "dias_em_aberto", "dias_vencida", "data_status", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"];
 
 const DUPLICADO_BG = { backgroundColor: "rgba(217,119,6,0.18)" };
-const EMISSAO_ANTIGA_BG = { backgroundColor: "rgba(224,48,72,0.14)" };
+const FORA_DO_PRAZO_BG = { backgroundColor: "rgba(224,48,72,0.14)" };
 
 export function getOperacoesColumns({
   orderedColumns,
@@ -49,6 +49,7 @@ export function getOperacoesColumns({
       draggable: true,
       resizable: true,
       sortable: isSortable,
+      editable: !col.calculada,
       minWidth: 30,
       width: columnWidths[col.key] || parseInt(col.width) || 150,
       renderHeaderCell: ({ sortDirection }: any) => {
@@ -66,15 +67,17 @@ export function getOperacoesColumns({
                 <span className="text-primary normal-case ml-1">= {formatarMoeda(totalVl)}</span>
               )}
             </span>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpenFilterCol({ key: col.key, rect: e.currentTarget.getBoundingClientRect() });
-              }}
-              className={cn("p-1.5 rounded-lg transition-all", hasFilter ? "text-slate-700 bg-slate-200 dark:bg-slate-700 dark:text-slate-200" : "text-transparent group-hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800")}
-            >
-              <Filter size={14} />
-            </button>
+            {!col.calculada && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenFilterCol({ key: col.key, rect: e.currentTarget.getBoundingClientRect() });
+                }}
+                className={cn("p-1.5 rounded-lg transition-all", hasFilter ? "text-slate-700 bg-slate-200 dark:bg-slate-700 dark:text-slate-200" : "text-transparent group-hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800")}
+              >
+                <Filter size={14} />
+              </button>
+            )}
           </div>
         );
       },
@@ -129,13 +132,16 @@ export function getOperacoesColumns({
         const nfDuplicada = col.key === "nr_nf" && props.row.nfDuplicada === true;
         const cteDuplicado = col.key === "nr_ctrc" && props.row.cteDuplicado === true;
         const emissaoAntiga = col.key === "dt_emissao_" && props.row.emissaoAntiga === true;
+        const vencida = col.key === "dias_vencida" && props.row.dias_vencida >= 1;
         const tooltip = nfDuplicada
           ? "NF duplicada nesta pasta"
           : cteDuplicado
             ? "CTe duplicado nesta pasta"
             : emissaoAntiga
               ? "Emissão antiga (fora do prazo)"
-              : undefined;
+              : vencida
+                ? "Operação vencida (fora do prazo)"
+                : undefined;
 
         return (
           <div
@@ -187,10 +193,10 @@ export function getOperacoesColumns({
           >
             {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-[rgba(0,102,255,0.15)] pointer-events-none" />}
             {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-primary bg-[rgba(0,102,255,0.1)] pointer-events-none" />}
-            {(nfDuplicada || cteDuplicado || emissaoAntiga) && (
+            {(nfDuplicada || cteDuplicado || emissaoAntiga || vencida) && (
               <div
                 className="absolute -inset-x-2 -inset-y-2 pointer-events-none"
-                style={emissaoAntiga ? EMISSAO_ANTIGA_BG : DUPLICADO_BG}
+                style={emissaoAntiga || vencida ? FORA_DO_PRAZO_BG : DUPLICADO_BG}
               />
             )}
             
