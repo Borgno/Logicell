@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api } from "~/lib/api";
-import { formatarData } from "~/utils/formatters";
+import { diasEmAberto, diasVencida, formatarData } from "~/utils/formatters";
 
 function processarDatas(dados: any[]) {
   if (!dados) return [];
   return dados.map((o) => ({
     ...o,
+    dias_em_aberto: diasEmAberto(o.dt_emissao_),
+    dias_vencida: diasVencida(diasEmAberto(o.dt_emissao_), o.prazoDias),
     dt_emissao_: o.dt_emissao_ && !(typeof o.dt_emissao_ === "string" && o.dt_emissao_.includes("/"))
       ? formatarData(o.dt_emissao_)
       : o.dt_emissao_,

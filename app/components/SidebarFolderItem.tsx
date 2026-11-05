@@ -1,6 +1,6 @@
 import { CheckCircle2, Edit2, Folder, Trash2, X } from "lucide-react";
 import React, { useCallback, useState } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { useUI } from "~/hooks/use-ui";
 import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
@@ -17,6 +17,25 @@ export const COLOR_NAMES: Record<string, string> = {
   "#8b5cf6": "Roxo",
   "#ec4899": "Rosa",
 };
+
+// Contador laranja: abre a pasta já filtrada nas operações que ele conta.
+export function ContadorAntigas({ quantidade, para }: { quantidade: number; para: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      title={`Ver as ${quantidade} operações fora do prazo`}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigate(para, { state: { colFilter_dt_emissao_: "antigos:" } });
+      }}
+      className="text-[9px] px-1.5 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/40 text-amber-600 font-black transition-colors"
+    >
+      {quantidade}
+    </button>
+  );
+}
 
 interface FolderType {
   id: number;
@@ -186,12 +205,7 @@ export const SidebarFolderItem = React.memo(({ folder, isCollapsed, antigas = 0,
                   </span>
                 )}
                 {antigas > 0 && (
-                  <span
-                    className="text-[9px] px-1.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-600 font-black"
-                    title={`${antigas} emissão(ões) antiga(s)`}
-                  >
-                    {antigas}
-                  </span>
+                  <ContadorAntigas quantidade={antigas} para={`/pastas/${encodeURIComponent(folder.nome)}`} />
                 )}
                 <div className="hidden group-hover/item:flex items-center gap-1.5">
                   <button onClick={startEditing} className="hover:text-primary transition-colors">

@@ -24,20 +24,10 @@ function parsePrazoDias(value: any): number {
   return dias;
 }
 
-// Regras atuais: prazo padrão global + exceções por cliente.
+// Regras atuais: prazo padrão global + todas as pastas, com o prazo próprio de cada uma.
 prazosRouter.get("/", async (_req, res, next) => {
   try {
     res.json(await PrazoService.listar());
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Autocomplete de clientes que existem nas operações.
-prazosRouter.get("/clientes/sugestoes", async (req, res, next) => {
-  try {
-    const q = String(req.query.q || "");
-    res.json({ clientes: await PrazoService.sugerirClientes(q) });
   } catch (err) {
     next(err);
   }
@@ -54,15 +44,12 @@ prazosRouter.put("/padrao", async (req, res, next) => {
   }
 });
 
-prazosRouter.post("/clientes", async (req, res, next) => {
+// Define ou altera o prazo próprio de uma pasta.
+prazosRouter.put("/pastas/:id", async (req, res, next) => {
   try {
-    const cliente = String(req.body?.cliente || "").trim();
+    const id = parseId(req.params.id);
     const prazoDias = parsePrazoDias(req.body?.prazoDias);
-    if (!cliente) {
-      res.status(400).json({ error: "Informe o nome do cliente." });
-      return;
-    }
-    await PrazoService.adicionarCliente(cliente, prazoDias);
+    await PrazoService.definirPrazoPasta(id, prazoDias);
     OperacaoService.invalidarCache();
     res.json({ success: true });
   } catch (err) {
@@ -70,22 +57,11 @@ prazosRouter.post("/clientes", async (req, res, next) => {
   }
 });
 
-prazosRouter.patch("/clientes/:id", async (req, res, next) => {
+// Remove a exceção: a pasta volta a usar o prazo padrão.
+prazosRouter.delete("/pastas/:id", async (req, res, next) => {
   try {
     const id = parseId(req.params.id);
-    const prazoDias = parsePrazoDias(req.body?.prazoDias);
-    await PrazoService.atualizarCliente(id, prazoDias);
-    OperacaoService.invalidarCache();
-    res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
-
-prazosRouter.delete("/clientes/:id", async (req, res, next) => {
-  try {
-    const id = parseId(req.params.id);
-    await PrazoService.removerCliente(id);
+    await PrazoService.definirPrazoPasta(id, null);
     OperacaoService.invalidarCache();
     res.json({ success: true });
   } catch (err) {

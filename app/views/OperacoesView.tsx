@@ -9,6 +9,7 @@ import { useOperacoesActions } from "~/hooks/useOperacoesActions";
 import { useOperacoesInteractions } from "~/hooks/useOperacoesInteractions";
 import { useUI } from "~/hooks/use-ui";
 import { exportarExcel } from "~/utils/export";
+import { diasEmAberto, diasVencida } from "~/utils/formatters";
 import { ColumnFilterMenu } from "~/components/ColumnFilterMenu";
 import { ImportModal } from "~/components/ImportModal";
 import { Skeleton } from "~/components/Skeleton";
@@ -161,7 +162,12 @@ export function OperacoesView({ pastaId = null, pastaNome, nomePasta, showImport
   }), [columnFilters, selectedRanges, isDragging, orderedColumns, columnWidths, isFillDragging, fillRange, meta.totalVl, onFillEnd]);
 
   const handleLocalUpdate = (id: number, campo: string, valor: string) => {
-    setDados((prev: any[]) => prev.map(d => d.id === id ? { ...d, [campo]: valor } : d));
+    setDados((prev: any[]) => prev.map(d => {
+      if (d.id !== id) return d;
+      if (campo !== "dt_emissao_") return { ...d, [campo]: valor };
+      const dias = diasEmAberto(valor);
+      return { ...d, [campo]: valor, dias_em_aberto: dias, dias_vencida: diasVencida(dias, d.prazoDias) };
+    }));
     salvarEdicao(id, campo, valor);
   };
 
