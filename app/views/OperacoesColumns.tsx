@@ -6,10 +6,10 @@ import { twMerge } from "tailwind-merge";
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
-const SORTABLE_COLUMNS = ["nr_ctrc", "dt_emissao_", "data_status", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"];
+const SORTABLE_COLUMNS = ["nr_ctrc", "dt_emissao_", "dias_em_aberto", "dias_vencida", "data_status", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"];
 
-const PLACA_DUPLICADA_BG = { backgroundColor: "rgba(217,119,6,0.18)" };
-const EMISSAO_ANTIGA_BG = { backgroundColor: "rgba(224,48,72,0.14)" };
+const ALERTA_BG = { backgroundColor: "rgba(217,119,6,0.18)" };
+const FORA_DO_PRAZO_BG = { backgroundColor: "rgba(224,48,72,0.14)" };
 const STATUS_FORA_DA_LISTA_BG = { backgroundColor: "rgba(124,58,237,0.16)" };
 
 export function getOperacoesColumns({
@@ -51,6 +51,7 @@ export function getOperacoesColumns({
       draggable: true,
       resizable: true,
       sortable: isSortable,
+      editable: !col.calculada,
       minWidth: 30,
       width: columnWidths[col.key] || parseInt(col.width) || 150,
       renderHeaderCell: ({ sortDirection }: any) => {
@@ -68,7 +69,7 @@ export function getOperacoesColumns({
                 <span className="text-primary normal-case ml-1">= {formatarMoeda(totalVl)}</span>
               )}
             </span>
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 setOpenFilterCol({ key: col.key, rect: e.currentTarget.getBoundingClientRect() });
@@ -147,18 +148,29 @@ export function getOperacoesColumns({
           
         const isSupportedFillCol = col.key === "status" || col.key === "comentarios" || col.key === "id_solicitacao";
 
-        const placaDuplicada = col.key === "ds_placa" && props.row.placaDuplicada === true;
+        const nfDuplicada = col.key === "nr_nf" && props.row.nfDuplicada === true;
+        const cteDuplicado = col.key === "nr_ctrc" && props.row.cteDuplicado === true;
         const emissaoAntiga = col.key === "dt_emissao_" && props.row.emissaoAntiga === true;
+        const vencida = col.key === "dias_vencida" && props.row.dias_vencida >= 1;
+        // No dia do prazo a Vencida segue 0, mas a Emissão já está vermelha: a cor própria
+        // diferencia esse 0 do 0 de quem ainda está dentro do prazo.
+        const venceuHoje = col.key === "dias_vencida" && props.row.dias_em_aberto === props.row.prazoDias;
         // Status gravado antes da lista fechada (ou de opção desativada). Só marca
         // depois que o /init trouxe as opções, para não piscar na carga.
         const statusForaDaLista = col.key === "status" && !!value && !!statusOpcoes && !statusOpcoes.includes(value);
-        const tooltip = placaDuplicada
-          ? "Placa duplicada nesta pasta"
-          : emissaoAntiga
-            ? "Emissão antiga (fora do prazo)"
-            : statusForaDaLista
-              ? "Status fora da lista: escolha uma opção"
-              : undefined;
+        const tooltip = nfDuplicada
+          ? "NF duplicada nesta pasta"
+          : cteDuplicado
+            ? "CTe duplicado nesta pasta"
+            : emissaoAntiga
+              ? "Emissão antiga (fora do prazo)"
+              : vencida
+                ? "Operação vencida (fora do prazo)"
+                : venceuHoje
+                  ? "Hoje é o último dia do prazo"
+                  : statusForaDaLista
+                    ? "Status fora da lista: escolha uma opção"
+                    : undefined;
 
         return (
           <div
@@ -210,10 +222,10 @@ export function getOperacoesColumns({
           >
             {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-[rgba(0,102,255,0.15)] pointer-events-none" />}
             {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-primary bg-[rgba(0,102,255,0.1)] pointer-events-none" />}
-            {(placaDuplicada || emissaoAntiga || statusForaDaLista) && (
+            {(nfDuplicada || cteDuplicado || emissaoAntiga || vencida || venceuHoje || statusForaDaLista) && (
               <div
                 className="absolute -inset-x-2 -inset-y-2 pointer-events-none"
-                style={placaDuplicada ? PLACA_DUPLICADA_BG : emissaoAntiga ? EMISSAO_ANTIGA_BG : STATUS_FORA_DA_LISTA_BG}
+                style={emissaoAntiga || vencida ? FORA_DO_PRAZO_BG : statusForaDaLista ? STATUS_FORA_DA_LISTA_BG : ALERTA_BG}
               />
             )}
             

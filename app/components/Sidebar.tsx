@@ -7,7 +7,7 @@ import { api, errorMessage } from "~/lib/api";
 import { queryClient, queryKeys, useFaturistas } from "~/lib/query";
 import { prefetchOperacoes, cancelPrefetch } from "~/hooks/useOperacoesGridData";
 import { useUI } from "~/hooks/use-ui";
-import { COLOR_NAMES, PRESET_COLORS, SidebarFolderItem } from "./SidebarFolderItem";
+import { COLOR_NAMES, ContadorAntigas, PRESET_COLORS, SidebarFolderItem } from "./SidebarFolderItem";
 
 interface SidebarProps {
   pastas: any[];
@@ -125,9 +125,7 @@ export const Sidebar = React.memo(({
                         </span>
                       )}
                       {(emissaoAntigasPorPasta.inbox ?? 0) > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-600 font-black">
-                          {emissaoAntigasPorPasta.inbox}
-                        </span>
+                        <ContadorAntigas quantidade={emissaoAntigasPorPasta.inbox} para="/caixa-de-entrada" />
                       )}
                     </div>
                   )}

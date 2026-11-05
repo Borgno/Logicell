@@ -77,7 +77,7 @@ export function ColumnFilterMenu({ openFilterCol, setOpenFilterCol, columnFilter
           <option value="notBlank" className="bg-card-bg text-text">Não Vazio</option>
           {isDateColumn && <option value="period" className="bg-card-bg text-text">Período</option>}
           {openFilterCol.key === "dt_emissao_" && <option value="antigos" className="bg-card-bg text-text">Antigos</option>}
-          {openFilterCol.key === "ds_placa" && <option value="duplicados" className="bg-card-bg text-text">Duplicados</option>}
+          {(openFilterCol.key === "nr_nf" || openFilterCol.key === "nr_ctrc") && <option value="duplicados" className="bg-card-bg text-text">Duplicados</option>}
         </select>
 
         {isPeriod ? (

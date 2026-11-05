@@ -100,6 +100,8 @@ model Pasta {
   nome        String     @unique
   cor         String?
   faturistaId String?
+  // Prazo de emissão próprio da pasta. Vazio usa o prazo padrão de Configuracao.
+  prazoDias   Int?
   operacoes   Operacao[]
   regras      RegraAutomacao[]
   createdAt   DateTime   @default(now())
@@ -126,8 +128,8 @@ model RegraAutomacao {
   @@index([pastaId])
 }
 
-// Exceções de prazo de emissão por cliente (nm_pessoa_pagador). Clientes sem
-// exceção usam o prazo padrão da tabela Configuracao.
+// Sem uso no app: o prazo de emissão agora é por pasta (Pasta.prazoDias). A
+// tabela fica só como registro dos prazos antigos por cliente.
 model PrazoCliente {
   id        Int      @id @default(autoincrement())
   cliente   String   @unique
