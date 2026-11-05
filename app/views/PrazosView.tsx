@@ -1,9 +1,134 @@
-import { CheckCircle2, Clock3, Info, Loader2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, ChevronDown, Clock3, Folder, Info, Loader2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUI } from "~/hooks/use-ui";
 import { api, errorMessage } from "~/lib/api";
-import { queryClient, queryKeys, usePrazos } from "~/lib/query";
+import { queryClient, queryKeys, usePrazos, type PrazoPastaItem } from "~/lib/query";
 import { Skeleton } from "~/components/Skeleton";
+import { normalizarBusca } from "~/utils/formatters";
+
+const rotuloDias = (dias: number) => `${dias} dia${dias !== 1 ? "s" : ""}`;
+
+// Lista de pastas com busca, no mesmo visual do menu "Mover para". Pasta que já tem
+// prazo aparece com os dias e não pode ser escolhida: ela é editada na lista abaixo.
+function PastaSelect({ pastas, valor, desabilitado, onChange }: {
+  pastas: PrazoPastaItem[];
+  valor: string;
+  desabilitado: boolean;
+  onChange: (id: string) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const raiz = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const aoClicarFora = (e: MouseEvent) => {
+      if (!raiz.current?.contains(e.target as Node)) fechar();
+    };
+    document.addEventListener("mousedown", aoClicarFora);
+    return () => document.removeEventListener("mousedown", aoClicarFora);
+  }, [aberto]);
+
+  const opcoes = useMemo(() => {
+    const query = normalizarBusca(busca.trim());
+    if (!query) return pastas;
+    return pastas.filter((p) => normalizarBusca(p.nome).includes(query));
+  }, [pastas, busca]);
+
+  const selecionada = pastas.find((p) => String(p.id) === valor);
+
+  const fechar = () => {
+    setAberto(false);
+    setBusca("");
+  };
+
+  const escolher = (p: PrazoPastaItem) => {
+    onChange(String(p.id));
+    fechar();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      fechar();
+    } else if (e.key === "Enter") {
+      // Sem isso o Enter da busca enviaria o formulário.
+      e.preventDefault();
+      const primeira = opcoes.find((p) => p.prazoDias === null);
+      if (primeira) escolher(primeira);
+    }
+  };
+
+  return (
+    <div ref={raiz} className="relative flex-1 min-w-0">
+      <button
+        type="button"
+        disabled={desabilitado}
+        onClick={() => (aberto ? fechar() : setAberto(true))}
+        className="w-full h-11 pl-9 pr-9 bg-surface border border-glass-border rounded-xl text-left text-xs font-bold focus:ring-1 focus:ring-primary focus:border-primary transition-all outline-none disabled:opacity-60"
+      >
+        <Folder size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
+        <span className={`block truncate ${selecionada ? "text-text" : "font-medium text-text-dim"}`}>
+          {selecionada?.nome || "Selecione a pasta"}
+        </span>
+        <ChevronDown
+          size={15}
+          className={`absolute right-3 top-1/2 -translate-y-1/2 text-text-dim transition-transform ${aberto ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {aberto && (
+        <div className="absolute top-full left-0 mt-2 w-full max-w-lg bg-card-bg border border-glass-border rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.1)] z-[60] overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="px-3 py-2 text-[11px] font-bold text-text-muted border-b border-glass-border uppercase tracking-widest">
+            Escolha a pasta:
+          </div>
+          <div className="p-2 border-b border-glass-border">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+              <input
+                autoFocus
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Buscar pasta..."
+                className="w-full bg-card-bg dark:bg-bg rounded-lg pl-7 pr-7 py-1.5 text-xs font-bold outline-none border border-[rgba(0,0,0,0.12)] dark:border-glass-border focus:border-primary text-text placeholder:text-text-dim transition-colors"
+              />
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => setBusca("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-text-muted hover:text-text transition-colors"
+                  title="Limpar busca"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-60 overflow-y-auto custom-scrollbar py-1">
+            {opcoes.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                disabled={p.prazoDias !== null}
+                onClick={() => escolher(p)}
+                className="w-full flex items-center justify-between gap-3 text-left px-4 py-2 hover:bg-surface-light text-sm font-medium text-text transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
+                <span className="min-w-0 whitespace-normal break-words">{p.nome}</span>
+                {p.prazoDias !== null && (
+                  <span className="inline-flex items-center gap-1 bg-badge-warning-bg text-badge-warning-text border border-amber-500/20 text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">
+                    <Clock3 size={11} />
+                    {rotuloDias(p.prazoDias)}
+                  </span>
+                )}
+              </button>
+            ))}
+            {opcoes.length === 0 && <p className="px-4 py-2 text-xs text-text-muted">Nenhuma pasta encontrada</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function PrazosView() {
   const { data, isFetching } = usePrazos();
@@ -17,22 +142,22 @@ export function PrazosView() {
   const [padraoDirty, setPadraoDirty] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
 
-  const [novoCliente, setNovoCliente] = useState("");
+  const [novaPastaId, setNovaPastaId] = useState("");
   const [novoDias, setNovoDias] = useState("");
-  const [sugestoes, setSugestoes] = useState<string[]>([]);
-  const [editando, setEditando] = useState<{ id: number; cliente: string; dias: string } | null>(null);
+  const [editando, setEditando] = useState<{ id: number; nome: string; dias: string } | null>(null);
 
   useEffect(() => {
     if (data?.padrao != null) setPadraoDias(data.padrao);
   }, [data?.padrao]);
 
-  const clientes = data?.clientes || [];
+  const pastas = data?.pastas || [];
+  const excecoes = useMemo(() => (data?.pastas || []).filter((p) => p.prazoDias !== null), [data?.pastas]);
 
-  const clientesFiltrados = useMemo(() => {
+  const excecoesFiltradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return clientes;
-    return clientes.filter((c) => c.cliente.toLowerCase().includes(q));
-  }, [clientes, busca]);
+    if (!q) return excecoes;
+    return excecoes.filter((p) => p.nome.toLowerCase().includes(q));
+  }, [excecoes, busca]);
 
   const invalidar = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.prazos });
@@ -55,47 +180,25 @@ export function PrazosView() {
     }
   };
 
-  const buscarSugestoes = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setSugestoes([]);
-      return;
-    }
-    try {
-      const res = await api.get<{ clientes: string[] }>(`/prazos/clientes/sugestoes?q=${encodeURIComponent(q)}`);
-      setSugestoes(res.clientes || []);
-    } catch {
-      setSugestoes([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (editando || novoCliente.trim().length < 2) {
-      setSugestoes([]);
-      return;
-    }
-    const t = setTimeout(() => buscarSugestoes(novoCliente), 300);
-    return () => clearTimeout(t);
-  }, [novoCliente, editando, buscarSugestoes]);
-
   const validarDias = (valor: string): number | null => {
     const n = Number(valor);
     return Number.isInteger(n) && n >= 1 && n <= 3650 ? n : null;
   };
 
-  const adicionarCliente = async () => {
+  const adicionarPasta = async () => {
     const dias = validarDias(novoDias);
-    if (!novoCliente.trim() || dias === null) {
-      setErro("Informe o cliente e um prazo válido (1 a 3650 dias).");
+    if (!novaPastaId || dias === null) {
+      setErro("Escolha a pasta e um prazo válido (1 a 3650 dias).");
       return;
     }
     setCarregando(true);
     setErro(null);
     try {
-      await api.post("/prazos/clientes", { cliente: novoCliente.trim(), prazoDias: dias });
-      setNovoCliente("");
+      await api.put(`/prazos/pastas/${novaPastaId}`, { prazoDias: dias });
+      setNovaPastaId("");
       setNovoDias("");
       invalidar();
-      showAlert({ title: "Prazo adicionado", message: `Prazo configurado para o cliente.`, variant: "success" });
+      showAlert({ title: "Prazo adicionado", message: "Prazo configurado para a pasta.", variant: "success" });
     } catch (err) {
       setErro(errorMessage(err));
     } finally {
@@ -113,10 +216,10 @@ export function PrazosView() {
     setCarregando(true);
     setErro(null);
     try {
-      await api.patch(`/prazos/clientes/${editando.id}`, { prazoDias: dias });
+      await api.put(`/prazos/pastas/${editando.id}`, { prazoDias: dias });
       setEditando(null);
       invalidar();
-      showAlert({ title: "Prazo atualizado", message: `Prazo de "${editando.cliente}" alterado.`, variant: "success" });
+      showAlert({ title: "Prazo atualizado", message: `Prazo de "${editando.nome}" alterado.`, variant: "success" });
     } catch (err) {
       setErro(errorMessage(err));
     } finally {
@@ -124,18 +227,18 @@ export function PrazosView() {
     }
   };
 
-  const excluirCliente = (c: { id: number; cliente: string }) => {
+  const excluirPasta = (p: { id: number; nome: string }) => {
     confirm({
-      title: "Remover prazo do cliente",
-      message: `Remover a exceção de prazo do cliente\n"${c.cliente}"?\n\nEle voltará a usar o prazo padrão global.`,
+      title: "Remover prazo da pasta",
+      message: `Remover a exceção de prazo da pasta\n"${p.nome}"?\n\nEla voltará a usar o prazo padrão global.`,
       variant: "danger",
       onConfirm: async () => {
         setCarregando(true);
         setErro(null);
         try {
-          await api.del(`/prazos/clientes/${c.id}`);
+          await api.del(`/prazos/pastas/${p.id}`);
           invalidar();
-          showAlert({ title: "Prazo removido", message: `O cliente "${c.cliente}" voltou a usar o prazo padrão.`, variant: "success" });
+          showAlert({ title: "Prazo removido", message: `A pasta "${p.nome}" voltou a usar o prazo padrão.`, variant: "success" });
         } catch (err) {
           setErro(errorMessage(err));
         } finally {
@@ -159,7 +262,7 @@ export function PrazosView() {
           <p>
             Operações com data de emissão <strong>mais antiga que o prazo</strong> são sinalizadas como antigas: a
             coluna Emissão fica destacada em vermelho e o contador âmbar aparece ao lado de cada pasta (e da Caixa de
-            Entrada) na barra lateral. Clientes sem exceção abaixo usam o prazo padrão global.
+            Entrada) na barra lateral. Pastas sem exceção abaixo usam o prazo padrão global.
           </p>
         </div>
 
@@ -168,7 +271,7 @@ export function PrazosView() {
             <div>
               <h2 className="text-sm font-bold uppercase tracking-tight text-text">Prazo padrão global</h2>
               <p className="text-[11px] font-medium text-text-muted mt-1">
-                Aplicado a todos os clientes sem exceção cadastrada abaixo.
+                Aplicado à Caixa de Entrada e às pastas sem exceção cadastrada abaixo.
               </p>
             </div>
             <div className="flex items-end gap-2">
@@ -201,9 +304,9 @@ export function PrazosView() {
         <div className="bg-card-bg border border-glass-border rounded-2xl p-6 shadow-sm flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-tight text-text">Prazos por cliente</h2>
+              <h2 className="text-sm font-bold uppercase tracking-tight text-text">Prazos por pasta</h2>
               <p className="text-[11px] font-medium text-text-muted mt-1">
-                {clientes.length} cliente{clientes.length !== 1 ? "s" : ""} com exceção cadastrada
+                {excecoes.length} pasta{excecoes.length !== 1 ? "s" : ""} com exceção cadastrada
               </p>
             </div>
             <div className="relative flex-1 sm:max-w-xs">
@@ -212,7 +315,7 @@ export function PrazosView() {
                 type="text"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Filtrar clientes..."
+                placeholder="Filtrar pastas..."
                 className="w-full h-10 pl-9 pr-3 bg-surface border border-glass-border rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary focus:border-primary text-text placeholder:font-medium placeholder:text-text-dim transition-all outline-none"
               />
             </div>
@@ -221,27 +324,16 @@ export function PrazosView() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              editando ? salvarEdicao() : adicionarCliente();
+              editando ? salvarEdicao() : adicionarPasta();
             }}
             className="flex flex-col sm:flex-row gap-3 items-stretch"
           >
-            <div className="relative flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
-              <input
-                type="text"
-                list="clientes-sugestoes"
-                value={editando ? editando.cliente : novoCliente}
-                disabled={!!editando}
-                onChange={(e) => setNovoCliente(e.target.value)}
-                placeholder="Nome do cliente "
-                className="w-full h-11 pl-9 pr-3 bg-surface border border-glass-border rounded-xl text-xs font-bold uppercase focus:ring-1 focus:ring-primary focus:border-primary text-text placeholder:normal-case placeholder:font-medium placeholder:text-text-dim transition-all outline-none disabled:opacity-60"
-              />
-              <datalist id="clientes-sugestoes">
-                {sugestoes.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            </div>
+            <PastaSelect
+              pastas={pastas}
+              valor={editando ? String(editando.id) : novaPastaId}
+              desabilitado={!!editando}
+              onChange={setNovaPastaId}
+            />
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -282,32 +374,32 @@ export function PrazosView() {
             </div>
           )}
 
-          {isFetching && clientes.length === 0 ? (
+          {isFetching && pastas.length === 0 ? (
             <div className="flex flex-col gap-2">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-12" />
               ))}
             </div>
-          ) : clientesFiltrados.length === 0 ? (
+          ) : excecoesFiltradas.length === 0 ? (
             <div className="py-10 flex flex-col items-center justify-center text-center border border-dashed border-glass-border rounded-xl">
               <Clock3 size={28} className="text-text-dim mb-3" />
-              <p className="text-sm font-bold text-text">Nenhum cliente com exceção</p>
+              <p className="text-sm font-bold text-text">Nenhuma pasta com exceção</p>
               <p className="text-xs text-text-muted max-w-sm mt-1">
-                Adicione clientes que precisam de um prazo diferente do padrão global (10 dias).
+                Adicione pastas que precisam de um prazo diferente do padrão global ({rotuloDias(data?.padrao ?? 10)}).
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {clientesFiltrados.map((c) => (
+              {excecoesFiltradas.map((p) => (
                 <div
-                  key={c.id}
+                  key={p.id}
                   className="group flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-surface hover:bg-surface-light border border-glass-border transition-all"
                 >
-                  <span className="text-sm font-bold truncate text-text" title={c.cliente}>
-                    {c.cliente}
+                  <span className="text-sm font-bold truncate text-text" title={p.nome}>
+                    {p.nome}
                   </span>
                   <div className="flex items-center gap-3 shrink-0">
-                    {editando?.id === c.id ? (
+                    {editando?.id === p.id ? (
                       <input
                         type="number"
                         autoFocus
@@ -320,20 +412,20 @@ export function PrazosView() {
                     ) : (
                       <span className="inline-flex items-center gap-1 bg-badge-warning-bg text-badge-warning-text border border-amber-500/20 text-[10px] font-bold px-2.5 py-1 rounded-full">
                         <Clock3 size={11} />
-                        até {c.prazoDias} dia{c.prazoDias !== 1 ? "s" : ""}
+                        até {rotuloDias(p.prazoDias ?? 0)}
                       </span>
                     )}
                     <button
                       onClick={() =>
-                        editando?.id === c.id ? salvarEdicao() : setEditando({ id: c.id, cliente: c.cliente, dias: String(c.prazoDias) })
+                        editando?.id === p.id ? salvarEdicao() : setEditando({ id: p.id, nome: p.nome, dias: String(p.prazoDias) })
                       }
                       className="w-8 h-8 flex items-center justify-center rounded-lg text-text-muted hover:text-primary hover:bg-primary/10 transition-all"
-                      title={editando?.id === c.id ? "Salvar" : "Editar prazo"}
+                      title={editando?.id === p.id ? "Salvar" : "Editar prazo"}
                     >
-                      {editando?.id === c.id ? <CheckCircle2 size={15} /> : <Pencil size={14} />}
+                      {editando?.id === p.id ? <CheckCircle2 size={15} /> : <Pencil size={14} />}
                     </button>
                     <button
-                      onClick={() => excluirCliente(c)}
+                      onClick={() => excluirPasta(p)}
                       className="w-8 h-8 flex items-center justify-center rounded-lg text-text-muted hover:text-error hover:bg-red-500/10 transition-all"
                       title="Remover exceção"
                     >

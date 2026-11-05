@@ -1,6 +1,7 @@
 import prisma from "../lib/prisma.server";
 import { Pasta } from "@prisma/client";
 import { SupabaseAdminService } from "./supabase-admin.server";
+import { PrazoService } from "./prazo.server";
 
 type PastaComCount = Pasta & { _count: { operacoes: number } };
 
@@ -12,6 +13,8 @@ export class PastaService {
   static invalidarCache() {
     this.cache = null;
     this.cacheTime = 0;
+    //A tela de prazos lista as pastas: criar, renomear ou excluir aparece lá na hora.
+    PrazoService.invalidarCache();
   }
 
   static async listar() {

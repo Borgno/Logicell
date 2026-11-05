@@ -68,18 +68,20 @@ export function useFaturistas(enabled: boolean) {
   });
 }
 
-export interface PrazoClienteItem {
+export interface PrazoPastaItem {
   id: number;
-  cliente: string;
-  prazoDias: number;
+  nome: string;
+  // Vazio = a pasta usa o prazo padrão.
+  prazoDias: number | null;
 }
 
-// Regras de "emissão antiga": prazo padrão global + exceções por cliente.
+// Regras de "emissão antiga": prazo padrão global + todas as pastas, com o prazo próprio de cada uma.
 export function usePrazos() {
   return useQuery({
     queryKey: queryKeys.prazos,
-    queryFn: () => api.get<{ padrao: number; clientes: PrazoClienteItem[] }>("/prazos"),
-    staleTime: 60_000,
+    queryFn: () => api.get<{ padrao: number; pastas: PrazoPastaItem[] }>("/prazos"),
+    //A lista inclui todas as pastas: sem cache aqui, pasta recém-criada já aparece.
+    staleTime: 0,
   });
 }
 
@@ -104,7 +106,7 @@ export interface DashboardFiltros {
   tipoDocumento?: string;
   tipoCte?: string;
   agencia?: string;
-  // "1" = só emissões antigas (fora do prazo padrão/do cliente).
+  // "1" = só emissões antigas (fora do prazo padrão/da pasta).
   antigas?: string;
   // Período de emissão "YYYY-MM-DD..YYYY-MM-DD" (um dos lados pode ficar vazio).
   periodo?: string;

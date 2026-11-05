@@ -20,37 +20,39 @@ export class OperacaoQueryBuilder {
   }
 
   // Condição SQL de "emissão antiga": fora do prazo padrão ou do prazo
-  // específico do cliente (nm_pessoa_pagador). Compartilhada com
+  // específico da pasta (Pasta.prazoDias). Compartilhada com
   // `emissoesAntigasPorPasta` para que o filtro e os contadores batam.
   static construirCondicaoAntigas(regras: PrazoRegras, params: any[], alias = "o"): string {
     const agora = Date.now();
-    const clienteExpr = `UPPER(COALESCE(BTRIM(${alias}.nm_pessoa_pagador), ''))`;
+    // Caixa de Entrada (pastaId vazio) vira 0, que não é id de pasta: sem o
+    // COALESCE, o NOT abaixo daria NULL e ela nunca teria emissão antiga.
+    const pastaExpr = `COALESCE(${alias}."pastaId", 0)`;
 
     // Agrupa as exceções pelo mesmo número de dias para reduzir condições no SQL
-    const buckets = new Map<number, string[]>();
-    for (const [cliente, dias] of Object.entries(regras.porCliente)) {
+    const buckets = new Map<number, number[]>();
+    for (const [pastaId, dias] of Object.entries(regras.porPasta)) {
       const lista = buckets.get(dias) ?? [];
-      lista.push(cliente);
+      lista.push(Number(pastaId));
       buckets.set(dias, lista);
     }
 
-    const todasExcecoes = [...Object.keys(regras.porCliente)];
+    const todasExcecoes = Object.keys(regras.porPasta).map(Number);
     const filters: string[] = [];
 
-    // Clientes sem exceção (ou sem cliente) usam o prazo padrão
+    // Pastas sem exceção e a Caixa de Entrada usam o prazo padrão
     params.push(todasExcecoes);
     params.push(new Date(agora - regras.padraoDias * MILIS_DIA));
     filters.push(
-      `(NOT (${clienteExpr} = ANY($${params.length - 1}::text[]))
+      `(NOT (${pastaExpr} = ANY($${params.length - 1}::int[]))
         AND ${alias}.dt_emissao_ < $${params.length})`
     );
 
     // Cada exceção usa o seu próprio prazo
-    for (const [dias, clientes] of buckets.entries()) {
-      params.push(clientes);
+    for (const [dias, pastas] of buckets.entries()) {
+      params.push(pastas);
       params.push(new Date(agora - dias * MILIS_DIA));
       filters.push(
-        `(${clienteExpr} = ANY($${params.length - 1}::text[])
+        `(${pastaExpr} = ANY($${params.length - 1}::int[])
           AND ${alias}.dt_emissao_ < $${params.length})`
       );
     }

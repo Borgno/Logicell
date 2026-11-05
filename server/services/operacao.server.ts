@@ -110,6 +110,7 @@ export class OperacaoService {
           o.vl_peso, o.vl_tarifa, o.vl_total, o.nr_nf, o.ds_placa, o.nm_pessoa_matriz,
           o.nr_contrato, o.nr_chave_acesso, o.nm_pessoa_usuario_lancamento, o.id_tipo_ctrc,
           o.nm_proprietario_posse_cavalo, o.nm_motorista, o.data_status, o.id_solicitacao, o.dt_quitacao_saldo,
+          o."pastaId" AS _pasta_id,
           COUNT(*) OVER() AS _total_count,
           COALESCE(SUM(o.vl_total) OVER(), 0) AS _total_vl
         FROM "Operacao" o
@@ -125,16 +126,15 @@ export class OperacaoService {
     const MILIS_DIA = 24 * 60 * 60 * 1000;
 
     const sanitizedData = data.map((item) => {
-      const { _total_count, _total_vl, ...rest } = item;
+      const { _total_count, _total_vl, _pasta_id, ...rest } = item;
 
       // Placa duplicada dentro do escopo da pasta atual (ex.: Caixa de Entrada)
       const placa = rest.ds_placa ? String(rest.ds_placa).trim() : "";
       rest.placaDuplicada = placa !== "" && placasDuplicadas.has(placa.toUpperCase());
 
-      // Emissão antiga: data de emissão anterior ao prazo do cliente (ou padrão)
-      const cliente = rest.nm_pessoa_pagador ? String(rest.nm_pessoa_pagador).trim().toUpperCase() : "";
-      const prazoDias = regras.porCliente[cliente] ?? regras.padraoDias;
-      const dt = rest.dt_emissao_ ? new Date(rest.dt_emissao_).getTime() : null;
+      // Emissão antiga: data de emissão anterior ao prazo da pasta (ou padrão)
+      const prazoDias = regras.porPasta[_pasta_id] ?? regras.padraoDias;
+      const dt =rest.dt_emissao_ ? new Date(rest.dt_emissao_).getTime() : null;
       rest.emissaoAntiga = dt !== null && dt < agora - prazoDias * MILIS_DIA;
 
       return {
