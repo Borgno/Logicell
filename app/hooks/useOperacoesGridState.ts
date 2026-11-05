@@ -4,8 +4,8 @@ import { useLocation, useSearchParams } from "react-router";
 export const COLUNAS_OPERACAO = [
   { key: 'nm_agencia', label: 'Agência', width: '180px' },
   { key: 'dt_emissao_', label: 'Emissão', width: '120px' },
-  // Calculadas no navegador a partir da Emissão: não existem no banco, então não editam nem filtram.
-  { key: 'dias_em_aberto', label: 'Dias em Aberto', width: '165px', calculada: true },
+  // Calculadas no navegador a partir da Emissão: não existem no banco, então não são editáveis.
+  { key: 'dias_em_aberto', label: 'Dias em Aberto', width: '185px', calculada: true },
   { key: 'dias_vencida', label: 'Vencida', width: '120px', calculada: true },
   { key: 'nm_proprietario_posse_cavalo', label: 'Proprietário', width: '200px' },
   { key: 'nm_pessoa_pagador', label: 'Cliente', width: '250px' },
@@ -43,6 +43,20 @@ export const COLUNAS_OPERACAO = [
 export type FilterType = "contains" | "equals" | "blank" | "notBlank" | "period" | "antigos" | "duplicados";
 export type Range = { start: {rowIdx: number, colIdx: number}, end: {rowIdx: number, colIdx: number} };
 
+// Filtros que chegam pelo state da navegação (ocultos na URL).
+function lerFiltrosDoState(state: unknown) {
+  const filtros: Record<string, { type: FilterType, value: string }> = {};
+  for (const [key, value] of Object.entries(state || {})) {
+    if (!key.startsWith("colFilter_") || typeof value !== "string") continue;
+    const colKey = key.replace("colFilter_", "");
+    const separatorIdx = value.indexOf(":");
+    filtros[colKey] = separatorIdx > -1
+      ? { type: value.substring(0, separatorIdx) as FilterType, value: value.substring(separatorIdx + 1) }
+      : { type: value as FilterType, value: "" };
+  }
+  return filtros;
+}
+
 export function useOperacoesGridState(initialColumnOrder: string[] | null) {
   const [searchParams] = useSearchParams();
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
@@ -59,26 +73,8 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null) {
   
   const location = useLocation();
   const [columnFilters, setColumnFilters] = useState<Record<string, { type: FilterType, value: string }>>(() => {
-    const init: any = {};
-    
-    // Suporte a state de navegação (hidden na URL)
-    if (location.state) {
-      for (const [key, value] of Object.entries(location.state)) {
-        if (key.startsWith("colFilter_") && typeof value === 'string') {
-          const colKey = key.replace("colFilter_", "");
-          const separatorIdx = value.indexOf(":");
-          if (separatorIdx > -1) {
-              init[colKey] = {
-                  type: value.substring(0, separatorIdx) as FilterType,
-                  value: value.substring(separatorIdx + 1)
-              };
-          } else {
-              init[colKey] = { type: value as FilterType, value: "" };
-          }
-        }
-      }
-    }
-    
+    const init: any = lerFiltrosDoState(location.state);
+
     // Suporte legado para searchParams
     for (const [key, value] of searchParams.entries()) {
       if (key.startsWith("colFilter_")) {
@@ -96,6 +92,15 @@ export function useOperacoesGridState(initialColumnOrder: string[] | null) {
     }
     return init;
   });
+
+  // A tela fica montada entre as pastas: o filtro que chega depois de aberta entra
+  // aqui, ainda no render, para a grid não buscar a pasta sem ele antes.
+  const [stateAplicado, setStateAplicado] = useState(location.state);
+  if (location.state !== stateAplicado) {
+    setStateAplicado(location.state);
+    if (location.state) setColumnFilters(lerFiltrosDoState(location.state));
+  }
+
   const [openFilterCol, setOpenFilterCol] = useState<{ key: string, rect: DOMRect } | null>(null);
 
   const [selectedRanges, setSelectedRanges] = useState<Range[]>([]);
