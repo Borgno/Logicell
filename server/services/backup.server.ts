@@ -50,8 +50,12 @@ export class BackupService {
     // Snapshot com ~7 mil operações pode passar do timeout padrão de 5 s do
     // Prisma; 60 s de folga (maxWait = tempo esperando um slot do pool).
     await prisma.$transaction(async (tx) => {
+      const prazos = await tx.pasta.findMany({
+        where: { prazoDias: { not: null } },
+        select: { id: true, prazoDias: true },
+      });
       await BackupService.limparDadosAtuais(tx);
-      await BackupService.restaurarPastas(tx, snapshot.pastas);
+      await BackupService.restaurarPastas(tx, snapshot.pastas, prazos);
       await BackupService.restaurarRegras(tx, snapshot.regras);
       await BackupService.restaurarOperacoes(tx, snapshot.operacoes);
     }, { timeout: 60_000, maxWait: 10_000 });
@@ -72,10 +76,14 @@ export class BackupService {
     await tx.pasta.deleteMany();
   }
 
-  private static async restaurarPastas(tx: any, pastasRaw: any) {
+  //O prazo da pasta é configuração, não dado da importação: voltar um snapshot não
+  //mexe nele, e os snapshots anteriores ao campo nem o trazem.
+  private static async restaurarPastas(tx: any, pastasRaw: any, prazos: { id: number; prazoDias: number | null }[]) {
     if (!Array.isArray(pastasRaw) || pastasRaw.length === 0) return;
+    const prazoPorId = new Map(prazos.map((p) => [p.id, p.prazoDias]));
     const pastas = pastasRaw.map((p: any) => ({
       ...p,
+      prazoDias: prazoPorId.get(p.id) ?? null,
       createdAt: paraDataUTC(p.createdAt),
       updatedAt: paraDataUTC(p.updatedAt),
     }));
