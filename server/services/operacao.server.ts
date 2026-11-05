@@ -1,8 +1,10 @@
 import prisma from "../lib/prisma.server";
 import { DateParser } from "../utils/date-parser";
 import { PastaService } from "./pasta.server";
-import { OperacaoQueryBuilder } from "./operacao-query-builder.server";
+import { COLUNAS_DUPLICADOS, OperacaoQueryBuilder, type ColunaDuplicados } from "./operacao-query-builder.server";
 import { PrazoService } from "./prazo.server";
+
+type Duplicados = Record<ColunaDuplicados, Set<string>>;
 
 export interface BulkActionParams {
   ids: number[];
@@ -35,8 +37,8 @@ export class OperacaoService {
   private static inboxCountCache: number | null = null;
   private static inboxCountCacheTime = 0;
   private static countCache = new Map<string, { count: number; totalVl: number; timestamp: number }>();
-  // Placas duplicadas por pasta (Caixa de Entrada = pastaId null)
-  private static dupsCache = new Map<string, { placas: Set<string>; timestamp: number }>();
+  // NFs e CTes duplicados por pasta (Caixa de Entrada = pastaId null)
+  private static dupsCache = new Map<string, { duplicados: Duplicados; timestamp: number }>();
   private static antigasCache: { porPasta: Record<string, { quantidade: number; valor: number }>; timestamp: number } | null = null;
   private static readonly CACHE_TTL = 1000 * 60 * 5; // 5 minutos
   private static readonly SHORT_TTL = 1000 * 30;    // 30 segundos
@@ -87,7 +89,7 @@ export class OperacaoService {
 
     const orderClause = this.montarOrderBy(filtros);
     // Resolve pastaNome -> pastaId uma vez (cache) para usar tanto no WHERE
-    // quanto nas placas duplicadas, que hoje recebem o pastaId cru.
+    // quanto nos duplicados, que hoje recebem o pastaId cru.
     const pid = await OperacaoQueryBuilder.resolverPastaId(pastaId, filtros);
     const whereClause = await OperacaoQueryBuilder.construirWhere(pastaId, filtros);
     const cacheKey = JSON.stringify({ sql: whereClause.sql, params: whereClause.params });
@@ -97,10 +99,10 @@ export class OperacaoService {
     // Uma única ida ao banco: COUNT e SUM vêm como colunas de janela (OVER()),
     // eliminando a segunda query (COUNT+SUM) que antes dobrava o round-trip
     // de rede — o gargalo real aqui é latência (VPS/DB na Europa), não o SQL.
-    // As duas outras queries (placas duplicadas e regras de prazo) não dependem
+    // As duas outras queries (NF/CTe duplicados e regras de prazo) não dependem
     // do resultado da principal: disparam todas juntas no mesmo Promise.all.
     const dbInicio = Date.now();
-    const [data, placasDuplicadas, regras] = await Promise.all([
+    const [data, duplicados, regras] = await Promise.all([
       prisma.$queryRawUnsafe<any[]>(`
         SELECT
           o.id, o.nm_agencia, o.dt_emissao_, o.cd_pessoa_pagador, o.nm_pessoa_pagador,
@@ -118,7 +120,7 @@ export class OperacaoService {
         ${orderClause}
         LIMIT ${l} OFFSET ${offset}
       `, ...whereClause.params),
-      this.placasDuplicadasDaPasta(pid),
+      this.duplicadosDaPasta(pid),
       PrazoService.regras(),
     ]);
     const dbMs = Date.now() - dbInicio;
@@ -128,9 +130,9 @@ export class OperacaoService {
     const sanitizedData = data.map((item) => {
       const { _total_count, _total_vl, _pasta_id, ...rest } = item;
 
-      // Placa duplicada dentro do escopo da pasta atual (ex.: Caixa de Entrada)
-      const placa = rest.ds_placa ? String(rest.ds_placa).trim() : "";
-      rest.placaDuplicada = placa !== "" && placasDuplicadas.has(placa.toUpperCase());
+      // NF e CTe duplicados dentro do escopo da pasta atual (ex.: Caixa de Entrada)
+      rest.nfDuplicada = duplicados.nr_nf.has(String(rest.nr_nf ?? "").trim().toUpperCase());
+      rest.cteDuplicado = duplicados.nr_ctrc.has(String(rest.nr_ctrc ?? "").trim().toUpperCase());
 
       // Emissão antiga: data de emissão anterior ao prazo da pasta (ou padrão)
       const prazoDias = regras.porPasta[_pasta_id] ?? regras.padraoDias;
@@ -190,28 +192,32 @@ export class OperacaoService {
     return count;
   }
 
-  // Placas com mais de uma ocorrência dentro da pasta (pastaId null = Caixa de Entrada).
-  static async placasDuplicadasDaPasta(pastaId: number | string | null | undefined): Promise<Set<string>> {
-    const pid = pastaId === "" || pastaId === undefined || isNaN(Number(pastaId)) ? null : Number(pastaId);
+  // NFs e CTes com mais de uma ocorrência dentro da pasta (pastaId null = Caixa de Entrada).
+  static async duplicadosDaPasta(pastaId: number | string | null | undefined): Promise<Duplicados> {
+    const pid = pastaId === "" || pastaId === null || pastaId === undefined || isNaN(Number(pastaId)) ? null : Number(pastaId);
     const cacheKey = pid === null ? "inbox" : `pasta:${pid}`;
     const cached = this.dupsCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.COUNT_CACHE_TTL) {
-      return cached.placas;
+      return cached.duplicados;
     }
 
-    const rows = await prisma.$queryRawUnsafe<{ ds_placa: string }[]>(
-      `SELECT UPPER(BTRIM(ds_placa)) AS ds_placa
-       FROM "Operacao"
-       WHERE ds_placa IS NOT NULL AND BTRIM(ds_placa) <> ''
-         AND "pastaId" IS NOT DISTINCT FROM $1
-       GROUP BY UPPER(BTRIM(ds_placa))
-       HAVING COUNT(*) > 1`,
+    // UNION ALL: as duas colunas numa só ida ao banco.
+    const rows = await prisma.$queryRawUnsafe<{ coluna: ColunaDuplicados; valor: string }[]>(
+      COLUNAS_DUPLICADOS.map(
+        (coluna) => `SELECT '${coluna}' AS coluna, UPPER(BTRIM(${coluna})) AS valor
+         FROM "Operacao"
+         WHERE ${coluna} IS NOT NULL AND BTRIM(${coluna}) <> ''
+           AND "pastaId" IS NOT DISTINCT FROM $1
+         GROUP BY UPPER(BTRIM(${coluna}))
+         HAVING COUNT(*) > 1`
+      ).join(" UNION ALL "),
       pid
     );
 
-    const placas = new Set(rows.map((r) => r.ds_placa));
-    this.dupsCache.set(cacheKey, { placas, timestamp: Date.now() });
-    return placas;
+    const duplicados: Duplicados = { nr_nf: new Set(), nr_ctrc: new Set() };
+    for (const r of rows) duplicados[r.coluna].add(r.valor);
+    this.dupsCache.set(cacheKey, { duplicados, timestamp: Date.now() });
+    return duplicados;
   }
 
   // Emissões com atraso por pasta, com quantidade e valor (chave "inbox" =

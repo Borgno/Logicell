@@ -8,7 +8,7 @@ function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
 const SORTABLE_COLUMNS = ["nr_ctrc", "dt_emissao_", "data_status", "dt_quitacao_saldo", "vl_peso", "vl_tarifa", "vl_total"];
 
-const PLACA_DUPLICADA_BG = { backgroundColor: "rgba(217,119,6,0.18)" };
+const DUPLICADO_BG = { backgroundColor: "rgba(217,119,6,0.18)" };
 const EMISSAO_ANTIGA_BG = { backgroundColor: "rgba(224,48,72,0.14)" };
 
 export function getOperacoesColumns({
@@ -126,13 +126,16 @@ export function getOperacoesColumns({
           
         const isSupportedFillCol = col.key === "status" || col.key === "comentarios" || col.key === "id_solicitacao";
 
-        const placaDuplicada = col.key === "ds_placa" && props.row.placaDuplicada === true;
+        const nfDuplicada = col.key === "nr_nf" && props.row.nfDuplicada === true;
+        const cteDuplicado = col.key === "nr_ctrc" && props.row.cteDuplicado === true;
         const emissaoAntiga = col.key === "dt_emissao_" && props.row.emissaoAntiga === true;
-        const tooltip = placaDuplicada
-          ? "Placa duplicada nesta pasta"
-          : emissaoAntiga
-            ? "Emissão antiga (fora do prazo)"
-            : undefined;
+        const tooltip = nfDuplicada
+          ? "NF duplicada nesta pasta"
+          : cteDuplicado
+            ? "CTe duplicado nesta pasta"
+            : emissaoAntiga
+              ? "Emissão antiga (fora do prazo)"
+              : undefined;
 
         return (
           <div
@@ -184,10 +187,10 @@ export function getOperacoesColumns({
           >
             {isSelected && <div className="absolute -inset-x-2 -inset-y-2 bg-[rgba(0,102,255,0.15)] pointer-events-none" />}
             {isFillTarget && <div className="absolute inset-0 border-2 border-dashed border-primary bg-[rgba(0,102,255,0.1)] pointer-events-none" />}
-            {(placaDuplicada || emissaoAntiga) && (
+            {(nfDuplicada || cteDuplicado || emissaoAntiga) && (
               <div
                 className="absolute -inset-x-2 -inset-y-2 pointer-events-none"
-                style={placaDuplicada ? PLACA_DUPLICADA_BG : EMISSAO_ANTIGA_BG}
+                style={emissaoAntiga ? EMISSAO_ANTIGA_BG : DUPLICADO_BG}
               />
             )}
             

@@ -3,6 +3,10 @@ import { PastaService } from "./pasta.server";
 
 const MILIS_DIA = 24 * 60 * 60 * 1000;
 
+// Colunas com filtro e destaque de "Duplicados". Nomes fixos: entram direto no SQL.
+export const COLUNAS_DUPLICADOS = ["nr_nf", "nr_ctrc"] as const;
+export type ColunaDuplicados = (typeof COLUNAS_DUPLICADOS)[number];
+
 export class OperacaoQueryBuilder {
   // Resolve o identificador da pasta: pastaNome (rota de pasta, cacheada via
   // PastaService) tem prioridade sobre pastaId; nome inexistente vira 404.
@@ -60,7 +64,7 @@ export class OperacaoQueryBuilder {
     return `(${filters.join(" OR ")})`;
   }
 
-  // Verifica se um filtro de coluna (ex.: colFilter_ds_placa) tem o tipo informado.
+  // Verifica se um filtro de coluna (ex.: colFilter_nr_nf) tem o tipo informado.
   private static temFiltro(filtros: any, colName: string, type: string): boolean {
     const val = filtros?.[`colFilter_${colName}`];
     if (typeof val !== "string") return false;
@@ -176,15 +180,16 @@ export class OperacaoQueryBuilder {
       const regras = await PrazoService.regras();
       whereAnd.push(`(o.dt_emissao_ IS NOT NULL AND ${this.construirCondicaoAntigas(regras, params)})`);
     }
-    if (this.temFiltro(filtros, "ds_placa", "duplicados")) {
+    for (const coluna of COLUNAS_DUPLICADOS) {
+      if (!this.temFiltro(filtros, coluna, "duplicados")) continue;
       params.push(pid);
       whereAnd.push(
-        `(o.ds_placa IS NOT NULL AND BTRIM(o.ds_placa) <> '' AND UPPER(BTRIM(o.ds_placa)) IN (
-           SELECT UPPER(BTRIM(d.ds_placa))
+        `(o.${coluna} IS NOT NULL AND BTRIM(o.${coluna}) <> '' AND UPPER(BTRIM(o.${coluna})) IN (
+           SELECT UPPER(BTRIM(d.${coluna}))
            FROM "Operacao" d
-           WHERE d.ds_placa IS NOT NULL AND BTRIM(d.ds_placa) <> ''
+           WHERE d.${coluna} IS NOT NULL AND BTRIM(d.${coluna}) <> ''
              AND d."pastaId" IS NOT DISTINCT FROM $${params.length}
-           GROUP BY UPPER(BTRIM(d.ds_placa))
+           GROUP BY UPPER(BTRIM(d.${coluna}))
            HAVING COUNT(*) > 1
          ))`
       );
