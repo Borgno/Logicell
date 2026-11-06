@@ -27,7 +27,9 @@ export function isFilterEmpty(filter: any) {
     filter.type === "blank" ||
     filter.type === "notBlank" ||
     filter.type === "antigos" ||
-    filter.type === "duplicados"
+    filter.type === "duplicados" ||
+    filter.type === "vencidas" ||
+    filter.type === "vencidasHoje"
   ) {
     return false;
   }

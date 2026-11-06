@@ -81,6 +81,7 @@ export class OperacaoQueryBuilder {
       const regras = await PrazoService.regras();
       const prazo = (pid !== null ? regras.porPasta[pid] : undefined) ?? regras.padraoDias;
       expressoes.dias_vencida = `GREATEST(0, ${dias} - ${Number(prazo)})`;
+      expressoes.dias_alem_do_prazo = `(${dias} - ${Number(prazo)})`;
     }
     return expressoes;
   }
@@ -187,12 +188,20 @@ export class OperacaoQueryBuilder {
     };
 
     const pid = await this.resolverPastaId(pastaId, filtros);
-    this.processarFiltrosDinamicos(filtros, whereAnd, params, await this.expressoesCalculadas(filtros, pid));
+    const calculadas = await this.expressoesCalculadas(filtros, pid);
+    this.processarFiltrosDinamicos(filtros, whereAnd, params, calculadas);
 
     // Filtros especiais por coluna (sem valor digitado, baseados em regra de negócio)
     if (this.temFiltro(filtros, "dt_emissao_", "antigos")) {
       const regras = await PrazoService.regras();
       whereAnd.push(`(o.dt_emissao_ IS NOT NULL AND ${this.construirCondicaoAntigas(regras, params)})`);
+    }
+    // Seguem as cores da coluna Vencida: vermelho já passou do prazo, laranja é o último dia.
+    if (this.temFiltro(filtros, "dias_vencida", "vencidas")) {
+      whereAnd.push(`${calculadas.dias_alem_do_prazo} > 0`);
+    }
+    if (this.temFiltro(filtros, "dias_vencida", "vencidasHoje")) {
+      whereAnd.push(`${calculadas.dias_alem_do_prazo} = 0`);
     }
     for (const coluna of COLUNAS_DUPLICADOS) {
       if (!this.temFiltro(filtros, coluna, "duplicados")) continue;

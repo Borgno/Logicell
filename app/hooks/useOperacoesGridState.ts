@@ -40,7 +40,7 @@ export const COLUNAS_OPERACAO = [
 ];
 
 
-export type FilterType = "contains" | "equals" | "blank" | "notBlank" | "period" | "antigos" | "duplicados";
+export type FilterType = "contains" | "equals" | "blank" | "notBlank" | "period" | "antigos" | "duplicados" | "vencidas" | "vencidasHoje";
 export type Range = { start: {rowIdx: number, colIdx: number}, end: {rowIdx: number, colIdx: number} };
 
 // Filtros que chegam pelo state da navegação (ocultos na URL).

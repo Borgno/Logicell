@@ -32,7 +32,9 @@ export function ColumnFilterMenu({ openFilterCol, setOpenFilterCol, columnFilter
     currentFilter?.type === "blank" ||
     currentFilter?.type === "notBlank" ||
     currentFilter?.type === "antigos" ||
-    currentFilter?.type === "duplicados";
+    currentFilter?.type === "duplicados" ||
+    currentFilter?.type === "vencidas" ||
+    currentFilter?.type === "vencidasHoje";
   const periodParts = isPeriod ? (currentFilter?.value || ";").split(";") : ["", ""];
   const deInput = brToInput(periodParts[0]);
   const ateInput = brToInput(periodParts[1]);
@@ -78,6 +80,8 @@ export function ColumnFilterMenu({ openFilterCol, setOpenFilterCol, columnFilter
           {isDateColumn && <option value="period" className="bg-card-bg text-text">Período</option>}
           {openFilterCol.key === "dt_emissao_" && <option value="antigos" className="bg-card-bg text-text">Antigos</option>}
           {(openFilterCol.key === "nr_nf" || openFilterCol.key === "nr_ctrc") && <option value="duplicados" className="bg-card-bg text-text">Duplicados</option>}
+          {openFilterCol.key === "dias_vencida" && <option value="vencidas" className="bg-card-bg text-text">Vencidas</option>}
+          {openFilterCol.key === "dias_vencida" && <option value="vencidasHoje" className="bg-card-bg text-text">Vencidas hoje</option>}
         </select>
 
         {isPeriod ? (
